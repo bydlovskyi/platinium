@@ -24,9 +24,9 @@ prompt's main rules cover the common path.
 - ❌ Opened a slice PR with `--base main` while the issue had a `Blocked by`. This
   collapses 41 stacked PRs into 41 independent merges into `main` and leaves a
   reviewer to reassemble the order by hand. → Hard Rule 7, §3, §9.
-- ❌ `git merge main` into a mid-chain branch to "get the latest". This puts commits
-  on the child that the foundation doesn't have and breaks the bottom-up cascade.
-  → Rebase onto the direct parent instead.
+- ❌ `git merge main` into a branch cut from an unmerged blocker, to "get the latest".
+  This puts commits on the child that the blocker doesn't have and the stack stops
+  merging cleanly. → Rebase onto the blocker instead.
 - ❌ Skipped ahead to a later slice because it looked easier. Slice 20 on a missing
   slice 14 does not compile. → §2: take the lowest-numbered actionable slice.
 - ❌ Branched off `main` because the blocker's branch wasn't on the remote yet. That

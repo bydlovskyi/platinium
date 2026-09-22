@@ -16,7 +16,7 @@ This repository is a **Vue 3 admin portal with a mocked backend**. There is no s
 3. **NEVER commit with failing lint or typecheck.** No `--no-verify`. No `as any`. No `// @ts-ignore` without a 1-line justification.
 4. **NEVER mark a task "done" without running §6.** "Looks right" is not verification.
 5. **ONE task per session.** Pick, finish or fail explicit. No drifting.
-6. **The 41 slices form a LINEAR CASCADE-STACK.** Slice N's branch is created off slice N−1's branch and its PR targets that branch — never `main`. Only slice #11 branches off `main`. Read §3 and `ralph/branching.md` before any `git checkout -b`.
+6. **The base branch is decided, not assumed.** If this slice's blocker is already merged into `main`, cut from `main`. If it is still open, cut from the blocker's branch and stack on it. Never guess — run the check in `ralph/branching.md` before any `git checkout -b`, and open the PR against the same base you cut from.
 7. **ONLY a slice labelled `contract` may touch `src/mocks/openapi.yaml` or commit a regenerated `src/features/platform/api/schema.ts`.** If a code slice needs a contract change it did not expect, stop and comment on the owning contract issue — never edit the spec from a code slice. Parallel edits to the generated file produce unreadable conflicts.
 
 # 0. BOOTSTRAP
@@ -62,9 +62,10 @@ Before writing code:
 1. **Read the project rules.** `architecture.md` (layering, views vs features, naming) and `.claude/skills/code-conventions/SKILL.md` (the enforceable checklist). Also `docs/prd/README.md` — the cross-cutting decisions section binds every slice.
 2. **Read the parent PRD.** The issue body links it. The PRD carries the reasoning; the issue carries the scope. Both matter.
 3. **Read the issue body and every comment.** Understand the acceptance criteria literally.
-4. **Set the base branch.** Exact commands in `ralph/branching.md`:
-   - **No `Blocked by`** (only slice #11) → branch off `main`.
-   - **`Blocked by: #X`** → branch off `feat/<X>-<slug>`, whether or not that PR merged. This is the cascade.
+4. **Set the base branch.** Exact commands in `ralph/branching.md`. The rule adapts:
+   - **No `Blocked by`** → `main`.
+   - **`Blocked by: #X`, blocker already merged into `main`** → `main`. Keeps history linear.
+   - **`Blocked by: #X`, blocker still open** → `feat/<X>-<slug>`, producing a stacked PR. Work starts immediately; never wait for a merge.
 5. **Grep for related code** — services, stores, composables, components, mock handlers.
 6. If the issue conflicts with `architecture.md` or the code conventions, comment and ABORT. Don't guess.
 
@@ -148,8 +149,8 @@ gh pr view --json number,state   # existing PR?
 
 - Open PR exists → `git push` attaches the new commit.
 - No PR → `gh pr create --base <base>` with a plain-prose body.
-  - **`<base>` mirrors §3:** `main` only for slice #11; otherwise `feat/<blocker-N>-<slug>`.
-  - **NEVER `--base main` for a slice with a `Blocked by`.** That collapses the cascade into 41 independent merges into `main` and makes the stack unreviewable.
+  - **`<base>` is whatever you cut from in §3** — `main` when the blocker had already merged, the blocker's branch when it had not.
+  - **NEVER `--base main` from a branch cut off an unmerged blocker.** The diff would carry the blocker's commits and a reviewer could not separate your work from theirs.
   - One-paragraph summary plus `Refs #N`. Use `Closes #N` only when every acceptance criterion is met.
   - Screenshots if the UI changed.
   - Anything manual a reviewer must do, and the real reason for any skipped verification.

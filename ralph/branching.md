@@ -1,46 +1,72 @@
 # Branching (§3 step 4)
 
-The 41 slices are a **linear cascade-stack**. Slice N branches off slice N−1 and
-its PR targets that branch. Only slice #11 branches off `main`.
-
-Read the `Blocked by` line in the issue body. It names the blocker issue, and the
-issue body also states the branch name explicitly.
-
-## Slice #11 only — no blocker
+Slices declare `Blocked by: #X`. That names the work this slice builds on — it does
+**not** by itself decide the base branch. Check whether the blocker has already
+landed, and branch accordingly.
 
 ```bash
-git fetch origin && git checkout main && git pull --ff-only
-git checkout -b feat/11-test-harness
+git fetch origin --prune
 ```
 
-## Every other slice — `Blocked by: #X`
-
-Branch off the blocker's working branch, **whether or not its PR has merged**.
-That is what produces the stacked PR: your branch contains the blocker's commits
-plus yours, and the diff a reviewer sees is only your change.
+## Decide the base
 
 ```bash
-git fetch origin
-git checkout "feat/<X>-<blocker-slug>" && git pull --ff-only
+BLOCKER_BRANCH="feat/<X>-<blocker-slug>"     # from the blocker issue's Branch: line
+
+if git merge-base --is-ancestor "origin/$BLOCKER_BRANCH" origin/main 2>/dev/null; then
+  BASE=main                 # blocker already merged — build on main, clean history
+else
+  BASE="$BLOCKER_BRANCH"    # blocker still open — stack on it, don't wait
+fi
+```
+
+A slice with no `Blocked by` (only slice #11) always uses `main`.
+
+## Create the branch
+
+```bash
+git checkout --quiet "$BASE" && git pull --ff-only
 git checkout -b "feat/<N>-<this-slug>"
 ```
 
-The branch name for each slice is written in its issue body under **Branch:** —
-use it verbatim so the next slice in the chain can find it.
+Use the branch name from this issue's **Branch:** line verbatim — the next slice in
+the chain looks for it.
 
-If the blocker's branch does not exist on the remote yet, its slice has not been
-started. Do not skip ahead and do not branch off `main` instead — pick the blocker
-up first, or exit with `<promise>NO MORE TASKS</promise>` if it is not actionable.
+## Open the PR against the same base
 
-## Rules that keep the cascade alive
+```bash
+gh pr create --base "$BASE" ...
+```
 
-- **Never `git merge main` into a chain branch.** Only `git rebase` onto the direct
-  parent when the parent advances. Merging `main` into a mid-chain branch puts
-  commits there that the foundation doesn't have and breaks the bottom-up cascade.
-- **Never merge sibling branches into each other.** A branch that fails to
-  typecheck because a sibling changed shared types means an undeclared dependency
-  — report it, don't paper over it.
-- **PR base is the direct parent only.** Never retarget to a grandparent or to
-  `main` mid-chain. Retargeting happens on its own when the parent PR merges.
-- **Merge order is bottom-up**, and it is a human's job: deepest child first, then
-  its parent, down to slice #11 into `main`.
+`$BASE` must be the branch you actually cut from. Never target `main` from a branch
+cut off an unmerged blocker: the diff would include the blocker's commits and the
+reviewer could not tell your work from theirs.
+
+## Why it adapts
+
+Branching off the blocker is what lets work continue while a PR sits in review — it
+is the only reason an unattended run of many slices is possible. But when the
+reviewer merges promptly, that stacking buys nothing and costs a tangled graph, PR
+bases pointing at dead branches, and reliance on GitHub's auto-retarget.
+
+Checking `merge-base --is-ancestor` gives both: a clean linear history when review
+keeps up, and a working stack when it does not.
+
+## If the blocker's branch does not exist on the remote
+
+Its slice has not been started. Do not skip ahead and do not silently fall back to
+`main` — the code you need is not there. Pick the blocker up first, or exit with
+`<promise>NO MORE TASKS</promise>` if it is not actionable.
+
+## Rules that keep the history sane
+
+- **Never `git merge main` into a branch cut from an unmerged blocker.** Rebase onto
+  the blocker if it advances. Merging `main` in puts commits on your branch that the
+  blocker does not have, and the stack stops merging cleanly bottom-up.
+- **Never merge sibling branches into each other.** A branch that fails to typecheck
+  because a sibling changed shared types means an undeclared dependency — report it,
+  don't paper over it.
+- **One direct child per parent.** Two open slices with the same `Blocked by` is a
+  Y-fork; escalate rather than guessing.
+- **Merging is a human's job.** When a stack does exist, it merges bottom-up: deepest
+  child first, then its parent.

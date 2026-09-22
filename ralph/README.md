@@ -31,8 +31,8 @@ From the repository root:
 # One specific issue — use this first.
 ./ralph/once.sh 11
 
-# A list, in order. The slices are a linear cascade, so list them ascending;
-# the run stops at the first failure because later slices branch off earlier ones.
+# A list, in order. Slices build on each other, so list them ascending;
+# the run stops at the first failure because later slices depend on earlier ones.
 ./ralph/list.sh 11 12 13 14
 
 # Autonomous: N iterations, picking its own issue each time. HITL issues are
@@ -73,9 +73,18 @@ docker volume rm platinum-ralph-work                                          # 
 
 ## How work is ordered
 
-The 41 slices form a **linear cascade-stack**. Slice N's branch is cut from slice
-N−1's branch and its PR targets that branch. Only slice #11 branches off `main`.
-Merging is bottom-up and is a human's job.
+The 41 slices are strictly ordered: each declares the slice it builds on. The base
+branch is then **decided per run, not fixed**:
+
+- **Blocker already merged into `main`** → cut from `main`. Linear history, clean diff.
+- **Blocker still open** → cut from the blocker's branch, producing a stacked PR.
+
+That adaptation matters. Stacking is what lets an unattended run get through many
+slices without waiting on review — but when you merge each PR promptly, stacking
+buys nothing and costs a tangled graph and PR bases pointing at dead branches. The
+agent runs `git merge-base --is-ancestor` and picks accordingly.
+
+When a stack does exist, it merges bottom-up, and merging is always a human's job.
 
 Each issue body carries the metadata the agent reads:
 
@@ -100,7 +109,7 @@ issue list stays organised.
 | `lib.sh` | Shared plumbing: preflight, image build, prompt assembly, run. |
 | `entrypoint.sh` | Runs in the container: clone, install, launch Claude. |
 | `once.sh` / `list.sh` / `afk.sh` | Entry points. |
-| `branching.md` | The cascade rules and the exact git commands. |
+| `branching.md` | How the base branch is chosen, with the exact git commands. |
 | `checks.md` | Lint, type-check, tests, contract regeneration. |
 | `e2e.md` | Browser verification through Playwright MCP. |
 | `commit-format.md` | Commit and PR writing rules. |
