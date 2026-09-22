@@ -10,9 +10,9 @@ const { testVar } = storeToRefs(homeStore)
 const { openModal } = useModals()
 
 /* THIS IS FOR EXAMPLE PURPOSES. REMOVE ON REAL PROJECT */
-const books = ref<TBooks>([])
+const health = ref<THealth>()
 async function init () {
-  books.value = (await homeService.getBooks()).slice(0, 3)
+  health.value = await homeService.getHealth()
 }
 
 onMounted(init)
@@ -33,6 +33,6 @@ onMounted(init)
 
     <p class="text-primary">{{ testVar }}</p>
 
-    <p class="text-primary">{{ books }}</p>
+    <p class="text-primary">{{ health }}</p>
   </div>
 </template>

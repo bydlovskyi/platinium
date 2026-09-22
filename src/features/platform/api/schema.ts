@@ -4,814 +4,21 @@
  */
 
 export interface paths {
-    "/api/v1/Activities": {
+    "/health": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Activity"][];
-                        "application/json; v=1.0": components["schemas"]["Activity"][];
-                        "text/json; v=1.0": components["schemas"]["Activity"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Activity"];
-                    "text/json; v=1.0": components["schemas"]["Activity"];
-                    "application/*+json; v=1.0": components["schemas"]["Activity"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Activity"];
-                        "application/json; v=1.0": components["schemas"]["Activity"];
-                        "text/json; v=1.0": components["schemas"]["Activity"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Activities/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Activity"];
-                        "application/json; v=1.0": components["schemas"]["Activity"];
-                        "text/json; v=1.0": components["schemas"]["Activity"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Activity"];
-                    "text/json; v=1.0": components["schemas"]["Activity"];
-                    "application/*+json; v=1.0": components["schemas"]["Activity"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Activity"];
-                        "application/json; v=1.0": components["schemas"]["Activity"];
-                        "text/json; v=1.0": components["schemas"]["Activity"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Authors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Author"][];
-                        "application/json; v=1.0": components["schemas"]["Author"][];
-                        "text/json; v=1.0": components["schemas"]["Author"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Author"];
-                    "text/json; v=1.0": components["schemas"]["Author"];
-                    "application/*+json; v=1.0": components["schemas"]["Author"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Author"];
-                        "application/json; v=1.0": components["schemas"]["Author"];
-                        "text/json; v=1.0": components["schemas"]["Author"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Authors/authors/books/{idBook}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    idBook: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Author"][];
-                        "application/json; v=1.0": components["schemas"]["Author"][];
-                        "text/json; v=1.0": components["schemas"]["Author"][];
-                    };
-                };
-            };
-        };
+        /**
+         * Liveness check
+         * @description Trivial endpoint proving the mock API is installed and intercepting requests, and that type generation works end to end.
+         */
+        get: operations["getHealth"];
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Authors/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Author"];
-                        "application/json; v=1.0": components["schemas"]["Author"];
-                        "text/json; v=1.0": components["schemas"]["Author"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Author"];
-                    "text/json; v=1.0": components["schemas"]["Author"];
-                    "application/*+json; v=1.0": components["schemas"]["Author"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Author"];
-                        "application/json; v=1.0": components["schemas"]["Author"];
-                        "text/json; v=1.0": components["schemas"]["Author"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Books": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Book"][];
-                        "application/json; v=1.0": components["schemas"]["Book"][];
-                        "text/json; v=1.0": components["schemas"]["Book"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Book"];
-                    "text/json; v=1.0": components["schemas"]["Book"];
-                    "application/*+json; v=1.0": components["schemas"]["Book"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Books/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["Book"];
-                        "application/json; v=1.0": components["schemas"]["Book"];
-                        "text/json; v=1.0": components["schemas"]["Book"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["Book"];
-                    "text/json; v=1.0": components["schemas"]["Book"];
-                    "application/*+json; v=1.0": components["schemas"]["Book"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/CoverPhotos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["CoverPhoto"][];
-                        "application/json; v=1.0": components["schemas"]["CoverPhoto"][];
-                        "text/json; v=1.0": components["schemas"]["CoverPhoto"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    "text/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    "application/*+json; v=1.0": components["schemas"]["CoverPhoto"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["CoverPhoto"];
-                        "application/json; v=1.0": components["schemas"]["CoverPhoto"];
-                        "text/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/CoverPhotos/books/covers/{idBook}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    idBook: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["CoverPhoto"][];
-                        "application/json; v=1.0": components["schemas"]["CoverPhoto"][];
-                        "text/json; v=1.0": components["schemas"]["CoverPhoto"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/CoverPhotos/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["CoverPhoto"];
-                        "application/json; v=1.0": components["schemas"]["CoverPhoto"];
-                        "text/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    "text/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    "application/*+json; v=1.0": components["schemas"]["CoverPhoto"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["CoverPhoto"];
-                        "application/json; v=1.0": components["schemas"]["CoverPhoto"];
-                        "text/json; v=1.0": components["schemas"]["CoverPhoto"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain; v=1.0": components["schemas"]["User"][];
-                        "application/json; v=1.0": components["schemas"]["User"][];
-                        "text/json; v=1.0": components["schemas"]["User"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["User"];
-                    "text/json; v=1.0": components["schemas"]["User"];
-                    "application/*+json; v=1.0": components["schemas"]["User"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/Users/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json; v=1.0": components["schemas"]["User"];
-                    "text/json; v=1.0": components["schemas"]["User"];
-                    "application/*+json; v=1.0": components["schemas"]["User"];
-                };
-            };
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -821,53 +28,143 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Activity: {
-            /** Format: int32 */
-            id?: number;
-            title?: string | null;
-            /** Format: date-time */
-            dueDate?: string;
-            completed?: boolean;
+        /** @description Body returned by `GET /health`. */
+        HealthStatus: {
+            /**
+             * @description Literal liveness indicator.
+             * @enum {string}
+             */
+            status: "ok";
         };
-        Author: {
-            /** Format: int32 */
-            id?: number;
-            /** Format: int32 */
-            idBook?: number;
-            firstName?: string | null;
-            lastName?: string | null;
+        /** @description Shared pagination envelope metadata. Every list endpoint returns a `data` array alongside a `meta` object of this shape. */
+        PaginationMeta: {
+            /** @description The current page number, 1-indexed. */
+            page: number;
+            /** @description The number of items returned per page. */
+            perPage: number;
+            /** @description The total number of items across all pages. */
+            total: number;
+            /** @description The total number of pages available. */
+            totalPages: number;
         };
-        Book: {
-            /** Format: int32 */
-            id?: number;
-            title?: string | null;
-            description?: string | null;
-            /** Format: int32 */
-            pageCount?: number;
-            excerpt?: string | null;
-            /** Format: date-time */
-            publishDate?: string;
+        /** @description A map of field name to a human-readable message describing why that field failed validation. */
+        ValidationError: {
+            [key: string]: string;
         };
-        CoverPhoto: {
-            /** Format: int32 */
-            id?: number;
-            /** Format: int32 */
-            idBook?: number;
-            /** Format: uri */
-            url?: string | null;
+        /** @description The shared error envelope returned by every failed request: a machine-readable code, a human message and, for validation failures, a per-field message map. */
+        ErrorResponse: {
+            /** @description Machine-readable error code, e.g. `VALIDATION_ERROR`, `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. */
+            code: string;
+            /** @description Human-readable summary of the failure. */
+            message: string;
+            /** @description Optional per-field validation messages. */
+            errors?: components["schemas"]["ValidationError"];
         };
-        User: {
-            /** Format: int32 */
-            id?: number;
-            userName?: string | null;
-            password?: string | null;
+        /**
+         * @description Lifecycle status of an Event.
+         * @enum {string}
+         */
+        EventStatus: "draft" | "published" | "cancelled" | "completed";
+        /**
+         * @description Lifecycle status of a Ticket.
+         * @enum {string}
+         */
+        TicketStatus: "draft" | "on_sale" | "sold_out" | "archived";
+        /**
+         * @description Supported currency codes (ISO 4217). Ticket prices are restricted to this set rather than a free-form string.
+         * @enum {string}
+         */
+        Currency: "USD" | "EUR" | "GBP";
+        /**
+         * @description Sort direction for any `sort` parameter.
+         * @enum {string}
+         */
+        SortOrder: "asc" | "desc";
+    };
+    responses: {
+        /** @description The request failed validation. */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The session is absent or invalid. */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description No resource exists with the given identifier. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The request conflicts with the current state of the resource, e.g. a referential-integrity violation. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description An unexpected or forced failure occurred while handling the request. */
+        InternalError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
         };
     };
-    responses: never;
-    parameters: never;
+    parameters: {
+        /** @description Free-text search applied across an endpoint's declared searchable fields. */
+        search: string;
+        /** @description Field name to sort by. Valid values are declared by the owning endpoint. */
+        sort: string;
+        /** @description Sort direction, paired with `sort`. */
+        order: components["schemas"]["SortOrder"];
+        /** @description 1-indexed page number. */
+        page: number;
+        /** @description Number of items per page. */
+        perPage: number;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service is up. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthStatus"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+}
