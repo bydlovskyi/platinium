@@ -7,15 +7,53 @@
   Component based variables are defined in the respective components css files
 */
 
+/*
+  This file is the whole colour layer of the design system.
+
+  Element Plus already ships a complete, designed light *and* dark scale
+  (`theme-chalk/base.css` and `theme-chalk/dark/css-vars.css`, both loaded
+  first — see index.css): surfaces, fills, masks, shadows, borders and text,
+  with `color-scheme: dark` set for the UA widgets. Those are this project's
+  neutrals, used as-is. Overriding them is what previously left dialogs,
+  inputs and overlays white in dark mode, so `--el-bg-color-*`,
+  `--el-fill-color-*`, `--el-border-color-*`, `--el-text-color-*`,
+  `--el-mask-color-*` and `--el-box-shadow-*` are deliberately untouched.
+
+  What is left are the five hues this project actually decides — the brand
+  accent and the four event/ticket statuses — which map onto Element Plus's
+  own semantic slots (primary / success / warning / danger / info). They are
+  the only literal colour values in the codebase; `theme.css` exposes them to
+  Tailwind as `bg-accent`, `text-status-published` and so on, so components
+  never touch a hex or an `--el-*` name directly.
+
+  The `html.dark` block is required, not optional: `dark/css-vars.css`
+  re-declares every `--el-color-*` at a higher specificity than `:root`, so
+  without it Element Plus's stock blue would win back in dark mode.
+
+  Contrast (WCAG, against `--el-bg-color-page` / `--el-bg-color` of the same
+  theme; AA normal text needs 4.5:1):
+
+                                light         dark
+    primary  (accent)        5.66 / 6.29   6.64 / 6.18
+    success  (published)     4.52 / 5.02  11.36 / 10.57
+    warning  (draft)         6.39 / 7.09  11.86 / 11.04
+    danger   (cancelled)     5.83 / 6.47   5.26 / 4.90
+    info     (completed)     5.34 / 5.93   9.24 / 8.60
+
+  Element Plus's own neutrals clear it too: text-primary 11.73 / 16.40,
+  text-regular (used for muted copy) 5.50 / 13.20. `--el-text-color-secondary`
+  does not (~2.8:1 on white), so muted text maps to `regular` in theme.css.
+
+  Note on greyscale: four status hues that all clear 4.5:1 against the same
+  surface necessarily sit in a narrow luminance band — the best achievable
+  separation between any two is ~1.2:1, which is not perceptible. Colour
+  cannot carry status alone here; the status components in later slices pair
+  it with the label text and a differing weight/shape.
+*/
+
 :root {
-  /* PRIMARY COLOR */
-  --el-color-primary: var(--color-primary);
-  /*
-    The following example of primary color is just an example.
-    It is dependant on your project ui kit and colors palette.
-    These variables must be defined for each accent colors like
-    primary/success/warning/danger/info to ensure proper element plus styling.
-  */
+  /* PRIMARY COLOR — the brand accent */
+  --el-color-primary: #4F46E5;
   --el-color-primary-light-3: color-mix(in srgb, var(--el-color-primary) 70%, white);
   --el-color-primary-light-5: color-mix(in srgb, var(--el-color-primary) 50%, white);
   --el-color-primary-light-7: color-mix(in srgb, var(--el-color-primary) 30%, white);
@@ -23,48 +61,109 @@
   --el-color-primary-light-9: color-mix(in srgb, var(--el-color-primary) 10%, white);
   --el-color-primary-dark-2: color-mix(in srgb, var(--el-color-primary) 80%, black);
 
-  /* SUCCESS COLOR */
-  /* ... */
+  /* SUCCESS COLOR — the "Published" event/ticket status */
+  --el-color-success: #15803D;
+  --el-color-success-light-3: color-mix(in srgb, var(--el-color-success) 70%, white);
+  --el-color-success-light-5: color-mix(in srgb, var(--el-color-success) 50%, white);
+  --el-color-success-light-7: color-mix(in srgb, var(--el-color-success) 30%, white);
+  --el-color-success-light-8: color-mix(in srgb, var(--el-color-success) 20%, white);
+  --el-color-success-light-9: color-mix(in srgb, var(--el-color-success) 10%, white);
+  --el-color-success-dark-2: color-mix(in srgb, var(--el-color-success) 80%, black);
 
-  /* WARNING COLOR */
-  /* ... */
+  /* WARNING COLOR — the "Draft" event/ticket status */
+  --el-color-warning: #92400E;
+  --el-color-warning-light-3: color-mix(in srgb, var(--el-color-warning) 70%, white);
+  --el-color-warning-light-5: color-mix(in srgb, var(--el-color-warning) 50%, white);
+  --el-color-warning-light-7: color-mix(in srgb, var(--el-color-warning) 30%, white);
+  --el-color-warning-light-8: color-mix(in srgb, var(--el-color-warning) 20%, white);
+  --el-color-warning-light-9: color-mix(in srgb, var(--el-color-warning) 10%, white);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--el-color-warning) 80%, black);
 
-  /* DANGER COLOR */
-  /* ... */
+  /* DANGER COLOR — destructive actions and the "Cancelled" status, one hue */
+  --el-color-danger: #B91C1C;
+  --el-color-danger-light-3: color-mix(in srgb, var(--el-color-danger) 70%, white);
+  --el-color-danger-light-5: color-mix(in srgb, var(--el-color-danger) 50%, white);
+  --el-color-danger-light-7: color-mix(in srgb, var(--el-color-danger) 30%, white);
+  --el-color-danger-light-8: color-mix(in srgb, var(--el-color-danger) 20%, white);
+  --el-color-danger-light-9: color-mix(in srgb, var(--el-color-danger) 10%, white);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--el-color-danger) 80%, black);
 
-  /* INFO COLOR */
-  /* ... */
-
-  /* TEXT COLORS */
-  --el-text-color-primary: var(--color-text-primary);
-  --el-text-color-regular: var(--color-text-regular);
-  --el-text-color-secondary: var(--color-text-secondary);
-  --el-text-color-placeholder: var(--color-text-placeholder);
-  --el-text-color-disabled: var(--color-text-disabled);
-
-  /* BORDER COLORS */
-  --el-border-color: var(--color-border);
-  --el-border-color-light: var(--color-border-light);
-  --el-border-color-lighter: var(--color-border-lighter);
-  --el-border-color-extra-light: var(--color-border-extra-light);
-  --el-border-color-dark: var(--color-border-dark);
-  --el-border-color-darker: var(--color-border-darker);
+  /* INFO COLOR — the "Completed" event/ticket status */
+  --el-color-info: #0369A1;
+  --el-color-info-light-3: color-mix(in srgb, var(--el-color-info) 70%, white);
+  --el-color-info-light-5: color-mix(in srgb, var(--el-color-info) 50%, white);
+  --el-color-info-light-7: color-mix(in srgb, var(--el-color-info) 30%, white);
+  --el-color-info-light-8: color-mix(in srgb, var(--el-color-info) 20%, white);
+  --el-color-info-light-9: color-mix(in srgb, var(--el-color-info) 10%, white);
+  --el-color-info-dark-2: color-mix(in srgb, var(--el-color-info) 80%, black);
 
   /* FONT SIZE */
   --el-font-size-extra-large: var(--text-xl);
   --el-font-size-large: var(--text-lg);
   --el-font-size-medium: var(--text-base);
-  --el-font-size-base: var(--text-sm);
-  --el-font-size-small: var(--text-sm);
-  --el-font-size-extra-small: var(--text-xs);
+  --el-font-size-base: var(--text-body);
+  --el-font-size-small: var(--text-body);
+  --el-font-size-extra-small: var(--text-caption);
 
   /* LINE HEIGHT */
-  --el-font-line-height-primary: var(--text-base--line-height);
+  --el-font-line-height-primary: var(--text-body--line-height);
 
-  /* BORDER RADIUS */
-  --el-border-radius-base: var(--radius-sm);
-  --el-border-radius-small: var(--radius-xs);
-  --el-border-radius-round: var(--radius-3xl);
-  --el-border-radius-circle: var(--radius-full);
+  /* BORDER RADIUS — restricted to this project's three-step radius scale.
+     `circle` stays a literal percentage: Tailwind v4 has no `--radius-full`
+     theme variable (`rounded-full` is a static utility), so the previous
+     `var(--radius-full)` resolved to nothing. */
+  --el-border-radius-base: var(--radius-token-sm);
+  --el-border-radius-small: var(--radius-token-sm);
+  --el-border-radius-round: var(--radius-token-lg);
+  --el-border-radius-circle: 100%;
 }
 
+/*
+  Dark theme: the five hues are lightened so they still clear AA against the
+  near-black surfaces, and the derived ladders are re-derived because Element
+  Plus's dark convention inverts the scale — `light-N` steps mix *towards* the
+  page background so they stay usable as fills, and `dark-2` becomes the
+  lighter hover step.
+*/
+html.dark {
+  --el-color-primary: #818CF8;
+  --el-color-success: #4ADE80;
+  --el-color-warning: #FBBF24;
+  --el-color-danger: #EF4444;
+  --el-color-info: #38BDF8;
+
+  --el-color-primary-light-3: color-mix(in srgb, var(--el-color-primary) 70%, black);
+  --el-color-primary-light-5: color-mix(in srgb, var(--el-color-primary) 50%, black);
+  --el-color-primary-light-7: color-mix(in srgb, var(--el-color-primary) 30%, black);
+  --el-color-primary-light-8: color-mix(in srgb, var(--el-color-primary) 20%, black);
+  --el-color-primary-light-9: color-mix(in srgb, var(--el-color-primary) 10%, black);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--el-color-primary) 80%, white);
+
+  --el-color-success-light-3: color-mix(in srgb, var(--el-color-success) 70%, black);
+  --el-color-success-light-5: color-mix(in srgb, var(--el-color-success) 50%, black);
+  --el-color-success-light-7: color-mix(in srgb, var(--el-color-success) 30%, black);
+  --el-color-success-light-8: color-mix(in srgb, var(--el-color-success) 20%, black);
+  --el-color-success-light-9: color-mix(in srgb, var(--el-color-success) 10%, black);
+  --el-color-success-dark-2: color-mix(in srgb, var(--el-color-success) 80%, white);
+
+  --el-color-warning-light-3: color-mix(in srgb, var(--el-color-warning) 70%, black);
+  --el-color-warning-light-5: color-mix(in srgb, var(--el-color-warning) 50%, black);
+  --el-color-warning-light-7: color-mix(in srgb, var(--el-color-warning) 30%, black);
+  --el-color-warning-light-8: color-mix(in srgb, var(--el-color-warning) 20%, black);
+  --el-color-warning-light-9: color-mix(in srgb, var(--el-color-warning) 10%, black);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--el-color-warning) 80%, white);
+
+  --el-color-danger-light-3: color-mix(in srgb, var(--el-color-danger) 70%, black);
+  --el-color-danger-light-5: color-mix(in srgb, var(--el-color-danger) 50%, black);
+  --el-color-danger-light-7: color-mix(in srgb, var(--el-color-danger) 30%, black);
+  --el-color-danger-light-8: color-mix(in srgb, var(--el-color-danger) 20%, black);
+  --el-color-danger-light-9: color-mix(in srgb, var(--el-color-danger) 10%, black);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--el-color-danger) 80%, white);
+
+  --el-color-info-light-3: color-mix(in srgb, var(--el-color-info) 70%, black);
+  --el-color-info-light-5: color-mix(in srgb, var(--el-color-info) 50%, black);
+  --el-color-info-light-7: color-mix(in srgb, var(--el-color-info) 30%, black);
+  --el-color-info-light-8: color-mix(in srgb, var(--el-color-info) 20%, black);
+  --el-color-info-light-9: color-mix(in srgb, var(--el-color-info) 10%, black);
+  --el-color-info-dark-2: color-mix(in srgb, var(--el-color-info) 80%, white);
+}
