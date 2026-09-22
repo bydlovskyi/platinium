@@ -56,6 +56,32 @@ npm run build         # type-check + production build
 npm run preview       # serve the production build locally
 ```
 
+## Docker
+
+A multi-stage `Dockerfile` builds the production bundle and serves it with nginx.
+The build stage installs from the lockfile, type-checks and builds; the runtime
+stage contains only the compiled `dist/` output and nginx — no source, no
+`node_modules`, no build toolchain.
+
+```sh
+docker compose up --build   # build the image and start the container
+```
+
+The portal is then available at [http://localhost:8080](http://localhost:8080).
+
+nginx is configured (see [`nginx.conf`](nginx.conf)) to fall back to `index.html`
+for unknown paths, so refreshing a nested client-side route doesn't 404. Hashed
+assets under `/assets/` are served with a long, immutable cache lifetime;
+`index.html` itself is served with `Cache-Control: no-cache` so a new deploy is
+picked up on the next request.
+
+To run the image directly instead of through compose:
+
+```sh
+docker build -t ticket-admin-portal .
+docker run --rm -p 8080:80 ticket-admin-portal
+```
+
 ## Project structure
 
 ```
