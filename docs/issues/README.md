@@ -41,7 +41,7 @@ Two orderings are deliberate and worth reading before picking up work:
 | Issue | Title | PRD | Type | Blocked by |
 |---|---|---|---|---|
 | [#11](https://github.com/bydlovskyi/platinum/issues/11) | [Test harness & quality gates](011-test-harness.md) | [008](../prd/PRD-008-testing-strategy-and-quality-gates.md) | AFK | — foundation |
-| [#12](https://github.com/bydlovskyi/platinum/issues/12) | [Design system foundation — tokens, typography, dark palette, motion](012-design-system-foundation.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | HITL | #11 |
+| [#12](https://github.com/bydlovskyi/platinum/issues/12) | [Design system foundation — tokens, typography, dark palette, motion](012-design-system-foundation.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #11 |
 | [#13](https://github.com/bydlovskyi/platinum/issues/13) | [API contract foundation — local OpenAPI spec, offline generation, type helpers](013-api-contract-foundation.md) | [001](../prd/PRD-001-platform-foundation.md) | AFK | #12 |
 | [#14](https://github.com/bydlovskyi/platinum/issues/14) | [Mock database — query engine and seed fixtures](014-mock-database.md) | [001](../prd/PRD-001-platform-foundation.md) | AFK | #13 |
 | [#15](https://github.com/bydlovskyi/platinum/issues/15) | [MSW mock backend — browser worker, node server, handler factory, chaos controls](015-msw-mock-backend.md) | [001](../prd/PRD-001-platform-foundation.md) | AFK | #14 |
@@ -73,7 +73,7 @@ Two orderings are deliberate and worth reading before picking up work:
 | [#41](https://github.com/bydlovskyi/platinum/issues/41) | [Designed empty, loading and error states](041-designed-states.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #40 |
 | [#42](https://github.com/bydlovskyi/platinum/issues/42) | [Motion and micro-interactions](042-motion.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #41 |
 | [#43](https://github.com/bydlovskyi/platinum/issues/43) | [Dashboard visual design](043-dashboard-design.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #42 |
-| [#44](https://github.com/bydlovskyi/platinum/issues/44) | [Iconography, density and responsive refinement](044-polish-pass.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | HITL | #43 |
+| [#44](https://github.com/bydlovskyi/platinum/issues/44) | [Iconography, density and responsive refinement](044-polish-pass.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #43 |
 | [#45](https://github.com/bydlovskyi/platinum/issues/45) | [Design system documentation](045-design-system-docs.md) | [010](../prd/PRD-010-visual-design-system-and-interface-polish.md) | AFK | #44 |
 | [#46](https://github.com/bydlovskyi/platinum/issues/46) | [Test gap review](046-test-gap-review.md) | [008](../prd/PRD-008-testing-strategy-and-quality-gates.md) | AFK | #45 |
 | [#47](https://github.com/bydlovskyi/platinum/issues/47) | [Repository final pass and screenshots](047-repo-final-pass.md) | [009](../prd/PRD-009-documentation-and-delivery.md) | AFK | #46 |
@@ -85,5 +85,6 @@ Two orderings are deliberate and worth reading before picking up work:
 ## Types
 
 - **AFK** — implementable and mergeable without human interaction.
-- **HITL** — requires a human: a design judgement (12, 34), the author's own engineering
-  judgement (39, 40), or manual verification (41).
+- **HITL** — requires a human: the author's own engineering judgement (#49, #50) or
+  manual verification (#51). The design slices (#12, #44) were HITL until the palette,
+  typeface, density and motion were decided; those choices are recorded on issue #12.

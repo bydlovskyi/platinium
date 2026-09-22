@@ -4,7 +4,7 @@
 |---|---|
 | **GitHub issue** | [#12](https://github.com/bydlovskyi/platinum/issues/12) |
 | **Parent PRD** | [#10](https://github.com/bydlovskyi/platinum/issues/10) · [`PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md) |
-| **Type** | HITL |
+| **Type** | AFK |
 | **Slice** | 2 of 41 |
 | **Branch** | `feat/12-design-system-foundation` |
 
@@ -14,6 +14,8 @@ Parent branch: feat/11-test-harness
 Branch: feat/12-design-system-foundation
 Blocked by: #11
 ```
+
+> **Design decisions:** The palette, typeface, density and motion tokens are decided and recorded in a comment on the GitHub issue. Implement exactly those values.
 
 ## Parent PRD
 

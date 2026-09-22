@@ -4,7 +4,7 @@
 |---|---|
 | **GitHub issue** | [#44](https://github.com/bydlovskyi/platinum/issues/44) |
 | **Parent PRD** | [#10](https://github.com/bydlovskyi/platinum/issues/10) · [`PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md) |
-| **Type** | HITL |
+| **Type** | AFK |
 | **Slice** | 34 of 41 |
 | **Branch** | `feat/44-polish-pass` |
 
@@ -14,6 +14,8 @@ Parent branch: feat/43-dashboard-design
 Branch: feat/44-polish-pass
 Blocked by: #43
 ```
+
+> **Design decisions:** Judged against the design decisions recorded on issue #12. A human reviews the result in the PR rather than gating the chain on it.
 
 ## Parent PRD
 
