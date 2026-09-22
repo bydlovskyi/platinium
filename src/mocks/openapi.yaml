@@ -1,0 +1,225 @@
+openapi: 3.1.0
+info:
+  title: Ticket Management Admin Portal API
+  description: >
+    Hand-written contract for the Ticket Management Admin Portal. This is the
+    single source of truth for the API surface — types in
+    `src/features/platform/api/schema.ts` are generated from this document by
+    `npm run openapi-generate` and must never be hand-edited. Entity paths for
+    Events, Categories and Tickets, and the authentication paths, are declared
+    by their own owning slices; this document only defines the shared
+    vocabulary (pagination, errors, enums, reusable parameters and responses)
+    plus a trivial `/health` endpoint that proves generation and typing work
+    end to end.
+  version: '1.0'
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness check
+      description: >
+        Trivial endpoint proving the mock API is installed and intercepting
+        requests, and that type generation works end to end.
+      tags:
+        - System
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      description: Body returned by `GET /health`.
+      properties:
+        status:
+          type: string
+          description: Literal liveness indicator.
+          enum:
+            - ok
+      required:
+        - status
+      additionalProperties: false
+
+    PaginationMeta:
+      type: object
+      description: >
+        Shared pagination envelope metadata. Every list endpoint returns a
+        `data` array alongside a `meta` object of this shape.
+      properties:
+        page:
+          type: integer
+          description: The current page number, 1-indexed.
+          minimum: 1
+        perPage:
+          type: integer
+          description: The number of items returned per page.
+          minimum: 1
+        total:
+          type: integer
+          description: The total number of items across all pages.
+          minimum: 0
+        totalPages:
+          type: integer
+          description: The total number of pages available.
+          minimum: 0
+      required:
+        - page
+        - perPage
+        - total
+        - totalPages
+      additionalProperties: false
+
+    ValidationError:
+      type: object
+      description: >
+        A map of field name to a human-readable message describing why that
+        field failed validation.
+      additionalProperties:
+        type: string
+
+    ErrorResponse:
+      type: object
+      description: >
+        The shared error envelope returned by every failed request: a
+        machine-readable code, a human message and, for validation failures,
+        a per-field message map.
+      properties:
+        code:
+          type: string
+          description: >
+            Machine-readable error code, e.g. `VALIDATION_ERROR`,
+            `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`.
+        message:
+          type: string
+          description: Human-readable summary of the failure.
+        errors:
+          allOf:
+            - $ref: '#/components/schemas/ValidationError'
+          description: Optional per-field validation messages.
+      required:
+        - code
+        - message
+      additionalProperties: false
+
+    EventStatus:
+      type: string
+      description: Lifecycle status of an Event.
+      enum:
+        - draft
+        - published
+        - cancelled
+        - completed
+
+    TicketStatus:
+      type: string
+      description: Lifecycle status of a Ticket.
+      enum:
+        - draft
+        - on_sale
+        - sold_out
+        - archived
+
+    Currency:
+      type: string
+      description: Supported currency codes (ISO 4217). Ticket prices are restricted to this set rather than a free-form string.
+      enum:
+        - USD
+        - EUR
+        - GBP
+
+    SortOrder:
+      type: string
+      description: Sort direction for any `sort` parameter.
+      enum:
+        - asc
+        - desc
+
+  parameters:
+    search:
+      name: search
+      in: query
+      required: false
+      description: Free-text search applied across an endpoint's declared searchable fields.
+      schema:
+        type: string
+
+    sort:
+      name: sort
+      in: query
+      required: false
+      description: Field name to sort by. Valid values are declared by the owning endpoint.
+      schema:
+        type: string
+
+    order:
+      name: order
+      in: query
+      required: false
+      description: Sort direction, paired with `sort`.
+      schema:
+        $ref: '#/components/schemas/SortOrder'
+
+    page:
+      name: page
+      in: query
+      required: false
+      description: 1-indexed page number.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    perPage:
+      name: perPage
+      in: query
+      required: false
+      description: Number of items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: The request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: The session is absent or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: No resource exists with the given identifier.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: The request conflicts with the current state of the resource, e.g. a referential-integrity violation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: An unexpected or forced failure occurred while handling the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
