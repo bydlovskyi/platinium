@@ -1,0 +1,22 @@
+{
+  // Not composite: this project needs test files plus every app source file
+  // they import in the same program. Composite mode requires the full file
+  // closure to be declared upfront in "include" — fine for isolated leaf
+  // files, but the auto-import globals this app relies on (RouteRecordRaw,
+  // Component, ...) only resolve when the whole src tree is part of the
+  // same program. "include" below is tsconfig.app.json's own list restated
+  // (TS "extends" replaces arrays rather than merging them) with "exclude"
+  // cleared so *.spec.ts/*.test.ts come back in, plus tests/**/*.
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "dts/**/*",
+    "src/**/*",
+    "src/**/*.vue",
+    "tests/**/*"
+  ],
+  "exclude": [],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+    "types": ["node", "vitest/globals"]
+  }
+}

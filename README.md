@@ -37,10 +37,17 @@ cp .env.example .env
 ## Development commands
 
 ```sh
-npm run dev           # start the dev server with HMR
-npm run lint          # ESLint, autofix
-npm run type-check    # vue-tsc
+npm run dev              # start the dev server with HMR
+npm run lint             # ESLint, autofix
+npm run type-check       # vue-tsc
+npm run test             # unit + integration suites
+npm run test:unit        # unit suite only
+npm run test:integration # integration suite only
+npm run test:watch       # watch mode; pass a path or -t <name> to target one file/test
+npm run test:coverage    # coverage report, no threshold gate
 ```
+
+Testing strategy, the kit's helpers and naming/location conventions: [`TESTING.md`](TESTING.md).
 
 ## Build commands
 
@@ -72,6 +79,10 @@ src/
   types/          Application-owned type definitions
   utils/          Global utilities (filters, helpers, event emitter)
   views/          Route-bound pages
+tests/
+  integration/    Integration tests, organised by journey
+  support/        Test kit — mounting helpers, viewport, session/database seams
+  setup.ts        Global Vitest setup (MSW server lifecycle)
 ```
 
 ## Architecture overview
