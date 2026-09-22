@@ -11,7 +11,7 @@
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix --cache",
     "prepare": "husky",
-    "openapi-generate": "npx openapi-typescript https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json -o ./src/features/platform/api/schema.ts",
+    "openapi-generate": "openapi-typescript ./src/mocks/openapi.yaml -o ./src/features/platform/api/schema.ts",
     "postinstall": "run-p openapi-generate",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
@@ -49,6 +49,7 @@
     "lint-staged": "^16.4.0",
     "msw": "^2.15.0",
     "npm-run-all2": "^8.0.4",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "unplugin-auto-import": "^21.0.0",
@@ -57,7 +58,8 @@
     "vite-plugin-vue-devtools": "^8.0.5",
     "vite-svg-loader": "^5.1.0",
     "vitest": "^4.1.11",
-    "vue-tsc": "^3.2.4"
+    "vue-tsc": "^3.2.4",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
