@@ -1,21 +1,21 @@
 ---
 name: worker-team-agent
-description: End-to-end orchestrator that chains feature-team → debug-team + review-team in a loop until the task is complete, then adds E2E test templates and runs them. Use this skill for any feature work that requires multiple steps and iterations, given a GitHub issue number or a written plan. The orchestrator ensures a disciplined process - build from the spec, validate with both debugging and code review, loop back to building if issues are found, then verify via E2E tests. Always capture lessons learned at the end to improve future runs.
+description: End-to-end orchestrator that chains feature-team → debug-team + review-team in a loop until the task is complete, then verifies it with the project test suite and a browser pass. Use this skill for any feature work that requires multiple steps and iterations, given a GitHub issue number or a written plan. The orchestrator ensures a disciplined process - build from the spec, validate with both debugging and code review, loop back to building if issues are found, then verify via E2E tests. Always capture lessons learned at the end to improve future runs.
 ---
 
 # Orchestrator — Build, Review, Test Loop
 
-You are the **orchestrator**. You drive a feature from a **GitHub issue or existing plan** to a clean, reviewed implementation, then verify it end-to-end with browser tests.
+You are the **orchestrator**. You drive a feature from a **GitHub issue or existing plan** to a clean, reviewed implementation, then verify it with the project test suite and a browser pass.
 
 **Announce at start:** "Using the orchestrator to build, review, and test this feature end-to-end."
 
 **Prerequisite:** Either a GitHub issue number/URL **or** a written plan file (typically in `docs/plans/`) must be provided. The orchestrator does NOT write plans — if neither is available, stop and ask the user to provide one.
 
-**Before anything else:** Read `lessons-learned.md` (in this skill's folder: `.claude/skills/agent/lessons-learned.md`) for knowledge from past runs. Past lessons inform every phase — building avoids repeated mistakes, reviewing watches for recurring issues, and testing targets known-fragile paths.
+**Before anything else:** Read `lessons-learned.md` (in this skill's folder: `.claude/skills/worker-team-agent/lessons-learned.md`) for knowledge from past runs. Past lessons inform every phase — building avoids repeated mistakes, reviewing watches for recurring issues, and testing targets known-fragile paths.
 
 ## Important: How to Load Team Playbooks
 
-All team playbooks are `.md` files **in this skill's folder** (`.claude/skills/agent/`):
+All team playbooks are `.md` files **in this skill's folder** (`.claude/skills/worker-team-agent/`):
 
 | Playbook | File |
 |----------|------|
@@ -27,7 +27,7 @@ All team playbooks are `.md` files **in this skill's folder** (`.claude/skills/a
 
 **To use a playbook:** Read the `.md` file from this skill's folder and follow its instructions. Do NOT invoke these as slash commands — they are local files, not commands.
 
-The `tests` skill (`.claude/skills/tests/`) is invoked via the Skill tool, not read as a playbook.
+Testing is not a playbook: Phase 3 writes Vitest specs directly and runs them. Browser checks use the caller-supplied playbook, or the `playwright` skill.
 
 ## Flow
 
@@ -56,7 +56,7 @@ The `tests` skill (`.claude/skills/tests/`) is invoked via the Skill tool, not r
               ┌──────────────────────┐
               │ PHASE 3: TEST        │
               │ add templates to     │
-              │ /tests, run /tests   │
+              │ vitest + browser pass │
               └──────────┬───────────┘
                          ▼
               ┌─────────────────┐
@@ -157,14 +157,14 @@ If any of these is violated by an earlier human action (e.g., the user already m
 
 ## Phase 1: Build
 
-1. Read `.claude/skills/agent/feature-team.md` and follow its instructions to execute the plan.
+1. Read `.claude/skills/worker-team-agent/feature-team.md` and follow its instructions to execute the plan.
    - On the **first iteration**, feature-team builds the full feature from the plan.
    - On **subsequent iterations** (fix loops), pass the specific issues to fix. Feature-team should focus ONLY on the reported issues, not rebuild everything.
 2. Wait for feature-team to complete and report.
 
 ## Phase 2: Validate
 
-1. After feature-team finishes, read and follow **both** `.claude/skills/agent/debug-team.md` AND `.claude/skills/agent/review-team.md` **in parallel**.
+1. After feature-team finishes, read and follow **both** `.claude/skills/worker-team-agent/debug-team.md` AND `.claude/skills/worker-team-agent/review-team.md` **in parallel**.
    - debug-team: Investigate any runtime issues, test the feature for bugs.
    - review-team: Review code quality, security, and architecture compliance.
 2. Wait for BOTH teams to complete their reports.
@@ -200,27 +200,43 @@ Collect findings from both teams and categorize them:
 
 Once the build passes review, verify the feature end-to-end in a real browser.
 
-### 3a. Add templates to the `/tests` skill
+### 3a. Write and run the automated tests
 
-1. Read the current test templates at `.claude/skills/tests/templates.md` — match the existing format exactly (numbered section, status emoji, step-by-step Playwright instructions, separators).
-2. Based on the plan and the final implementation, write **new test templates** that cover:
-   - The golden-path user flow for the feature
-   - Key edge cases or state transitions introduced by the plan
-   - Any regression-prone paths flagged by debug-team or review-team
-3. Append the new templates to `.claude/skills/tests/templates.md`. Give each a fresh section number continuing the existing sequence. Mark each with the 🔲 (not run) status emoji.
-4. Read `.claude/skills/tests/results.md` and add matching rows for the new templates so the results memory stays in sync with the template list.
-5. Announce: "Added N new test templates to `/tests`: [names]."
+1. Read the parent PRD's testing boundary — it states which modules are unit
+   tested and which flows are integration tested for this slice. That boundary
+   is the specification; do not invent a different one.
+2. Write the tests:
+   - **Unit** — beside the subject. Utilities, stores, composables, and
+     components with real logic, in isolation.
+   - **Integration** — in the top-level test directory, organised by journey.
+     Real router, real Pinia, real services, with MSW answering the network.
+     Never mock the service layer in an integration test.
+3. Assert on user-visible behaviour — accessible roles, labels, text — never on
+   internal state. A test asserting on a store's contents passes while the
+   screen is blank.
+4. Run them:
+   ```bash
+   NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent npm run test
+   ```
 
-### 3b. Run the new templates via the `/tests` skill
+### 3b. Browser verification
 
-1. Confirm the dev server is running on `http://localhost:3000`. If not, ask the user to start it with `npm run dev` and wait.
-2. Invoke the `tests` skill via the Skill tool, scoped to the templates you just added (pass the template names/numbers as args).
-3. Wait for the skill to complete and collect its pass/fail report.
+Automated tests are the gate; a browser pass is confirmation, not a substitute.
 
-### 3c. Handle test failures
+If the caller supplies a browser playbook (for example `ralph/e2e.md` when run
+from the issue loop), follow it. Otherwise use the `playwright` skill against the
+dev server, which must already be running — this skill never starts it.
 
-- **All pass:** Proceed to Phase 4.
-- **Any fail:** Compile failing tests into a fix list (including exact failed step, screenshots, console/network errors from the `/tests` skill report). Loop back to **Phase 1** with this fix list. After the fix iteration, re-run **Phase 2** (Validate) and **Phase 3b** (re-run the failing templates only).
+If no browser tooling is available, say so plainly in the report and mark the
+work as needing manual QA. Never claim a browser check that did not happen.
+
+### 3c. Handle failures
+
+- **All pass:** proceed to Phase 4.
+- **Any fail:** compile the failures into a fix list — the exact assertion,
+  expected versus actual, the failing test path, plus screenshots and console
+  errors for a browser failure. Loop back to **Phase 1** with that list. After
+  the fix iteration, re-run **Phase 2** and re-run only the failing tests.
 
 ## Phase 4: Learn
 
@@ -241,7 +257,7 @@ After the loop ends (clean or max iterations), extract lessons before reporting.
 - Things already documented in CLAUDE.md or project-context.md
 - Implementation details (the code itself is the record)
 
-**How to write:** Append new entries to `.claude/skills/agent/lessons-learned.md` using the format in that file. Use today's date and the feature name.
+**How to write:** Append new entries to `.claude/skills/worker-team-agent/lessons-learned.md` using the format in that file. Use today's date and the feature name.
 
 If the run was clean (no fix loops, no issues), you may still capture a lesson if something non-obvious went well.
 
@@ -268,7 +284,7 @@ If there are no lessons worth capturing, skip this phase.
 [Clean — ready to commit / Minor notes remain]
 
 ### Test Templates Added
-[Names/numbers of new templates appended to /tests]
+[Test files added, and what they cover]
 
 ### Minor Notes (if any)
 [Non-blocking suggestions from reviewers]

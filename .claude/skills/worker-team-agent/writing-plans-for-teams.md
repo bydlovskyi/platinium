@@ -10,8 +10,8 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 Write implementation plans designed for parallel execution by `feature-team.md`. Plans describe **what to build and why** — not how to code it. Teammates are skilled engineers with access to CLAUDE.md; they know the patterns.
 
 **Before anything else:**
-1. Read `.claude/skills/agent/project-context.md` for project-specific details (team roles, plans directory, architecture).
-2. Read `.claude/skills/agent/lessons-learned.md` for knowledge from past runs. Factor relevant lessons into the plan — e.g., if past runs revealed a pattern that causes bugs, add it as a constraint or boundary in the relevant task.
+1. Read `.claude/skills/worker-team-agent/project-context.md` for project-specific details (team roles, plans directory, architecture).
+2. Read `.claude/skills/worker-team-agent/lessons-learned.md` for knowledge from past runs. Factor relevant lessons into the plan — e.g., if past runs revealed a pattern that causes bugs, add it as a constraint or boundary in the relevant task.
 
 **Announce at start:** "I'm using the writing-plans-for-teams skill to create the implementation plan."
 

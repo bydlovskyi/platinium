@@ -9,8 +9,8 @@ You are the **team lead**. You orchestrate a team of specialist teammates to bui
 
 **Before anything else:**
 
-1. Read `.claude/skills/agent/project-context.md` for all project-specific details (team roles, architecture, test credentials, dev server info). Every instruction below references that file.
-2. Read `.claude/skills/agent/lessons-learned.md` for knowledge from past runs. Share relevant lessons with teammates in their spawn prompts under a `LESSONS FROM PAST WORK:` section — only include entries that apply to their role/domain.
+1. Read `.claude/skills/worker-team-agent/project-context.md` for all project-specific details (team roles, architecture, test credentials, dev server info). Every instruction below references that file.
+2. Read `.claude/skills/worker-team-agent/lessons-learned.md` for knowledge from past runs. Share relevant lessons with teammates in their spawn prompts under a `LESSONS FROM PAST WORK:` section — only include entries that apply to their role/domain.
 
 ## Prerequisites
 

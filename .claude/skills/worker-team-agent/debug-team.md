@@ -8,8 +8,8 @@ description: Spawn a competing-hypothesis Agent Team to investigate a bug from m
 You are the **team lead**. You orchestrate a team of investigators who explore different hypotheses about a bug simultaneously and debate to find the root cause.
 
 **Before anything else:**
-1. Read `.claude/skills/agent/project-context.md` for all project-specific details (architecture, test credentials, dev server info).
-2. Read `.claude/skills/agent/lessons-learned.md` for knowledge from past runs. Past debugging insights and common bug patterns are especially relevant — share applicable ones with investigators.
+1. Read `.claude/skills/worker-team-agent/project-context.md` for all project-specific details (architecture, test credentials, dev server info).
+2. Read `.claude/skills/worker-team-agent/lessons-learned.md` for knowledge from past runs. Past debugging insights and common bug patterns are especially relevant — share applicable ones with investigators.
 
 ## Setup
 

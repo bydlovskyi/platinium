@@ -9,8 +9,8 @@ You are the **team lead**. You orchestrate a team of specialist reviewers to rev
 
 **Before anything else:**
 
-1. Read `.claude/skills/agent/project-context.md` for all project-specific details (review rules, architecture, test credentials, dev server info).
-2. Read `.claude/skills/agent/lessons-learned.md` for knowledge from past runs. Past review findings and recurring issues are especially relevant — share applicable ones with reviewers so they know what to watch for.
+1. Read `.claude/skills/worker-team-agent/project-context.md` for all project-specific details (review rules, architecture, test credentials, dev server info).
+2. Read `.claude/skills/worker-team-agent/lessons-learned.md` for knowledge from past runs. Past review findings and recurring issues are especially relevant — share applicable ones with reviewers so they know what to watch for.
 
 ## Setup
 
