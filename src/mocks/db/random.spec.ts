@@ -1,4 +1,9 @@
-import { createSeededRandom, createSeededId } from './random'
+import { createSeededRandom, createSeededId, type TSeededRandom } from './random'
+
+/** Adapts `createSeededId` to `Array.from`'s `(value, index)` mapper signature. */
+function createSeededIdFrom (random: TSeededRandom): () => string {
+  return () => createSeededId(random)
+}
 
 describe('createSeededRandom', () => {
   it('produces the same sequence of floats for the same seed', () => {
@@ -48,14 +53,19 @@ describe('createSeededId', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('is deterministic for a given seed', () => {
-    const idsA = Array.from({ length: 20 }, () => createSeededId(createSeededRandom(99)))
+  it('is deterministic: two generators on the same seed yield the same id sequence', () => {
+    const idsA = Array.from({ length: 20 }, createSeededIdFrom(createSeededRandom(99)))
+    const idsB = Array.from({ length: 20 }, createSeededIdFrom(createSeededRandom(99)))
 
-    // Re-seed and regenerate: each call above shares one generator internally,
-    // so recreate the same sequence from a fresh generator and compare directly.
-    const random = createSeededRandom(99)
-    const idsB = Array.from({ length: 20 }, () => createSeededId(random))
+    expect(idsA).toEqual(idsB)
+  })
 
-    expect(idsA[0]).toBe(idsB[0])
+  it('sets the UUID version and variant nibbles', () => {
+    const random = createSeededRandom(5)
+
+    for (const id of Array.from({ length: 50 }, createSeededIdFrom(random))) {
+      expect(id[14]).toBe('4')
+      expect('89ab').toContain(id[19])
+    }
   })
 })

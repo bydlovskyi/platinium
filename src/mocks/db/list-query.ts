@@ -24,7 +24,9 @@ function matchesSearch<T> (record: T, term: string, searchableFields: (keyof T)[
 }
 
 function matchesEquals<T> (record: T, equals: NonNullable<IListQuery<T>['equals']>): boolean {
-  return (Object.keys(equals) as (keyof T)[]).every(field => record[field] === equals[field])
+  return (Object.keys(equals) as (keyof T)[])
+    .filter(field => equals[field] !== undefined)
+    .every(field => record[field] === equals[field])
 }
 
 function isWithinRange (value: unknown, range: IRangeFilter): boolean {

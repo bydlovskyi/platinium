@@ -1,6 +1,21 @@
 import { createDatabase } from './database'
+import type { IEvent } from './types'
 import { createSeedDataset } from './fixtures'
 import { PERSISTENCE_KEY, loadPersistedDataset, persistDataset } from './persistence'
+
+function anEvent (id: string): IEvent {
+  return {
+    id,
+    name: id,
+    country: 'US',
+    venue: 'Somewhere',
+    startDate: '2026-01-01T00:00:00.000Z',
+    endDate: '2026-01-02T00:00:00.000Z',
+    status: 'draft',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z'
+  }
+}
 
 describe('createDatabase', () => {
   it('seeds all three collections from the deterministic fixtures by default', () => {
@@ -64,14 +79,11 @@ describe('createDatabase', () => {
     expect(db.tickets.list({}).meta.total).toBe(0)
   })
 
-  it('never reads or writes localStorage under test, even when MODE is stubbed to non-test', () => {
-    // Persistence is only ever enabled through the no-argument constructor
-    // path; even stubbing MODE away from 'test' must not by itself cause a
-    // test run to touch localStorage unless a suite explicitly opts in by
-    // exercising the persistence module directly (covered in
-    // persistence.spec.ts). This asserts the default, seam-driven path
-    // (`resetDatabase()` calls `createDatabase()` with no dataset) stays
-    // silent towards localStorage during the ordinary test lifecycle.
+  it('writes nothing to localStorage under test', () => {
+    // The default, seam-driven path (`resetDatabase()` calls `createDatabase()`
+    // with no dataset) must stay silent towards localStorage during an
+    // ordinary test run. The matching read-side case — a persisted dataset
+    // present and still ignored — lives in persistence.spec.ts.
     localStorage.clear()
 
     createDatabase()
@@ -111,28 +123,44 @@ describe('createDatabase', () => {
     }
   })
 
-  it('flushes to localStorage after a mutation when persistence is enabled', () => {
+  it('flushes every mutating operation to localStorage when persistence is enabled', () => {
     localStorage.clear()
     vi.stubEnv('MODE', 'production')
 
     try {
       const db = createDatabase()
 
-      db.events.insert({
-        id: 'flush-test',
-        name: 'Flush Test',
-        country: 'US',
-        venue: 'Somewhere',
-        startDate: '2026-01-01T00:00:00.000Z',
-        endDate: '2026-01-02T00:00:00.000Z',
-        status: 'draft',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z'
-      })
+      db.events.insert(anEvent('flush-test'))
+      expect(loadPersistedDataset()?.events.some(event => event.id === 'flush-test')).toBe(true)
 
-      const persisted = loadPersistedDataset()
+      db.events.update('flush-test', { name: 'Renamed' })
+      expect(loadPersistedDataset()?.events.find(event => event.id === 'flush-test')?.name).toBe('Renamed')
 
-      expect(persisted?.events.some(event => event.id === 'flush-test')).toBe(true)
+      db.events.remove('flush-test')
+      expect(loadPersistedDataset()?.events.some(event => event.id === 'flush-test')).toBe(false)
+
+      db.events.replace([anEvent('replaced')])
+      expect(loadPersistedDataset()?.events.map(event => event.id)).toEqual(['replaced'])
+    } finally {
+      vi.unstubAllEnvs()
+      localStorage.clear()
+    }
+  })
+
+  it('flushes the whole dataset exactly once per reset when persistence is enabled', () => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'production')
+
+    try {
+      const db = createDatabase()
+      const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+      db.reset({ events: [anEvent('after-reset')], categories: [], tickets: [] })
+
+      expect(setItem).toHaveBeenCalledTimes(1)
+      expect(loadPersistedDataset()?.events.map(event => event.id)).toEqual(['after-reset'])
+
+      setItem.mockRestore()
     } finally {
       vi.unstubAllEnvs()
       localStorage.clear()

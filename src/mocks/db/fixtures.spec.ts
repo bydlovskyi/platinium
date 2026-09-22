@@ -13,10 +13,13 @@ describe('createSeedDataset', () => {
     expect(first).toEqual(second)
   })
 
-  it('produces several dozen events', () => {
-    const { events } = createSeedDataset()
+  it('produces several dozen events, a handful of categories and several hundred tickets', () => {
+    const { events, categories, tickets } = createSeedDataset()
 
     expect(events.length).toBeGreaterThanOrEqual(24)
+    expect(categories.length).toBeGreaterThanOrEqual(4)
+    expect(categories.length).toBeLessThanOrEqual(20)
+    expect(tickets.length).toBeGreaterThanOrEqual(200)
   })
 
   it('spreads events across multiple countries', () => {
@@ -33,19 +36,6 @@ describe('createSeedDataset', () => {
     const statuses = new Set(events.map(event => event.status))
 
     expect([...statuses].sort()).toEqual([...EVENT_STATUSES].sort())
-  })
-
-  it('produces a handful of categories', () => {
-    const { categories } = createSeedDataset()
-
-    expect(categories.length).toBeGreaterThanOrEqual(4)
-    expect(categories.length).toBeLessThanOrEqual(20)
-  })
-
-  it('produces several hundred tickets', () => {
-    const { tickets } = createSeedDataset()
-
-    expect(tickets.length).toBeGreaterThanOrEqual(200)
   })
 
   it('covers all 4 TicketStatus values', () => {

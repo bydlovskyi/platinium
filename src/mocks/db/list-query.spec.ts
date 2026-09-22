@@ -61,6 +61,26 @@ describe('applyListQuery', () => {
 
       expect(result.data.map(w => w.id)).toEqual(['b'])
     })
+
+    it('ignores a filter whose value is undefined instead of matching nothing', () => {
+      const result = applyListQuery(
+        widgets,
+        { equals: { name: undefined } },
+        { searchableFields: SEARCHABLE_FIELDS }
+      )
+
+      expect(result.data.map(w => w.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    })
+
+    it('still applies the supplied filters when another is undefined', () => {
+      const result = applyListQuery(
+        widgets,
+        { equals: { price: 10, name: undefined } },
+        { searchableFields: SEARCHABLE_FIELDS }
+      )
+
+      expect(result.data.map(w => w.id)).toEqual(['b', 'e'])
+    })
   })
 
   describe('range filters', () => {

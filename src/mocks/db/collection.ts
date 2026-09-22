@@ -26,12 +26,41 @@ export interface IEntityCollection<T extends IIdentifiable> {
 }
 
 /**
+ * Shallow-copies every record on the way *in*, mirroring the copy every read
+ * path makes on the way out. Without this, a caller that keeps a reference to
+ * a record it inserted (or to the array it seeded/replaced the store with)
+ * could keep mutating the stored record in place, bypassing `update()` and
+ * the persistence flush wired around it.
+ */
+function copyAll<T extends IIdentifiable> (records: T[]): T[] {
+  return records.map(record => ({ ...record }))
+}
+
+/**
+ * Drops keys whose value is `undefined` so a patch built from optional inputs
+ * (`{ status: query.status }`) leaves untouched fields alone instead of
+ * erasing them. No domain field is legitimately `undefined`, so there is no
+ * unset semantics to preserve.
+ */
+function definedFieldsOf<T> (patch: Partial<T>): Partial<T> {
+  const defined: Partial<T> = {}
+
+  for (const key of Object.keys(patch) as (keyof T)[]) {
+    if (patch[key] !== undefined) {
+      defined[key] = patch[key]
+    }
+  }
+
+  return defined
+}
+
+/**
  * Creates an in-memory, typed collection store over `T`. Pure and
  * synchronous — no MSW, no Vue, no network — so it is unit-testable in
  * isolation and reusable across Event, Category and Ticket alike.
  */
 export function createCollection<T extends IIdentifiable> (options: ICollectionOptions<T>): IEntityCollection<T> {
-  let records: T[] = [...options.initialRecords]
+  let records: T[] = copyAll(options.initialRecords)
 
   return {
     // Shallow-copy each record on the way out: these are flat record shapes
@@ -51,9 +80,11 @@ export function createCollection<T extends IIdentifiable> (options: ICollectionO
     },
 
     insert: (record) => {
-      records = [...records, record]
+      const stored = { ...record }
 
-      return { ...record }
+      records = [...records, stored]
+
+      return { ...stored }
     },
 
     update: (id, patch) => {
@@ -64,7 +95,7 @@ export function createCollection<T extends IIdentifiable> (options: ICollectionO
         return undefined
       }
 
-      const updated: T = Object.assign({}, existing, patch)
+      const updated: T = Object.assign({}, existing, definedFieldsOf(patch))
 
       records = [...records.slice(0, index), updated, ...records.slice(index + 1)]
 
@@ -80,7 +111,7 @@ export function createCollection<T extends IIdentifiable> (options: ICollectionO
     },
 
     replace: (newRecords) => {
-      records = [...newRecords]
+      records = copyAll(newRecords)
     }
   }
 }

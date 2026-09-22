@@ -144,4 +144,52 @@ describe('createCollection', () => {
 
     expect(collection.get('a')).toEqual({ id: 'a', name: 'Anvil', price: 999 })
   })
+
+  it('mutating the record passed to insert() does not affect what is stored', () => {
+    const collection = createCollection<IWidget>({ initialRecords: seedWidgets(), searchableFields: ['name'] })
+    const input = { id: 'c', name: 'Crate', price: 50 }
+
+    collection.insert(input)
+    input.price = 999999
+
+    expect(collection.get('c')).toEqual({ id: 'c', name: 'Crate', price: 50 })
+  })
+
+  it('mutating a record passed to replace() does not affect what is stored', () => {
+    const collection = createCollection<IWidget>({ initialRecords: seedWidgets(), searchableFields: ['name'] })
+    const replacement = [{ id: 'z', name: 'Zipline', price: 20 }]
+
+    collection.replace(replacement)
+    const [record] = replacement
+
+    if (record === undefined) {
+      throw new Error('expected a replacement record')
+    }
+
+    record.price = 999999
+
+    expect(collection.get('z')).toEqual({ id: 'z', name: 'Zipline', price: 20 })
+  })
+
+  it('mutating a record from the initialRecords array does not affect what is stored', () => {
+    const initialRecords = seedWidgets()
+    const collection = createCollection<IWidget>({ initialRecords, searchableFields: ['name'] })
+    const [record] = initialRecords
+
+    if (record === undefined) {
+      throw new Error('expected a seeded record')
+    }
+
+    record.price = 999999
+
+    expect(collection.get('a')).toEqual({ id: 'a', name: 'Anvil', price: 300 })
+  })
+
+  it('ignores undefined patch fields rather than erasing the stored value', () => {
+    const collection = createCollection<IWidget>({ initialRecords: seedWidgets(), searchableFields: ['name'] })
+
+    collection.update('a', { name: undefined, price: 250 })
+
+    expect(collection.get('a')).toEqual({ id: 'a', name: 'Anvil', price: 250 })
+  })
 })

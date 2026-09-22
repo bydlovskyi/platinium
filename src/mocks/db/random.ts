@@ -25,6 +25,10 @@ const HEX_RADIX = 16
 const BYTE_MASK = 0xff
 const NIBBLE_MASK = 0x0f
 const UUID_VARIANT_BITS = 0x80
+const UUID_VARIANT_MASK = 0x3f
+const UUID_VERSION_BITS = 0x40
+const VERSION_BYTE_INDEX = 6
+const VARIANT_BYTE_INDEX = 8
 
 /**
  * Draws a UUID-shaped (v4-looking) identifier from a {@link TSeededRandom}
@@ -32,20 +36,17 @@ const UUID_VARIANT_BITS = 0x80
  * hold stable, opaque, UUID-shaped ids across runs without depending on
  * `crypto.randomUUID()`.
  */
-const VERSION_BYTE_INDEX = 6
-const VARIANT_BYTE_INDEX = 8
-
 export function createSeededId (random: TSeededRandom): string {
   const bytes = Array.from({ length: 16 }, (_, index) => {
     const byte = Math.floor(random() * (BYTE_MASK + 1))
 
     // Set the version (4) and variant (RFC 4122) bits, matching UUIDv4 shape.
     if (index === VERSION_BYTE_INDEX) {
-      return (byte & NIBBLE_MASK) | 0x40
+      return (byte & NIBBLE_MASK) | UUID_VERSION_BITS
     }
 
     if (index === VARIANT_BYTE_INDEX) {
-      return (byte & NIBBLE_MASK) | (UUID_VARIANT_BITS & 0xc0)
+      return (byte & UUID_VARIANT_MASK) | UUID_VARIANT_BITS
     }
 
     return byte
