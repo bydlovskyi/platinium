@@ -44,4 +44,4 @@ __screenshots__/
 .claude/settings.local.json
 
 # Ralph loop scratch files (contain an injected GitHub token)
-ralph/.prompt-*.txt
+ralph/.run/

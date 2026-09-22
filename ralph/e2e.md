@@ -24,15 +24,6 @@ done
 If still unreachable, skip §6.4, label the PR `needs-manual-qa`, write the exact
 error in the PR body, and move on. Do NOT try to start a dev server in here.
 
-## Chromium symlink (one-time, idempotent)
-
-```bash
-if [ ! -e /opt/google/chrome/chrome ]; then
-  mkdir -p /opt/google/chrome
-  ln -sf "$(ls -d /ms-playwright/chromium-*/chrome-linux/chrome 2>/dev/null | head -n1)" /opt/google/chrome/chrome
-fi
-```
-
 ## Authentication
 
 There is no external auth provider. Authentication is mocked by MSW and the

@@ -1,29 +1,31 @@
 # Ralph — autonomous issue loop
 
-Runs Claude Code in a Docker sandbox against this repository's GitHub issues. Each
+Runs Claude Code in a Docker container against this repository's GitHub issues. Each
 session picks **one** issue, implements it, verifies it, pushes a branch and opens a
 pull request. **It never merges and never closes a PRD issue.** A human reviews
 everything.
 
-## Prerequisites
+## Setup
 
-- **Docker Desktop recent enough to ship the `docker sandbox` CLI plugin.** Verify:
-  ```bash
-  docker sandbox --help
-  ```
-  If that prints Docker's generic help instead of sandbox usage, the plugin is
-  missing — update Docker Desktop and restart it. The scripts check this and refuse
-  to start rather than failing halfway through.
-- `gh` authenticated on the host (`gh auth status`). The token is read with
-  `gh auth token` and injected into the sandbox, because the host keeps it in the
-  macOS keyring, which does not cross into the container.
-- `jq`.
-- For the browser check: the dev server running **on the host**, `npm run dev`. The
-  container reaches it at `host.docker.internal:5173`.
+Two one-time steps.
+
+**1. A long-lived Claude token.** The container cannot reach the host keychain, so
+it needs its own:
+
+```bash
+claude setup-token
+export CLAUDE_CODE_OAUTH_TOKEN=<the token it prints>   # add to your shell profile
+```
+
+**2. `gh` authenticated on the host.** The scripts read the token with
+`gh auth token` and pass it in, so the agent can push and open PRs.
+
+Also needed: Docker running, and `jq`. The preflight checks all of this and refuses
+to start with a specific message rather than failing halfway through an iteration.
 
 ## Running
 
-All commands run from the repository root.
+From the repository root:
 
 ```bash
 # One specific issue — use this first.
@@ -38,11 +40,39 @@ All commands run from the repository root.
 ./ralph/afk.sh 5
 ```
 
-The first run builds `platinum-ralph:latest` (Playwright base + Claude Code +
-Playwright MCP) and creates the `platinum-ralph` sandbox. Later runs reuse both.
+The first run builds `platinum-ralph:latest` and clones the repository into the
+`platinum-ralph-work` volume. Later runs reuse both.
 
 **Start with `once.sh 11`** and read the output before letting `afk.sh` run
 unattended. Slice #11 is the test harness — the whole chain stands on it.
+
+Optional: `RALPH_MODEL=opus ./ralph/once.sh 11` to override the account default.
+
+For the browser check, start the dev server on the host first — the agent cannot:
+
+```bash
+npm run dev     # the container reaches it at host.docker.internal:5173
+```
+
+## Isolation model
+
+**The host working tree is never mounted.** The container clones the repository from
+`origin` into a named volume and works there.
+
+That is deliberate. An autonomous loop that switches branches inside the tree you are
+editing is a bad trade for the small convenience of seeing commits appear locally —
+and the loop's contract is that work reaches you as a pushed branch and a pull
+request anyway. It also avoids feeding macOS-built `node_modules` to a Linux
+container.
+
+The only host path exposed is `ralph/.run`, read-only, carrying the generated prompt.
+
+To inspect or reset the agent's checkout:
+
+```bash
+docker run --rm -it -v platinum-ralph-work:/work platinum-ralph:latest bash   # look
+docker volume rm platinum-ralph-work                                          # reset
+```
 
 ## How work is ordered
 
@@ -53,9 +83,9 @@ Merging is bottom-up and is a human's job.
 Each issue body carries the metadata the agent reads:
 
 ```
-Parent: #4                                  ← the PRD this slice belongs to
+Parent: #4                                      ← the PRD this slice belongs to
 Parent branch: feat/24-list-support-components  ← what to branch from
-Branch: feat/25-events-contract             ← what to name this branch
+Branch: feat/25-events-contract                 ← what to name this branch
 Blocked by: #24
 ```
 
@@ -70,39 +100,46 @@ issue list stays organised.
 | File | Purpose |
 |---|---|
 | `prompt.md` | The agent's instructions. The hard rules live at the top. |
-| `lib.sh` | Shared plumbing: preflight, sandbox lifecycle, prompt assembly, run. |
+| `lib.sh` | Shared plumbing: preflight, image build, prompt assembly, run. |
+| `entrypoint.sh` | Runs in the container: clone, install, launch Claude. |
 | `once.sh` / `list.sh` / `afk.sh` | Entry points. |
 | `branching.md` | The cascade rules and the exact git commands. |
 | `checks.md` | Lint, type-check, tests, contract regeneration. |
 | `e2e.md` | Browser verification through Playwright MCP. |
 | `commit-format.md` | Commit and PR writing rules. |
 | `failure-modes.md` | Past mistakes, so they are not repeated. |
-| `Dockerfile` | Playwright base + Claude Code + `gh` + Playwright MCP. |
-| `.mcp.json` | Playwright MCP config used inside the sandbox. |
+| `Dockerfile` | Playwright base, Node 20.19, Claude Code, `gh`, Playwright MCP. |
+| `.mcp.json` | Playwright MCP config used inside the container. |
 
-## Sandbox quirks worth knowing
+## Container quirks worth knowing
 
-- **`NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent` prefixes every npm/node command.**
-  The sandbox CPU lacks AVX2 and the oxc native bindings used by the Vite
-  auto-import plugins crash with `Illegal instruction` without it. The Dockerfile
-  sets it as an env var and the prompt requires the prefix as a belt-and-braces
-  measure. A SIGILL is a missing prefix, not broken infrastructure.
+- **Node is installed from the official tarball, not apt.** The Playwright base image
+  ships Node 22.11, which satisfies neither branch of this project's `engines` field
+  and makes `npm ci` fail with `EBADENGINE`. apt cannot fix it either — the base
+  image's `nodejs` package is already newer, so installing from the 20.x repo is a
+  silent no-op. The tarball goes into `/usr/local`, which precedes `/usr/bin` on PATH.
+- **`NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent` prefixes every npm/node command.** The
+  container CPU lacks AVX2 and the oxc native bindings used by the Vite auto-import
+  plugins crash with `Illegal instruction` without it. The Dockerfile sets it as an
+  env var and the prompt requires the prefix as a belt-and-braces measure. A SIGILL is
+  a missing prefix, not broken infrastructure.
+- **The agent runs as an unprivileged user.** Claude Code refuses
+  `--dangerously-skip-permissions` as root. That is also why the Chrome symlink
+  Playwright MCP expects is created at build time rather than at run time.
 - **`localhost` inside the container is the container.** The host dev server is
   `host.docker.internal`.
-- **The sandbox network is default-deny.** `lib.sh` allow-lists the host, GitHub and
-  the npm registry. A new outbound dependency needs another `--allow-host`.
-- **`.claude/settings.local.json` is moved aside for the run** and restored on exit.
-  Its permission entries carry absolute macOS paths that never match inside the
-  container.
-- **The generated prompt file carries a GitHub token.** It lives at
-  `ralph/.prompt-*.txt`, is gitignored, and is deleted on exit — including on
-  Ctrl-C.
+- **The generated prompt file carries a GitHub token.** It lives in `ralph/.run/`, is
+  gitignored, and is deleted on exit — including on Ctrl-C.
+- **`npm ci` reruns only when the lockfile changes**, tracked by a hash in the volume.
+  A five-iteration run pays the install cost once.
 
 ## Limits
 
-- Sessions are independent. Nothing carries over except the git history and the
-  issue comments the agent leaves.
+- Sessions are independent. Nothing carries over except the git history, the volume,
+  and the issue comments the agent leaves.
 - The agent cannot start the dev server, so the browser check is skipped unless a
-  human has one running. A skipped check is labelled `needs-manual-qa` on the PR
-  with the reason written out — it is never silently passed over.
+  human has one running. A skipped check is labelled `needs-manual-qa` on the PR with
+  the reason written out — it is never silently passed over.
 - `HITL` issues (#12, #44, #49, #50, #51) need a human. The loop filters them out.
+- Until slice #13 lands, `npm ci` still runs the inherited `postinstall` that fetches
+  an OpenAPI schema from a third-party host. That slice removes it.

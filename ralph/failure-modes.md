@@ -3,7 +3,7 @@
 Read when uncertain about verification scope or sandbox quirks. Otherwise the
 prompt's main rules cover the common path.
 
-## Sandbox
+## Container
 
 - ❌ `Illegal instruction` (SIGILL) on `npm`/`node`/`npx`. NOT infrastructure — a
   missing env var. Fix: prefix with `NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent`.

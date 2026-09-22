@@ -3,7 +3,7 @@
 Run in order. Don't advance with failures.
 
 Every command is prefixed with `NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent` — the
-sandbox CPU lacks AVX2 and the oxc native bindings used by the Vite auto-import
+container CPU lacks AVX2 and the oxc native bindings used by the Vite auto-import
 plugins SIGILL without it. `Illegal instruction` is a missing prefix, not broken
 infrastructure.
 
