@@ -1,0 +1,74 @@
+# Issue #12 — Design system foundation — tokens, typography, dark palette, motion
+
+| | |
+|---|---|
+| **GitHub issue** | [#12](https://github.com/bydlovskyi/platinum/issues/12) |
+| **Parent PRD** | [#10](https://github.com/bydlovskyi/platinum/issues/10) · [`PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md) |
+| **Type** | HITL |
+| **Slice** | 2 of 41 |
+| **Branch** | `feat/12-design-system-foundation` |
+
+## Parent PRD
+
+#10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)
+
+## What to build
+
+The token layer every screen in this project is built from. This is the foundation
+half of PRD-010 and it must land before the first screen exists: retrofitting a type
+scale means touching every component, and retrofitting a dark palette after hardcoded
+colours have spread is an audit rather than a feature.
+
+Semantic CSS custom properties — `surface`, `surface-raised`, `border-subtle`,
+`text-primary`, `text-muted`, `accent`, `danger` and the rest — each with a light and a
+dark value, over a literal palette that no component reaches past. Element Plus is
+themed through those same tokens and Tailwind consumes them, so a utility class and a
+library component cannot disagree about what a surface is.
+
+HITL because the palette, the typeface and the density decisions are design judgements
+that need a human eye before forty screens inherit them.
+
+## Acceptance criteria
+
+- [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
+- [ ] Semantic token layer defined with a light and a dark value for every token; a token missing its dark counterpart fails the test
+- [ ] Literal palette exists beneath the semantic layer; no component references a literal or a hex value
+- [ ] Element Plus themed through the tokens rather than per-component overrides
+- [ ] Tailwind theme consumes the same token values
+- [ ] Type scale fixed with defined weight and line height per step: screen heading, section heading, label, body, caption
+- [ ] Typeface self-hosted and preloaded; no flash of unstyled text, no runtime third-party request
+- [ ] Tabular-figure variant available and applied to numeric table columns
+- [ ] Spacing scale on a consistent rhythm; exactly three radii and three elevations
+- [ ] Body text and interactive elements meet WCAG AA contrast against their own surface in both themes, verified with a tool and the results recorded
+- [ ] Dark mode is a designed palette: surfaces lighten with elevation, borders lower-contrast, shadows replaced by surface separation
+- [ ] Focus-ring treatment defined once and visible on every focusable element in both themes
+- [ ] Motion primitives: two durations and two easing curves as tokens, all wrapped by the reduced-motion preference
+- [ ] Status colour mapping defined for all event and ticket statuses, distinguishable in greyscale
+- [ ] Unit test asserts token completeness across both themes
+- [ ] `npm run lint` and `npm run type-check` clean
+- [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
+
+## Blocked by
+
+- Blocked by #11 — *Test harness & quality gates*
+
+This slice's branch is created off `feat/11-test-harness` and its PR targets that branch, producing a stacked PR. Work starts immediately — no waiting for the blocker to merge.
+
+## Branch discipline
+
+- This branch ONLY rebases on its direct parent. Never `git merge main`. Never merge a sibling branch.
+- No parallel siblings: at most one direct child per parent in the chain. If another open issue lists the same `Blocked by`, escalate to the PRD author.
+- Contract files (`src/mocks/openapi.yaml`, `src/features/platform/api/schema.ts`): only the dedicated API contract slice modifies these. Code-only slices reject any need to run `npm run openapi-generate`.
+
+**Branch:** `feat/12-design-system-foundation`
+
+## User stories addressed
+
+Referenced by number from the parent PRD:
+
+- 1-5 (visual identity, accent, typeface, scale, spacing)
+- 6-11 (status colour, colour-blind safety, contrast, designed dark mode)
+- 12 (density)
+- 15 (focus ring)
+- 21 (reduced motion)
+- 37-38 (tokens as single source, Element Plus and Tailwind agreement)
