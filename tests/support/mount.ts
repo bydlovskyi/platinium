@@ -21,6 +21,8 @@ export async function mountWithRouterAndPinia<T extends Component> (
   const { initialRoute = '/', global, ...mountingOptions } = options
 
   const pinia = createPinia()
+  setActivePinia(pinia)
+
   const router = createRouter({
     history: createMemoryHistory(),
     routes

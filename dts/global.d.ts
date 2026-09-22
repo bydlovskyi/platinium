@@ -6,9 +6,11 @@ import type { chaos } from '@/mocks/chaos'
 
 declare module 'vue-router' {
   interface RouteMeta {
-    // todo: this is just an example. Please setup your own route meta params.
     label?: string
-    requireAuth?: boolean
+    /** Route requires an authenticated session; unauthenticated visitors are redirected to login (`src/router/route-guard.ts`). */
+    requiresAuth?: boolean
+    /** Route requires the visitor to be anonymous; authenticated users are redirected to home (`src/router/route-guard.ts`). */
+    requiresAnonymous?: boolean
   }
 }
 

@@ -1,4 +1,5 @@
 import { homeRoutes } from '@/views/home/home.routes'
+import { authRoutes } from '@/views/auth/auth.routes'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -6,7 +7,8 @@ const routes: RouteRecordRaw[] = [
     redirect: '/'
   },
 
-  ...homeRoutes
+  ...homeRoutes,
+  ...authRoutes
 ]
 
 export {

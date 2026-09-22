@@ -12,8 +12,12 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Compute: typeof import('./../../src/components/Compute.vue')['default']
+    ElAlert: typeof import('element-plus/es')['ElAlert']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElDialog: typeof import('element-plus/es')['ElDialog']
+    ElForm: typeof import('element-plus/es')['ElForm']
+    ElFormItem: typeof import('element-plus/es')['ElFormItem']
+    ElInput: typeof import('element-plus/es')['ElInput']
     HomeComponent: typeof import('./../../src/views/home/components/HomeComponent.vue')['default']
     HomeModal: typeof import('./../../src/views/home/components/modals/HomeModal.vue')['default']
     HomeNestedComponent: typeof import('./../../src/views/home/components/nested/HomeNestedComponent.vue')['default']
