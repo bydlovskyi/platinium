@@ -24,11 +24,13 @@
     height: 12px;
   }
 
-  /* scrollbar itself */
+  /* scrollbar itself — tokenised so the thumb and its inset track both
+     follow the active theme (the previous literal #babac0 thumb on a #fff
+     border stayed light-mode in dark mode). */
   *::-webkit-scrollbar-thumb {
-    background-color: #babac0;
+    background-color: var(--el-border-color);
     border-radius: 16px;
-    border: 2px solid #fff;
+    border: 2px solid var(--el-bg-color-page);
   }
 
   /* set button(top and bottom of the scrollbar) */
@@ -36,12 +38,14 @@
     display: none;
   }
 
-  /* Single global focus-ring treatment (see --focus-ring in theme.css) so
-     every focusable element gets a visible, AA-contrast ring in both themes
-     without any component having to implement it. */
+  /* Single global focus-ring treatment (see the --focus-ring-* tokens in
+     theme.css) so every focusable element gets a visible, AA-contrast ring
+     in both themes without any component having to implement it. Using
+     outline rather than box-shadow keeps the element's own elevation shadow
+     intact and lets the gap show the element's real background. */
   :focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 }
 

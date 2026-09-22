@@ -1,44 +1,58 @@
 /*
-  Semantic color custom properties (light default, dark override) live in
-  tokens.css, generated from tokens.ts. This file wires those semantic tokens
-  into Tailwind's `@theme` so utilities like `bg-surface`, `text-text-primary`,
-  `border-border` etc. resolve to the token value in both themes, and defines
-  the rest of the design-system scales (typography, radius, elevation,
-  density, motion) per issue #12.
+  The design system's Tailwind surface: it names Element Plus's themed custom
+  properties as semantic utilities (`bg-surface`, `text-text-muted`,
+  `border-border`, `text-status-published`, …) and defines the non-colour
+  scales — typography, radius, elevation, density, motion — per issue #12.
 
-  Dark mode is toggled by adding `data-theme="dark"` to <html> (see
-  tokens.css: `:root[data-theme='dark']`). A later slice (#20, admin shell)
-  wires an actual UI toggle that sets this attribute.
+  Colour itself is not redefined here. Element Plus's `theme-chalk` ships a
+  designed light and dark scale and this project overrides only five hues
+  inside it (see element-reset/theme.css, the single place a literal colour
+  appears). Because every utility below resolves through an `--el-*` variable,
+  a Tailwind class and an Element Plus component cannot disagree about what a
+  surface, a border or the accent is, and both follow the theme automatically.
+
+  Dark mode is the `dark` class on <html> — the same hook Element Plus and
+  Tailwind v4's `dark:` variant use, so one class flips all three. A later
+  slice (#20, admin shell) wires the UI toggle.
 */
 
 @theme {
   /* ============================================================
-     COLOR — bridges the semantic custom properties from tokens.css
-     into Tailwind utilities (bg-surface, text-accent, border-border, …).
-     Components must never reference a literal hex — only these utilities
-     or var(--token-name) directly.
+     COLOR — semantic names over Element Plus's themed variables, exposed
+     as utilities (bg-surface, text-accent, border-border, …). Components
+     must never reference a literal hex, nor an `--el-*` name directly;
+     these utilities are the whole vocabulary.
+
+     `surface` is the page ground and `surface-raised` the elevated plane.
+     In dark mode Element Plus's values lighten with elevation
+     (#0a0a0a page -> #141414 raised -> #1d1e1f overlay), which is how
+     elevation reads there instead of a drop shadow.
      ============================================================ */
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
-  --color-border: var(--border);
-  --color-border-subtle: var(--border-subtle);
-  --color-text-primary: var(--text-primary);
-  --color-text-muted: var(--text-muted);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-danger: var(--danger);
-  --color-status-published: var(--status-published);
-  --color-status-draft: var(--status-draft);
-  --color-status-cancelled: var(--status-cancelled);
-  --color-status-completed: var(--status-completed);
+  --color-surface: var(--el-bg-color-page);
+  --color-surface-raised: var(--el-bg-color);
+  --color-border: var(--el-border-color);
+  --color-border-subtle: var(--el-border-color-lighter);
+  --color-text-primary: var(--el-text-color-primary);
+  /* `--el-text-color-secondary` (#909399) only reaches ~2.8:1 on white, so
+     muted copy maps to `regular` (#606266, 5.5:1) instead. */
+  --color-text-muted: var(--el-text-color-regular);
+  --color-accent: var(--el-color-primary);
+  --color-accent-hover: var(--el-color-primary-light-3);
+  --color-danger: var(--el-color-danger);
+  /* Event/ticket statuses ride Element Plus's semantic slots — see the
+     mapping and contrast table in element-reset/theme.css. */
+  --color-status-published: var(--el-color-success);
+  --color-status-draft: var(--el-color-warning);
+  --color-status-cancelled: var(--el-color-danger);
+  --color-status-completed: var(--el-color-info);
 
   /* ============================================================
      TYPOGRAPHY — self-hosted Inter Variable (see base.css @font-face
      import) plus the semantic type scale. Each step defines size, line
      height and a paired weight so `text-screen-heading` etc. are complete
-     utilities (Tailwind v4 `--text-*`/`--text-*--line-height`/`--font-weight-*`
-     convention, consistent with the existing `--text-xl` etc. references in
-     element-reset/theme.css).
+     utilities. The weight rides on the `--text-*--font-weight` modifier, not
+     on a `--font-weight-*` entry: the latter would generate a *separate*
+     `font-screen-heading` utility and leave `text-screen-heading` weightless.
 
      Tabular figures / slashed zero: Tailwind v4 already ships this as a
      built-in `font-variant-numeric` utility set (`tabular-nums`,
@@ -49,23 +63,23 @@
 
   --text-screen-heading: 1.875rem;
   --text-screen-heading--line-height: 2.25rem;
-  --font-weight-screen-heading: var(--font-weight-semibold);
+  --text-screen-heading--font-weight: var(--font-weight-semibold);
 
   --text-section-heading: 1.25rem;
   --text-section-heading--line-height: 1.75rem;
-  --font-weight-section-heading: var(--font-weight-semibold);
+  --text-section-heading--font-weight: var(--font-weight-semibold);
 
   --text-label: 0.8125rem;
   --text-label--line-height: 1.125rem;
-  --font-weight-label: var(--font-weight-medium);
+  --text-label--font-weight: var(--font-weight-medium);
 
   --text-body: 0.875rem;
   --text-body--line-height: 1.25rem;
-  --font-weight-body: var(--font-weight-normal);
+  --text-body--font-weight: var(--font-weight-normal);
 
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
-  --font-weight-caption: var(--font-weight-normal);
+  --text-caption--font-weight: var(--font-weight-normal);
 
   /* ============================================================
      RADIUS — exactly three steps per issue #12. Components should only
@@ -80,15 +94,15 @@
 
   /* ============================================================
      ELEVATION — exactly three shadow levels. Light-mode values are
-     conventional soft shadows; dark-mode values (see tokens.css /
-     dark-mode overrides below) are much more subtle because "surfaces
-     lighten with elevation rather than darken; shadows [are] replaced by
-     surface separation" — the dark shadow is a faint separator, not a
-     copy of the light one.
+     conventional soft shadows; the dark-mode overrides below are much more
+     subtle, because in dark mode elevation is carried by Element Plus's
+     surface scale lightening with height (#0a0a0a page -> #141414 raised)
+     rather than by a drop shadow. The dark shadow is a faint separator, not
+     a copy of the light one.
      ============================================================ */
-  --shadow-token-sm: 0 1px 2px 0 rgb(28 25 23 / 0.06);
-  --shadow-token-md: 0 4px 8px -2px rgb(28 25 23 / 0.08), 0 2px 4px -2px rgb(28 25 23 / 0.05);
-  --shadow-token-lg: 0 12px 24px -6px rgb(28 25 23 / 0.12), 0 4px 8px -4px rgb(28 25 23 / 0.06);
+  --shadow-token-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-token-md: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-token-lg: 0 12px 24px -6px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.06);
 
   /* ============================================================
      DENSITY — row/table/tap-target tokens consumed by later data-table
@@ -115,21 +129,28 @@
   --ease-in-out-token: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ============================================================
-     FOCUS RING — single treatment applied globally via :focus-visible
-     in base.css. Verified for AA contrast against both surface colors
-     (see tokens.spec.ts).
+     FOCUS RING — single treatment applied globally via :focus-visible in
+     base.css. Expressed as outline rather than box-shadow: a box-shadow ring
+     replaces whatever shadow the element already carries (so a focusable
+     card would drop its elevation on focus) and its inner offset ring has to
+     hard-code one surface colour, which then mismatches on surface-raised.
+     `outline` composes with box-shadow and follows the element's own
+     background. The ring uses the accent, which clears the 3:1 UI-component
+     threshold against both surfaces in both themes (see the contrast table
+     in element-reset/theme.css).
      ============================================================ */
-  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--el-color-primary);
 }
 
 /*
-  Dark-mode shadow treatment: "shadows replaced by surface separation" —
-  the box-shadow itself becomes a near-transparent, low-spread hint rather
-  than the light-mode drop shadow, since elevation is communicated instead
-  by the surface-raised background contrast against the (near-black) base
-  surface.
+  Dark-mode shadow treatment: shadows replaced by surface separation — the
+  box-shadow becomes a low-spread hint rather than the light-mode drop
+  shadow, since elevation is communicated instead by the surface-raised
+  background contrast against the near-black base surface.
 */
-:root[data-theme='dark'] {
+html.dark {
   --shadow-token-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-token-md: 0 2px 4px 0 rgb(0 0 0 / 0.35);
   --shadow-token-lg: 0 4px 8px 0 rgb(0 0 0 / 0.4);

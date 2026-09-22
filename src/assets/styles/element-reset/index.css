@@ -1,2 +1,8 @@
 @import './components/index.css';
+
+/* Element Plus's designed dark scale — this project's neutral palette in dark
+   mode. Imported before ./theme.css so this project's five colour overrides,
+   which match its `html.dark` specificity, win on source order. */
+@import 'element-plus/theme-chalk/dark/css-vars.css';
+
 @import './theme.css';
