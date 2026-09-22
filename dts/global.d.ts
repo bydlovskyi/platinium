@@ -11,6 +11,12 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** Route requires the visitor to be anonymous; authenticated users are redirected to home (`src/router/route-guard.ts`). */
     requiresAnonymous?: boolean
+    /**
+     * Which frame (`src/layouts/`) the route is rendered inside, resolved by
+     * `src/App.vue` — a page component never imports a layout directly.
+     * Defaults to `'admin'` when omitted (see `App.vue`).
+     */
+    layout?: 'auth' | 'admin'
   }
 }
 

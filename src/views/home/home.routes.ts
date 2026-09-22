@@ -4,7 +4,8 @@ export const homeRoutes: RouteRecordRaw[] = [
     name: routeNames.home,
     component: () => import('./Home.vue'),
     meta: {
-      requiresAuth: true
+      requiresAuth: true,
+      layout: 'admin'
     }
   }
 ]

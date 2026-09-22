@@ -3,8 +3,10 @@
  * Login screen (issue #19). Real form mechanics against the mocked
  * `/auth/login` contract: blur-triggered validation, a loading submit
  * button, a password-visibility toggle, and a non-blaming inline error on
- * rejected credentials. Styled as a minimal centred card — issue #20 wraps
- * this in the actual auth layout later.
+ * rejected credentials. Rendered inside `AuthLayout` (issue #20, selected
+ * declaratively via `route.meta.layout` — see `auth.routes.ts`), which
+ * supplies the centred card chrome; this component only owns the card's
+ * contents.
  */
 
 interface ILoginForm {
@@ -86,59 +88,57 @@ async function onSubmit (): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-surface p-4">
-    <div class="w-full max-w-sm rounded-lg border border-border bg-surface-raised p-8 shadow-token-md">
-      <h1 class="text-screen-heading text-text-primary mb-1">
-        Sign in
-      </h1>
-      <p class="text-body text-text-muted mb-6">
-        Ticket Management Admin Portal
-      </p>
+  <div>
+    <h1 class="text-screen-heading text-text-primary mb-1">
+      Sign in
+    </h1>
+    <p class="text-body text-text-muted mb-6">
+      Ticket Management Admin Portal
+    </p>
 
-      <el-alert
-        v-if="submitError"
-        type="error"
-        :title="submitError"
-        :closable="false"
-        show-icon
-        class="mb-4"
-      />
+    <el-alert
+      v-if="submitError"
+      type="error"
+      :title="submitError"
+      :closable="false"
+      show-icon
+      class="mb-4"
+    />
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        @submit.prevent="onSubmit"
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      @submit.prevent="onSubmit"
+    >
+      <el-form-item label="Email" prop="email">
+        <el-input
+          v-model="form.email"
+          type="email"
+          autocomplete="username"
+          placeholder="admin@platinium.test"
+        />
+      </el-form-item>
+
+      <el-form-item label="Password" prop="password">
+        <el-input
+          v-model="form.password"
+          type="password"
+          show-password
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+      </el-form-item>
+
+      <el-button
+        type="primary"
+        native-type="submit"
+        :loading="loading"
+        class="w-full"
       >
-        <el-form-item label="Email" prop="email">
-          <el-input
-            v-model="form.email"
-            type="email"
-            autocomplete="username"
-            placeholder="admin@platinium.test"
-          />
-        </el-form-item>
-
-        <el-form-item label="Password" prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            autocomplete="current-password"
-            placeholder="••••••••"
-          />
-        </el-form-item>
-
-        <el-button
-          type="primary"
-          native-type="submit"
-          :loading="loading"
-          class="w-full"
-        >
-          Sign in
-        </el-button>
-      </el-form>
-    </div>
+        Sign in
+      </el-button>
+    </el-form>
   </div>
 </template>
