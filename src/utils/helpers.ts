@@ -2,6 +2,8 @@
 // Define event payloads here. Each key is an event name, value is the payload type.
 interface IEventMap {
   exampleEventName: string
+  /** Published by the response interceptor on a 401. Issue #19 (session/login, not yet built) subscribes to clear the session and redirect to login. */
+  sessionExpired: { message: string }
 }
 
 class EventEmitter extends EventTarget {

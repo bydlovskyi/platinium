@@ -39,6 +39,9 @@ export type TSemanticToken =
   'accent' |
   'accent-hover' |
   'danger' |
+  'success' |
+  'warning' |
+  'info' |
   'status-published' |
   'status-draft' |
   'status-cancelled' |
@@ -58,6 +61,13 @@ export const semanticTokens: Record<TSemanticToken, ITokenValue> = {
   // Dark variant lightened from the light-mode #DC2626 so it keeps 4.5:1
   // against both dark surfaces (see tokens.spec.ts).
   danger: { light: '#DC2626', dark: '#EF4444' },
+  // Notification-service semantic tokens (issue #16). Same light/dark
+  // darken-for-light / lighten-for-dark pairing as `danger` above, each
+  // hue picked and verified to clear 4.5:1 against both `surface` and
+  // `surface-raised` in both themes (see tokens.spec.ts).
+  success: { light: '#15803D', dark: '#4ADE80' },
+  warning: { light: '#B45309', dark: '#FBBF24' },
+  info: { light: '#4338CA', dark: '#93C5FD' },
   // Status colours: identical in both themes (already saturated enough to
   // read on both light and dark surfaces per the design decision).
   'status-published': { light: '#16A34A', dark: '#16A34A' },

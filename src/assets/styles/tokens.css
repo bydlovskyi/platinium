@@ -9,6 +9,9 @@
   --accent: #4F46E5;
   --accent-hover: #6366F1;
   --danger: #DC2626;
+  --success: #15803D;
+  --warning: #B45309;
+  --info: #4338CA;
   --status-published: #16A34A;
   --status-draft: #D97706;
   --status-cancelled: #DC2626;
@@ -25,6 +28,9 @@
   --accent: #818CF8;
   --accent-hover: #A5B4FC;
   --danger: #EF4444;
+  --success: #4ADE80;
+  --warning: #FBBF24;
+  --info: #93C5FD;
   --status-published: #16A34A;
   --status-draft: #D97706;
   --status-cancelled: #DC2626;

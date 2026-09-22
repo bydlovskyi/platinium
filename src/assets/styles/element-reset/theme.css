@@ -17,8 +17,8 @@
   --el-color-primary-light-9: color-mix(in srgb, var(--el-color-primary) 10%, white);
   --el-color-primary-dark-2: color-mix(in srgb, var(--el-color-primary) 80%, black);
 
-  /* SUCCESS COLOR — reuses the `status-published` semantic token */
-  --el-color-success: var(--status-published);
+  /* SUCCESS COLOR — semantic `success` token (issue #16, notification service) */
+  --el-color-success: var(--success);
   --el-color-success-light-3: color-mix(in srgb, var(--el-color-success) 70%, white);
   --el-color-success-light-5: color-mix(in srgb, var(--el-color-success) 50%, white);
   --el-color-success-light-7: color-mix(in srgb, var(--el-color-success) 30%, white);
@@ -26,8 +26,8 @@
   --el-color-success-light-9: color-mix(in srgb, var(--el-color-success) 10%, white);
   --el-color-success-dark-2: color-mix(in srgb, var(--el-color-success) 80%, black);
 
-  /* WARNING COLOR — reuses the `status-draft` semantic token */
-  --el-color-warning: var(--status-draft);
+  /* WARNING COLOR — semantic `warning` token (issue #16, notification service) */
+  --el-color-warning: var(--warning);
   --el-color-warning-light-3: color-mix(in srgb, var(--el-color-warning) 70%, white);
   --el-color-warning-light-5: color-mix(in srgb, var(--el-color-warning) 50%, white);
   --el-color-warning-light-7: color-mix(in srgb, var(--el-color-warning) 30%, white);
@@ -44,8 +44,20 @@
   --el-color-danger-light-9: color-mix(in srgb, var(--el-color-danger) 10%, white);
   --el-color-danger-dark-2: color-mix(in srgb, var(--el-color-danger) 80%, black);
 
-  /* INFO COLOR — reuses the `status-completed` semantic token */
-  --el-color-info: var(--status-completed);
+  /* ERROR COLOR — Element Plus treats `error` as a distinct variable from
+     `danger` (only `el-notification`/`el-message` read `--el-color-error`),
+     so it needs its own alias to the same `danger` token rather than
+     inheriting the `--el-color-danger` override above (issue #16). */
+  --el-color-error: var(--danger);
+  --el-color-error-light-3: color-mix(in srgb, var(--el-color-error) 70%, white);
+  --el-color-error-light-5: color-mix(in srgb, var(--el-color-error) 50%, white);
+  --el-color-error-light-7: color-mix(in srgb, var(--el-color-error) 30%, white);
+  --el-color-error-light-8: color-mix(in srgb, var(--el-color-error) 20%, white);
+  --el-color-error-light-9: color-mix(in srgb, var(--el-color-error) 10%, white);
+  --el-color-error-dark-2: color-mix(in srgb, var(--el-color-error) 80%, black);
+
+  /* INFO COLOR — semantic `info` token (issue #16, notification service) */
+  --el-color-info: var(--info);
   --el-color-info-light-3: color-mix(in srgb, var(--el-color-info) 70%, white);
   --el-color-info-light-5: color-mix(in srgb, var(--el-color-info) 50%, white);
   --el-color-info-light-7: color-mix(in srgb, var(--el-color-info) 30%, white);

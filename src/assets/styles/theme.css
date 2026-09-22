@@ -27,6 +27,9 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-status-published: var(--status-published);
   --color-status-draft: var(--status-draft);
   --color-status-cancelled: var(--status-cancelled);

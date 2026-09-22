@@ -110,6 +110,24 @@ describe('token contrast — WCAG AA', () => {
     })
   })
 
+  // Notification-service tokens (issue #16): same body-text threshold as
+  // `danger` above, since notification titles/messages render as text.
+  const notificationTokens: Extract<TSemanticToken, 'success' | 'warning' | 'info'>[] = ['success', 'warning', 'info']
+
+  describe.each(themes)('%s theme — notification tokens (>= 4.5:1, body/status text)', (theme) => {
+    it.each(notificationTokens)('%s on surface', (tokenName) => {
+      const ratio = contrastRatio(semanticTokens[tokenName][theme], semanticTokens.surface[theme])
+
+      expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    })
+
+    it.each(notificationTokens)('%s on surface-raised', (tokenName) => {
+      const ratio = contrastRatio(semanticTokens[tokenName][theme], semanticTokens['surface-raised'][theme])
+
+      expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    })
+  })
+
   it('focus ring accent resolves with UI-component contrast (>= 3:1) against surface in both themes', () => {
     for (const theme of themes) {
       const ratio = contrastRatio(semanticTokens.accent[theme], semanticTokens.surface[theme])
