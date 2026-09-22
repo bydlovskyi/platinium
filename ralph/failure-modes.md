@@ -5,14 +5,19 @@ prompt's main rules cover the common path.
 
 ## Container
 
-- ❌ `Illegal instruction` (SIGILL) on `npm`/`node`/`npx`. NOT infrastructure — a
-  missing env var. Fix: prefix with `NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent`.
+- ❌ Setting `NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent`. This was inherited from an
+  x86 VM that lacked AVX2 and it is actively harmful here: it forces every NAPI-RS
+  loader down its WASM branch, and `@tailwindcss/oxide` ships no WASM fallback, so
+  `vite dev` dies with "Cannot find native binding". The container is arm64 and the
+  native bindings load fine. If you ever do hit a genuine SIGILL on an x86 host
+  without AVX2, the fix is a per-package WASM fallback, not a blanket env var.
 - ❌ Browser check silently skipped because Playwright was unavailable. → §6.4
   requires an explicit `needs-manual-qa` label and a written reason.
-- ❌ Tried to run the dev server inside the container. It runs on the host at
-  `host.docker.internal:5173`.
-- ❌ `localhost` used inside the container to reach the dev server. That is the
-  container, not the host.
+- ❌ Skipped the browser check with "host dev server unreachable". There is no host
+  dev server — you start one in this container and drive `localhost:5173`. A server
+  that will not start is a broken branch, not an excuse.
+- ❌ Ran a browser check against a dev server outside this container. That serves
+  different code than the branch under test, which makes the check meaningless.
 
 ## The cascade
 

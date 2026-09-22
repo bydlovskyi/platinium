@@ -48,11 +48,8 @@ unattended. Slice #11 is the test harness — the whole chain stands on it.
 
 Optional: `RALPH_MODEL=opus ./ralph/once.sh 11` to override the account default.
 
-For the browser check, start the dev server on the host first — the agent cannot:
-
-```bash
-npm run dev     # the container reaches it at host.docker.internal:5173
-```
+Nothing to start on the host: the agent runs its own dev server inside the
+container when a slice needs a browser check.
 
 ## Isolation model
 
@@ -118,16 +115,17 @@ issue list stays organised.
   and makes `npm ci` fail with `EBADENGINE`. apt cannot fix it either — the base
   image's `nodejs` package is already newer, so installing from the 20.x repo is a
   silent no-op. The tarball goes into `/usr/local`, which precedes `/usr/bin` on PATH.
-- **`NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent` prefixes every npm/node command.** The
-  container CPU lacks AVX2 and the oxc native bindings used by the Vite auto-import
-  plugins crash with `Illegal instruction` without it. The Dockerfile sets it as an
-  env var and the prompt requires the prefix as a belt-and-braces measure. A SIGILL is
-  a missing prefix, not broken infrastructure.
 - **The agent runs as an unprivileged user.** Claude Code refuses
   `--dangerously-skip-permissions` as root. That is also why the Chrome symlink
   Playwright MCP expects is created at build time rather than at run time.
-- **`localhost` inside the container is the container.** The host dev server is
-  `host.docker.internal`.
+- **The browser check runs entirely in the container.** The agent starts
+  `npm run dev`, and Playwright MCP's Chromium — a subprocess of the same container —
+  reaches it at `localhost:5173`. A dev server anywhere else would serve different
+  code than the branch under test.
+- **No `NAPI_RS_NATIVE_LIBRARY_PATH`.** It was inherited from an x86 VM without AVX2
+  and is harmful here: it forces every NAPI-RS loader onto its WASM branch, and
+  `@tailwindcss/oxide` ships no WASM fallback, so `vite dev` dies with "Cannot find
+  native binding". The container is arm64 and the native bindings load fine.
 - **The generated prompt file carries a GitHub token.** It lives in `ralph/.run/`, is
   gitignored, and is deleted on exit — including on Ctrl-C.
 - **`npm ci` reruns only when the lockfile changes**, tracked by a hash in the volume.
@@ -137,9 +135,11 @@ issue list stays organised.
 
 - Sessions are independent. Nothing carries over except the git history, the volume,
   and the issue comments the agent leaves.
-- The agent cannot start the dev server, so the browser check is skipped unless a
-  human has one running. A skipped check is labelled `needs-manual-qa` on the PR with
-  the reason written out — it is never silently passed over.
-- `HITL` issues (#12, #44, #49, #50, #51) need a human. The loop filters them out.
+- The browser check is skipped only when Playwright MCP itself fails to start. Then
+  the PR is labelled `needs-manual-qa` with the exact error — never silently passed
+  over.
+- `HITL` issues (#49, #50, #51) need a human. The loop filters them out. The design
+  slices (#12, #44) were HITL until the palette, typeface, density and motion were
+  decided; those choices are recorded on issue #12.
 - Until slice #13 lands, `npm ci` still runs the inherited `postinstall` that fetches
   an OpenAPI schema from a third-party host. That slice removes it.

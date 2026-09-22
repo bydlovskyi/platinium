@@ -37,13 +37,6 @@ RUN mkdir -p /opt/google/chrome && \
     ln -sf "$(ls -d /ms-playwright/chromium-*/chrome-linux/chrome | head -n1)" \
            /opt/google/chrome/chrome
 
-# oxc-parser/oxc-transform/oxc-minify native binaries require CPU instructions
-# (e.g. AVX2) that the container doesn't expose, causing SIGILL on load.
-# Setting this env var makes their NAPI-RS loader skip all platform-native
-# branches entirely (they're guarded by else-if) and fall through to the WASM
-# fallback (@oxc-*/binding-wasm32-wasi), which is already installed.
-ENV NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent
-
 # Claude Code refuses --dangerously-skip-permissions when running as root, so
 # the agent needs an unprivileged user with a home directory of its own.
 RUN useradd -m -s /bin/bash ralph && \

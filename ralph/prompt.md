@@ -13,12 +13,11 @@ This repository is a **Vue 3 admin portal with a mocked backend**. There is no s
    - Section refs to this prompt: "§6.1", "per §10", "Propagation checklist from §…".
    - Rigid-checklist language: "Verification: Lint: pass / Typecheck: pass / …".
    State real reasons plain — "E2E not run — host dev server unreachable; needs manual QA", not "§6.4 skipped". Self-check every draft: would a human teammate write this?
-3. **ALWAYS prefix `npm`/`node`/`npx` with `NAPI_RS_NATIVE_LIBRARY_PATH=/nonexistent`.** The container CPU lacks AVX2; the oxc native bindings used by the Vite auto-import plugins SIGILL without it. No exceptions.
-4. **NEVER commit with failing lint or typecheck.** No `--no-verify`. No `as any`. No `// @ts-ignore` without a 1-line justification.
-5. **NEVER mark a task "done" without running §6.** "Looks right" is not verification.
-6. **ONE task per session.** Pick, finish or fail explicit. No drifting.
-7. **The 41 slices form a LINEAR CASCADE-STACK.** Slice N's branch is created off slice N−1's branch and its PR targets that branch — never `main`. Only slice #11 branches off `main`. Read §3 and `ralph/branching.md` before any `git checkout -b`.
-8. **ONLY a slice labelled `contract` may touch `src/mocks/openapi.yaml` or commit a regenerated `src/features/platform/api/schema.ts`.** If a code slice needs a contract change it did not expect, stop and comment on the owning contract issue — never edit the spec from a code slice. Parallel edits to the generated file produce unreadable conflicts.
+3. **NEVER commit with failing lint or typecheck.** No `--no-verify`. No `as any`. No `// @ts-ignore` without a 1-line justification.
+4. **NEVER mark a task "done" without running §6.** "Looks right" is not verification.
+5. **ONE task per session.** Pick, finish or fail explicit. No drifting.
+6. **The 41 slices form a LINEAR CASCADE-STACK.** Slice N's branch is created off slice N−1's branch and its PR targets that branch — never `main`. Only slice #11 branches off `main`. Read §3 and `ralph/branching.md` before any `git checkout -b`.
+7. **ONLY a slice labelled `contract` may touch `src/mocks/openapi.yaml` or commit a regenerated `src/features/platform/api/schema.ts`.** If a code slice needs a contract change it did not expect, stop and comment on the owning contract issue — never edit the spec from a code slice. Parallel edits to the generated file produce unreadable conflicts.
 
 # 0. BOOTSTRAP
 
@@ -121,9 +120,9 @@ Every hit is a violation unless it is a VueUse utility composable inside a store
 
 ## 6.4 End-to-end browser check (if UI changed)
 
-Read `ralph/e2e.md` and follow it. The dev server runs on the HOST at `http://host.docker.internal:5173` — not in this container.
+Read `ralph/e2e.md` and follow it. You start the dev server in this container and drive it at `http://localhost:5173`.
 
-If the host is unreachable after the retries, or Playwright MCP is unavailable: skip §6.4, label the PR `needs-manual-qa`, write the exact reason in the PR body — never pretend.
+You start the dev server yourself, in this container. There is no host dependency and no reason to skip this step. If Playwright MCP genuinely fails to start, label the PR `needs-manual-qa` and write the exact error — never pretend.
 
 # 7. IF VERIFICATION FAILS
 
