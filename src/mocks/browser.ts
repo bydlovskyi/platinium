@@ -22,6 +22,12 @@ export const worker = setupWorker(...handlers)
  * failure interactively — `window.__mockChaos.failNextRequest({ path:
  * '/events', status: 500 })` — while exercising the running app. The
  * `window.__mockChaos` type is declared globally in `dts/global.d.ts`.
+ *
+ * `path` is the route pattern the handler was registered under, not the URL
+ * in the address bar: the list and create routes live at `/events`, while
+ * read, update and delete all share `/events/:id`. Breaking a single record's
+ * fetch therefore means `failNextRequest({ path: '/events/:id', status: 500
+ * })`; a concrete `'/events/123'` matches nothing and does nothing.
  */
 
 /** Attaches the chaos debug surface to `window`. Call only when `import.meta.env.DEV` is true. */

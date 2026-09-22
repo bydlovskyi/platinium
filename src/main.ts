@@ -34,9 +34,18 @@ async function enableMockingIfNeeded (): Promise<void> {
   await worker.start({ onUnhandledRequest: 'warn' })
 }
 
-enableMockingIfNeeded().then(() => router.isReady()).then(() => {
-  app.mount('#app')
-})
+enableMockingIfNeeded()
+  .catch((error: unknown) => {
+    // A worker that fails to register (an unsupported browser, a stale
+    // service-worker registration, a blocked `mockServiceWorker.js`) must not
+    // take the app down with it: log it and mount against the real network
+    // rather than leaving a blank page behind an unresolved promise.
+    console.error('[mocks] failed to start the MSW worker; continuing without it.', error)
+  })
+  .then(() => router.isReady())
+  .then(() => {
+    app.mount('#app')
+  })
 
 export {
   app

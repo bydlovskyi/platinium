@@ -3,6 +3,12 @@
  * status code on the next request to a path (one-shot), and making a path
  * fail persistently until cleared.
  *
+ * Every `path` here is the handler's *route pattern* as registered with MSW,
+ * not a concrete request URL: the factory keys collection routes under
+ * `/events` and item routes under `/events/:id`, so forcing a failure on a
+ * single record means passing `'/events/:id'` — a concrete `'/events/123'`
+ * matches no handler and is silently ignored.
+ *
  * This module is the single source of truth every handler built by
  * `src/mocks/handlers/factory.ts` consults before answering a request (see
  * `withChaos` there). It is plain, synchronous, in-memory state — no MSW, no
@@ -37,12 +43,12 @@ function getLatency (): number {
   return latencyMs
 }
 
-/** Forces the next request to `path` to answer with `status`. Consumed after one match. */
+/** Forces the next request to `path` (a route pattern, e.g. `/events` or `/events/:id`) to answer with `status`. Consumed after one match. */
 function failNextRequest ({ path, status }: { path: string; status: number }): void {
   oneShotFailuresByPath.set(path, { status })
 }
 
-/** Makes every request to `path` answer with `status` until {@link clearChaos} or {@link clearPersistentFailure} runs. */
+/** Makes every request to `path` (a route pattern, e.g. `/events` or `/events/:id`) answer with `status` until {@link clearChaos} or {@link clearPersistentFailure} runs. */
 function failPersistently ({ path, status }: { path: string; status: number }): void {
   persistentFailuresByPath.set(path, { status })
 }

@@ -181,6 +181,25 @@ describe('createEntityHandlers', () => {
       })
     })
 
+    it('generates an id when no createRecord() is given and the payload carries none, so the record stays reachable', async () => {
+      const collection = setupHandlerUnderTest()
+
+      const { status, body } = await requestFor('post', '/widgets', {
+        name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false, createdAt: '2024-04-01'
+      })
+
+      const created = body as IWidget
+
+      expect(status).toBe(201)
+      expect(created.id).toEqual(expect.any(String))
+      expect(created.id).not.toBe('')
+      expect(collection.get(created.id)).toBeDefined()
+
+      const read = await requestFor('get', `/widgets/${created.id}`)
+
+      expect(read.status).toBe(200)
+    })
+
     it('uses createRecord() to build the inserted record when provided', async () => {
       const collection = setupHandlerUnderTest({
         createRecord: input => ({ ...input, id: 'generated-id' } as IWidget)

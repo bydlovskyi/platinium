@@ -62,7 +62,13 @@ export interface IEntityHandlerOptions<T extends IIdentifiable> {
   fields?: IEntityFieldDeclaration<T>
   /** Validates a create/update payload, returning a field→message map when invalid. Omit for no validation. */
   validate?: (input: Partial<T>) => Record<string, string> | undefined
-  /** Builds a new record's id and any server-assigned fields (e.g. timestamps) from a validated create payload. */
+  /**
+   * Builds a new record's id and any server-assigned fields (e.g. timestamps)
+   * from a validated create payload. Omit it and the payload is stored as-is
+   * apart from its id, which is generated when the payload does not carry one
+   * — `collection.insert()` stores whatever it is handed, so a record without
+   * an id would be unreachable through `GET <path>/:id` afterwards.
+   */
   createRecord?: (input: Partial<T>) => T
   /** Builds the patch applied on update from a validated update payload (e.g. bumping `updatedAt`). */
   buildUpdatePatch?: (input: Partial<T>) => Partial<T>
@@ -202,6 +208,38 @@ async function readJsonBody (request: Request): Promise<Partial<Record<string, u
 }
 
 /**
+ * Mock-side identifier for a newly created record. Uses `crypto.randomUUID()`
+ * where it exists and falls back to a UUID-shaped counter otherwise, so the
+ * factory never depends on a runtime detail of the environment it is mocking
+ * in (jsdom, Node and the browser all behave the same here).
+ */
+let generatedIdCounter = 0
+
+function generateId (): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  generatedIdCounter += 1
+
+  return `00000000-0000-4000-8000-${String(generatedIdCounter).padStart(12, '0')}`
+}
+
+/**
+ * Guarantees the record handed to `collection.insert()` carries an id. A
+ * caller's `createRecord` normally assigns one; without it the client payload
+ * is stored verbatim, and a record with no id could never be read, updated or
+ * deleted through the item routes.
+ */
+function withGeneratedId<T extends IIdentifiable> (record: T): T {
+  // The payload arrives from the network, so its `id` can be absent at runtime
+  // however the type declares it.
+  const id = record.id as string | undefined
+
+  return id === undefined || id === '' ? { ...record, id: generateId() } : record
+}
+
+/**
  * Produces the standard list/create/read/update/delete handlers for one
  * entity, wired to `options.collection` and respecting the shared chaos
  * controls uniformly on every route.
@@ -236,7 +274,7 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
     }
 
     const record = createRecord ? createRecord(input) : (input as T)
-    const inserted = collection.insert(record)
+    const inserted = collection.insert(withGeneratedId(record))
 
     return HttpResponse.json(inserted, { status: HTTP_STATUS.created })
   }))
