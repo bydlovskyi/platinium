@@ -1,5 +1,5 @@
 import type { ISeedDataset } from './fixtures'
-import type { ICategory, IEvent, ITicket } from './types'
+import type { ICategory, IEvent, ITicket, IUser } from './types'
 
 /**
  * localStorage key the mock database persists under. Bumping
@@ -10,12 +10,13 @@ import type { ICategory, IEvent, ITicket } from './types'
 export const PERSISTENCE_KEY = 'platinum:mock-db'
 
 /**
- * Bump this whenever `IEvent`, `ICategory` or `ITicket` change shape. A
- * reviewer who runs an older build and then a newer one must never see a
- * corrupted state — discarding stale data is the deliberate, documented
- * trade-off (see PRD-001, "Further Notes").
+ * Bump this whenever `IEvent`, `ICategory`, `ITicket` or `IUser` change
+ * shape. A reviewer who runs an older build and then a newer one must never
+ * see a corrupted state — discarding stale data is the deliberate,
+ * documented trade-off (see PRD-001, "Further Notes"). Bumped to `2` when
+ * `IUser`/the `users` collection was introduced.
  */
-export const PERSISTENCE_VERSION = 1
+export const PERSISTENCE_VERSION = 2
 
 interface IPersistenceEnvelope {
   version: number
@@ -61,6 +62,15 @@ function isTicketArray (value: unknown): value is ITicket[] {
   )
 }
 
+function isUserArray (value: unknown): value is IUser[] {
+  return isRecordArray(value) && value.every(item => hasEntityBaseFields(item) &&
+    typeof item.name === 'string' &&
+    typeof item.email === 'string' &&
+    typeof item.role === 'string' &&
+    typeof item.sessionActive === 'boolean'
+  )
+}
+
 function isValidDataset (value: unknown): value is ISeedDataset {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -68,7 +78,10 @@ function isValidDataset (value: unknown): value is ISeedDataset {
 
   const candidate = value as Record<string, unknown>
 
-  return isEventArray(candidate.events) && isCategoryArray(candidate.categories) && isTicketArray(candidate.tickets)
+  return isEventArray(candidate.events) &&
+    isCategoryArray(candidate.categories) &&
+    isTicketArray(candidate.tickets) &&
+    isUserArray(candidate.users)
 }
 
 function isValidEnvelope (value: unknown): value is IPersistenceEnvelope {

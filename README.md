@@ -34,6 +34,19 @@ npm install
 cp .env.example .env
 ```
 
+## Demo credentials
+
+The backend is fully mocked (MSW) — there is no real server and no real user database.
+Sign in with the single seeded administrator account:
+
+| Field | Value |
+|---|---|
+| Email | `admin@platinium.test` |
+| Password | `admin123` |
+
+The credentials are checked directly by the mock login handler
+(`src/mocks/handlers/auth.ts`), not stored on the seeded user record.
+
 ## Development commands
 
 ```sh

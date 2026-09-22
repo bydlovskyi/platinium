@@ -3,25 +3,28 @@ import { createSeedDataset } from './fixtures'
 import { PERSISTENCE_KEY, loadPersistedDataset, persistDataset } from './persistence'
 
 describe('createDatabase', () => {
-  it('seeds all three collections from the deterministic fixtures by default', () => {
+  it('seeds all four collections from the deterministic fixtures by default', () => {
     const seed = createSeedDataset()
     const db = createDatabase()
 
     expect(db.events.list({}).meta.total).toBe(seed.events.length)
     expect(db.categories.list({}).meta.total).toBe(seed.categories.length)
     expect(db.tickets.list({}).meta.total).toBe(seed.tickets.length)
+    expect(db.users.list({}).meta.total).toBe(seed.users.length)
   })
 
   it('accepts a custom dataset override at construction', () => {
     const db = createDatabase({
       events: [],
       categories: [],
-      tickets: []
+      tickets: [],
+      users: []
     })
 
     expect(db.events.list({}).meta.total).toBe(0)
     expect(db.categories.list({}).meta.total).toBe(0)
     expect(db.tickets.list({}).meta.total).toBe(0)
+    expect(db.users.list({}).meta.total).toBe(0)
   })
 
   it('reset() restores all collections to the deterministic seed', () => {
@@ -56,12 +59,14 @@ describe('createDatabase', () => {
     db.reset({
       events: [],
       categories: [],
-      tickets: []
+      tickets: [],
+      users: []
     })
 
     expect(db.events.list({}).meta.total).toBe(0)
     expect(db.categories.list({}).meta.total).toBe(0)
     expect(db.tickets.list({}).meta.total).toBe(0)
+    expect(db.users.list({}).meta.total).toBe(0)
   })
 
   it('never reads or writes localStorage under test, even when MODE is stubbed to non-test', () => {
@@ -95,7 +100,8 @@ describe('createDatabase', () => {
         updatedAt: '2026-01-01T00:00:00.000Z'
       }],
       categories: [],
-      tickets: []
+      tickets: [],
+      users: []
     }
 
     persistDataset(customDataset)

@@ -26,9 +26,11 @@ export type {
   IEvent,
   IIdentifiable,
   ITicket,
+  IUser,
   TCurrency,
   TEntityId,
   TEventStatus,
   TSortOrder,
-  TTicketStatus
+  TTicketStatus,
+  TUserRole
 } from './types'

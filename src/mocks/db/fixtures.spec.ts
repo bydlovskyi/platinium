@@ -1,6 +1,8 @@
 import { createSeedDataset } from './fixtures'
 import type { TCurrency, TEventStatus, TTicketStatus } from './types'
 
+const USER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 const EVENT_STATUSES: TEventStatus[] = ['draft', 'published', 'cancelled', 'completed']
 const TICKET_STATUSES: TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archived']
 const CURRENCIES: TCurrency[] = ['USD', 'EUR', 'GBP']
@@ -107,5 +109,18 @@ describe('createSeedDataset', () => {
     const { events } = createSeedDataset()
 
     expect(events.every(event => new Date(event.startDate) < new Date(event.endDate))).toBe(true)
+  })
+
+  it('seeds exactly one administrator user, logged out by default', () => {
+    const { users } = createSeedDataset()
+
+    expect(users).toHaveLength(1)
+    expect(users[0]).toMatchObject({
+      name: 'Admin',
+      email: 'admin@platinium.test',
+      role: 'admin',
+      sessionActive: false
+    })
+    expect(users[0]?.email).toMatch(USER_EMAIL_PATTERN)
   })
 })
