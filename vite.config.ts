@@ -10,7 +10,8 @@ import {
   AutoImportScripts,
   IconNamesGenerator,
   ModalsGenerator,
-  RouteNamesGenerator
+  RouteNamesGenerator,
+  TokensCssGenerator
 } from './.config'
 
 export default defineConfig({
@@ -22,7 +23,8 @@ export default defineConfig({
     AutoImportScripts(),
     IconNamesGenerator(),
     ModalsGenerator(),
-    RouteNamesGenerator()
+    RouteNamesGenerator(),
+    TokensCssGenerator()
   ],
 
   resolve: {

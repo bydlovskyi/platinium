@@ -1,16 +1,136 @@
+/*
+  Semantic color custom properties (light default, dark override) live in
+  tokens.css, generated from tokens.ts. This file wires those semantic tokens
+  into Tailwind's `@theme` so utilities like `bg-surface`, `text-text-primary`,
+  `border-border` etc. resolve to the token value in both themes, and defines
+  the rest of the design-system scales (typography, radius, elevation,
+  density, motion) per issue #12.
+
+  Dark mode is toggled by adding `data-theme="dark"` to <html> (see
+  tokens.css: `:root[data-theme='dark']`). A later slice (#20, admin shell)
+  wires an actual UI toggle that sets this attribute.
+*/
+
 @theme {
-  --color-primary: #ff4713;
+  /* ============================================================
+     COLOR — bridges the semantic custom properties from tokens.css
+     into Tailwind utilities (bg-surface, text-accent, border-border, …).
+     Components must never reference a literal hex — only these utilities
+     or var(--token-name) directly.
+     ============================================================ */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-status-published: var(--status-published);
+  --color-status-draft: var(--status-draft);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-completed: var(--status-completed);
 
-  --color-text-primary: #303133;
-  --color-text-regular: #606266;
-  --color-text-secondary: #909399;
-  --color-text-placeholder: #a8abb2;
-  --color-text-disabled: #c0c4cc;
+  /* ============================================================
+     TYPOGRAPHY — self-hosted Inter Variable (see base.css @font-face
+     import) plus the semantic type scale. Each step defines size, line
+     height and a paired weight so `text-screen-heading` etc. are complete
+     utilities (Tailwind v4 `--text-*`/`--text-*--line-height`/`--font-weight-*`
+     convention, consistent with the existing `--text-xl` etc. references in
+     element-reset/theme.css).
 
-  --color-border: #dcdfe6;
-  --color-border-light: #e4e7ed;
-  --color-border-lighter: #ebeef5;
-  --color-border-extra-light: #f2f6fc;
-  --color-border-dark: #d4d7de;
-  --color-border-darker: #cdd0d6;
+     Tabular figures / slashed zero: Tailwind v4 already ships this as a
+     built-in `font-variant-numeric` utility set (`tabular-nums`,
+     `slashed-zero`, composable as `class="tabular-nums slashed-zero"`) — do
+     not add a custom `.tabular-nums` class, just use the Tailwind utility.
+     ============================================================ */
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --text-screen-heading: 1.875rem;
+  --text-screen-heading--line-height: 2.25rem;
+  --font-weight-screen-heading: var(--font-weight-semibold);
+
+  --text-section-heading: 1.25rem;
+  --text-section-heading--line-height: 1.75rem;
+  --font-weight-section-heading: var(--font-weight-semibold);
+
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.125rem;
+  --font-weight-label: var(--font-weight-medium);
+
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --font-weight-body: var(--font-weight-normal);
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --font-weight-caption: var(--font-weight-normal);
+
+  /* ============================================================
+     RADIUS — exactly three steps per issue #12. Components should only
+     ever use these three; Tailwind's own default radius scale
+     (--radius-xs/sm/md/lg/xl/…) is left untouched because element-reset
+     already maps some of those defaults to Element Plus (see
+     element-reset/theme.css) and other libraries may rely on it.
+     ============================================================ */
+  --radius-token-sm: 4px;
+  --radius-token-md: 8px;
+  --radius-token-lg: 12px;
+
+  /* ============================================================
+     ELEVATION — exactly three shadow levels. Light-mode values are
+     conventional soft shadows; dark-mode values (see tokens.css /
+     dark-mode overrides below) are much more subtle because "surfaces
+     lighten with elevation rather than darken; shadows [are] replaced by
+     surface separation" — the dark shadow is a faint separator, not a
+     copy of the light one.
+     ============================================================ */
+  --shadow-token-sm: 0 1px 2px 0 rgb(28 25 23 / 0.06);
+  --shadow-token-md: 0 4px 8px -2px rgb(28 25 23 / 0.08), 0 2px 4px -2px rgb(28 25 23 / 0.05);
+  --shadow-token-lg: 0 12px 24px -6px rgb(28 25 23 / 0.12), 0 4px 8px -4px rgb(28 25 23 / 0.06);
+
+  /* ============================================================
+     DENSITY — row/table/tap-target tokens consumed by later data-table
+     and mobile-layout slices (#13/#23). Tailwind's default spacing scale
+     (--spacing: 0.25rem = 4px) already produces the 4/8/12/16/24/32/48
+     step values via p-1/p-2/p-3/p-4/p-6/p-8/p-12 — no custom spacing
+     scale is needed for that requirement.
+     ============================================================ */
+  --row-height: 36px;
+  --table-cell-padding-y: 8px;
+  --tap-target-min: 44px;
+
+  /* ============================================================
+     MOTION — duration/easing tokens for slice #42 (motion &
+     micro-interactions). Named with a `-token` suffix so they don't
+     collide with Tailwind's own `--ease-out`/`--ease-in-out` theme
+     variables (which power the `ease-out`/`ease-in-out` utilities with
+     different curves) — this project's semantic motion tokens are
+     consumed via `var(--duration-fast)` etc., not as Tailwind utilities.
+     ============================================================ */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease-out-token: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-token: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================================
+     FOCUS RING — single treatment applied globally via :focus-visible
+     in base.css. Verified for AA contrast against both surface colors
+     (see tokens.spec.ts).
+     ============================================================ */
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+/*
+  Dark-mode shadow treatment: "shadows replaced by surface separation" —
+  the box-shadow itself becomes a near-transparent, low-spread hint rather
+  than the light-mode drop shadow, since elevation is communicated instead
+  by the surface-raised background contrast against the (near-black) base
+  surface.
+*/
+:root[data-theme='dark'] {
+  --shadow-token-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-token-md: 0 2px 4px 0 rgb(0 0 0 / 0.35);
+  --shadow-token-lg: 0 4px 8px 0 rgb(0 0 0 / 0.4);
 }
