@@ -1,13 +1,16 @@
 import { setupServer } from 'msw/node'
 
+import { handlers } from './handlers'
+
 /**
  * Node MSW server used by the integration project and any test that talks
- * to the API client. Built with the same handler modules the browser worker
- * uses, so a passing test means the real request/response shape is exercised.
+ * to the API client. Built with the same handler list the browser worker
+ * (`src/mocks/browser.ts`) uses, so a passing test means the real
+ * request/response shape is exercised.
  *
- * No handlers exist yet — the contract and mock-backend slices (#13-#15)
- * register them here. Until then the server intercepts nothing and every
- * request that reaches it is unhandled, which `tests/setup.ts` turns into a
- * hard failure rather than a silent pass-through.
+ * Only handlers actually registered in `src/mocks/handlers/index.ts` answer
+ * requests here — an endpoint no handler covers stays unhandled, which
+ * `tests/setup.ts` (`onUnhandledRequest: 'error'`) turns into a hard test
+ * failure rather than a silent pass-through.
  */
-export const server = setupServer()
+export const server = setupServer(...handlers)
