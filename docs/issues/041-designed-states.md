@@ -8,6 +8,13 @@
 | **Slice** | 31 of 41 |
 | **Branch** | `feat/41-designed-states` |
 
+```
+Parent: #10
+Parent branch: feat/40-csv-export
+Branch: feat/41-designed-states
+Blocked by: #40
+```
+
 ## Parent PRD
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)

@@ -8,6 +8,13 @@
 | **Slice** | 36 of 41 |
 | **Branch** | `feat/46-test-gap-review` |
 
+```
+Parent: #8
+Parent branch: feat/45-design-system-docs
+Branch: feat/46-test-gap-review
+Blocked by: #45
+```
+
 ## Parent PRD
 
 #8 — [`docs/prd/PRD-008-testing-strategy-and-quality-gates.md`](../prd/PRD-008-testing-strategy-and-quality-gates.md)

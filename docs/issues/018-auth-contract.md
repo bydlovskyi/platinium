@@ -8,6 +8,13 @@
 | **Slice** | 8 of 41 |
 | **Branch** | `feat/18-auth-contract` |
 
+```
+Parent: #2
+Parent branch: feat/17-docker
+Branch: feat/18-auth-contract
+Blocked by: #17
+```
+
 ## Parent PRD
 
 #2 — [`docs/prd/PRD-002-authentication-and-admin-shell.md`](../prd/PRD-002-authentication-and-admin-shell.md)

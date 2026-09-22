@@ -8,6 +8,13 @@
 | **Slice** | 29 of 41 |
 | **Branch** | `feat/39-bulk-operations` |
 
+```
+Parent: #7
+Parent branch: feat/38-dashboard
+Branch: feat/39-bulk-operations
+Blocked by: #38
+```
+
 ## Parent PRD
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)

@@ -8,6 +8,13 @@
 | **Slice** | 35 of 41 |
 | **Branch** | `feat/45-design-system-docs` |
 
+```
+Parent: #10
+Parent branch: feat/44-polish-pass
+Branch: feat/45-design-system-docs
+Blocked by: #44
+```
+
 ## Parent PRD
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)

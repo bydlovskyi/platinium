@@ -8,6 +8,13 @@
 | **Slice** | 23 of 41 |
 | **Branch** | `feat/33-remote-select` |
 
+```
+Parent: #6
+Parent branch: feat/32-currency-input
+Branch: feat/33-remote-select
+Blocked by: #32
+```
+
 ## Parent PRD
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)

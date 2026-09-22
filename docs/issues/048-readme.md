@@ -8,6 +8,13 @@
 | **Slice** | 38 of 41 |
 | **Branch** | `feat/48-readme` |
 
+```
+Parent: #9
+Parent branch: feat/47-repo-final-pass
+Branch: feat/48-readme
+Blocked by: #47
+```
+
 ## Parent PRD
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)

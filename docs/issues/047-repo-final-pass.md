@@ -8,6 +8,13 @@
 | **Slice** | 37 of 41 |
 | **Branch** | `feat/47-repo-final-pass` |
 
+```
+Parent: #9
+Parent branch: feat/46-test-gap-review
+Branch: feat/47-repo-final-pass
+Blocked by: #46
+```
+
 ## Parent PRD
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)

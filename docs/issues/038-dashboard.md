@@ -8,6 +8,13 @@
 | **Slice** | 28 of 41 |
 | **Branch** | `feat/38-dashboard` |
 
+```
+Parent: #7
+Parent branch: feat/37-permissions
+Branch: feat/38-dashboard
+Blocked by: #37
+```
+
 ## Parent PRD
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)

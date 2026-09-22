@@ -8,6 +8,13 @@
 | **Slice** | 27 of 41 |
 | **Branch** | `feat/37-permissions` |
 
+```
+Parent: #7
+Parent branch: feat/36-prd007-contract
+Branch: feat/37-permissions
+Blocked by: #36
+```
+
 ## Parent PRD
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)

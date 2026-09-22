@@ -8,6 +8,13 @@
 | **Slice** | 39 of 41 |
 | **Branch** | `feat/49-technical-review` |
 
+```
+Parent: #9
+Parent branch: feat/48-readme
+Branch: feat/49-technical-review
+Blocked by: #48
+```
+
 ## Parent PRD
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)

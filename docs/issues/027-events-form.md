@@ -8,6 +8,13 @@
 | **Slice** | 17 of 41 |
 | **Branch** | `feat/27-events-form` |
 
+```
+Parent: #4
+Parent branch: feat/26-events-list
+Branch: feat/27-events-form
+Blocked by: #26
+```
+
 ## Parent PRD
 
 #4 — [`docs/prd/PRD-004-events-management.md`](../prd/PRD-004-events-management.md)

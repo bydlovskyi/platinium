@@ -8,6 +8,13 @@
 | **Slice** | 15 of 41 |
 | **Branch** | `feat/25-events-contract` |
 
+```
+Parent: #4
+Parent branch: feat/24-list-support-components
+Branch: feat/25-events-contract
+Blocked by: #24
+```
+
 ## Parent PRD
 
 #4 — [`docs/prd/PRD-004-events-management.md`](../prd/PRD-004-events-management.md)

@@ -8,6 +8,13 @@
 | **Slice** | 32 of 41 |
 | **Branch** | `feat/42-motion` |
 
+```
+Parent: #10
+Parent branch: feat/41-designed-states
+Branch: feat/42-motion
+Blocked by: #41
+```
+
 ## Parent PRD
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)

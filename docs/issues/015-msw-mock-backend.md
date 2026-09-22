@@ -8,6 +8,13 @@
 | **Slice** | 5 of 41 |
 | **Branch** | `feat/15-msw-mock-backend` |
 
+```
+Parent: #1
+Parent branch: feat/14-mock-database
+Branch: feat/15-msw-mock-backend
+Blocked by: #14
+```
+
 ## Parent PRD
 
 #1 — [`docs/prd/PRD-001-platform-foundation.md`](../prd/PRD-001-platform-foundation.md)

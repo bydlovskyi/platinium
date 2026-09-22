@@ -8,6 +8,13 @@
 | **Slice** | 22 of 41 |
 | **Branch** | `feat/32-currency-input` |
 
+```
+Parent: #6
+Parent branch: feat/31-tickets-contract
+Branch: feat/32-currency-input
+Blocked by: #31
+```
+
 ## Parent PRD
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)

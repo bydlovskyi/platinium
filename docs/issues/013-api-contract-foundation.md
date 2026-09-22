@@ -8,6 +8,13 @@
 | **Slice** | 3 of 41 |
 | **Branch** | `feat/13-api-contract-foundation` |
 
+```
+Parent: #1
+Parent branch: feat/12-design-system-foundation
+Branch: feat/13-api-contract-foundation
+Blocked by: #12
+```
+
 ## Parent PRD
 
 #1 — [`docs/prd/PRD-001-platform-foundation.md`](../prd/PRD-001-platform-foundation.md)

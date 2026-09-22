@@ -8,6 +8,13 @@
 | **Slice** | 30 of 41 |
 | **Branch** | `feat/40-csv-export` |
 
+```
+Parent: #7
+Parent branch: feat/39-bulk-operations
+Branch: feat/40-csv-export
+Blocked by: #39
+```
+
 ## Parent PRD
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)

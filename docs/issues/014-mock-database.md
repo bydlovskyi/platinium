@@ -8,6 +8,13 @@
 | **Slice** | 4 of 41 |
 | **Branch** | `feat/14-mock-database` |
 
+```
+Parent: #1
+Parent branch: feat/13-api-contract-foundation
+Branch: feat/14-mock-database
+Blocked by: #13
+```
+
 ## Parent PRD
 
 #1 — [`docs/prd/PRD-001-platform-foundation.md`](../prd/PRD-001-platform-foundation.md)

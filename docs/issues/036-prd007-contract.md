@@ -8,6 +8,13 @@
 | **Slice** | 26 of 41 |
 | **Branch** | `feat/36-prd007-contract` |
 
+```
+Parent: #7
+Parent branch: feat/35-tickets-form
+Branch: feat/36-prd007-contract
+Blocked by: #35
+```
+
 ## Parent PRD
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)

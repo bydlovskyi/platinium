@@ -8,6 +8,13 @@
 | **Slice** | 2 of 41 |
 | **Branch** | `feat/12-design-system-foundation` |
 
+```
+Parent: #10
+Parent branch: feat/11-test-harness
+Branch: feat/12-design-system-foundation
+Blocked by: #11
+```
+
 ## Parent PRD
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)

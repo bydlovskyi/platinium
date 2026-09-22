@@ -8,6 +8,13 @@
 | **Slice** | 20 of 41 |
 | **Branch** | `feat/30-categories-crud` |
 
+```
+Parent: #5
+Parent branch: feat/29-categories-contract
+Branch: feat/30-categories-crud
+Blocked by: #29
+```
+
 ## Parent PRD
 
 #5 — [`docs/prd/PRD-005-ticket-categories-management.md`](../prd/PRD-005-ticket-categories-management.md)

@@ -8,6 +8,13 @@
 | **Slice** | 6 of 41 |
 | **Branch** | `feat/16-error-handling` |
 
+```
+Parent: #1
+Parent branch: feat/15-msw-mock-backend
+Branch: feat/16-error-handling
+Blocked by: #15
+```
+
 ## Parent PRD
 
 #1 — [`docs/prd/PRD-001-platform-foundation.md`](../prd/PRD-001-platform-foundation.md)

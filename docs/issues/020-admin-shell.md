@@ -8,6 +8,13 @@
 | **Slice** | 10 of 41 |
 | **Branch** | `feat/20-admin-shell` |
 
+```
+Parent: #2
+Parent branch: feat/19-session-and-login
+Branch: feat/20-admin-shell
+Blocked by: #19
+```
+
 ## Parent PRD
 
 #2 — [`docs/prd/PRD-002-authentication-and-admin-shell.md`](../prd/PRD-002-authentication-and-admin-shell.md)

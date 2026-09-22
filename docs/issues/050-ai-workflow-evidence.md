@@ -8,6 +8,13 @@
 | **Slice** | 40 of 41 |
 | **Branch** | `feat/50-ai-workflow-evidence` |
 
+```
+Parent: #9
+Parent branch: feat/49-technical-review
+Branch: feat/50-ai-workflow-evidence
+Blocked by: #49
+```
+
 ## Parent PRD
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)

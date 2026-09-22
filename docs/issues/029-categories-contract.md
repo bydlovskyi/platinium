@@ -8,6 +8,13 @@
 | **Slice** | 19 of 41 |
 | **Branch** | `feat/29-categories-contract` |
 
+```
+Parent: #5
+Parent branch: feat/28-events-deletion
+Branch: feat/29-categories-contract
+Blocked by: #28
+```
+
 ## Parent PRD
 
 #5 — [`docs/prd/PRD-005-ticket-categories-management.md`](../prd/PRD-005-ticket-categories-management.md)

@@ -8,6 +8,13 @@
 | **Slice** | 14 of 41 |
 | **Branch** | `feat/24-list-support-components` |
 
+```
+Parent: #3
+Parent branch: feat/23-data-table
+Branch: feat/24-list-support-components
+Blocked by: #23
+```
+
 ## Parent PRD
 
 #3 — [`docs/prd/PRD-003-data-table-and-list-experience.md`](../prd/PRD-003-data-table-and-list-experience.md)

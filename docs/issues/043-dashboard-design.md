@@ -8,6 +8,13 @@
 | **Slice** | 33 of 41 |
 | **Branch** | `feat/43-dashboard-design` |
 
+```
+Parent: #10
+Parent branch: feat/42-motion
+Branch: feat/43-dashboard-design
+Blocked by: #42
+```
+
 ## Parent PRD
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)

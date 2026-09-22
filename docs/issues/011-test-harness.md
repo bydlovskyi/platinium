@@ -8,6 +8,12 @@
 | **Slice** | 1 of 41 |
 | **Branch** | `feat/11-test-harness` |
 
+```
+Parent: #8
+Parent branch: main
+Branch: feat/11-test-harness
+```
+
 ## Parent PRD
 
 #8 — [`docs/prd/PRD-008-testing-strategy-and-quality-gates.md`](../prd/PRD-008-testing-strategy-and-quality-gates.md)

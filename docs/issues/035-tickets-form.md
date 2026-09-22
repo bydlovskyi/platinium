@@ -8,6 +8,13 @@
 | **Slice** | 25 of 41 |
 | **Branch** | `feat/35-tickets-form` |
 
+```
+Parent: #6
+Parent branch: feat/34-tickets-list
+Branch: feat/35-tickets-form
+Blocked by: #34
+```
+
 ## Parent PRD
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)

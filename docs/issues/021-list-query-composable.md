@@ -8,6 +8,13 @@
 | **Slice** | 11 of 41 |
 | **Branch** | `feat/21-list-query-composable` |
 
+```
+Parent: #3
+Parent branch: feat/20-admin-shell
+Branch: feat/21-list-query-composable
+Blocked by: #20
+```
+
 ## Parent PRD
 
 #3 — [`docs/prd/PRD-003-data-table-and-list-experience.md`](../prd/PRD-003-data-table-and-list-experience.md)

@@ -8,6 +8,13 @@
 | **Slice** | 24 of 41 |
 | **Branch** | `feat/34-tickets-list` |
 
+```
+Parent: #6
+Parent branch: feat/33-remote-select
+Branch: feat/34-tickets-list
+Blocked by: #33
+```
+
 ## Parent PRD
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)

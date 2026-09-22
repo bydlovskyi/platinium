@@ -8,6 +8,13 @@
 | **Slice** | 13 of 41 |
 | **Branch** | `feat/23-data-table` |
 
+```
+Parent: #3
+Parent branch: feat/22-list-resource-composable
+Branch: feat/23-data-table
+Blocked by: #22
+```
+
 ## Parent PRD
 
 #3 — [`docs/prd/PRD-003-data-table-and-list-experience.md`](../prd/PRD-003-data-table-and-list-experience.md)

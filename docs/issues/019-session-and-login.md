@@ -8,6 +8,13 @@
 | **Slice** | 9 of 41 |
 | **Branch** | `feat/19-session-and-login` |
 
+```
+Parent: #2
+Parent branch: feat/18-auth-contract
+Branch: feat/19-session-and-login
+Blocked by: #18
+```
+
 ## Parent PRD
 
 #2 — [`docs/prd/PRD-002-authentication-and-admin-shell.md`](../prd/PRD-002-authentication-and-admin-shell.md)

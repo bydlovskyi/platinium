@@ -8,6 +8,13 @@
 | **Slice** | 21 of 41 |
 | **Branch** | `feat/31-tickets-contract` |
 
+```
+Parent: #6
+Parent branch: feat/30-categories-crud
+Branch: feat/31-tickets-contract
+Blocked by: #30
+```
+
 ## Parent PRD
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)
