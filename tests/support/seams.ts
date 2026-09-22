@@ -4,14 +4,17 @@
  * don't change call sites once the owning slice fills them in.
  */
 
-/**
- * Resets the mock database and, when given one, seeds it with a specific
- * dataset. Implemented by the mock database slice (#14).
- */
-export function resetDatabase<T = unknown> (dataset?: T): never {
-  const suffix = dataset === undefined ? '' : ' A dataset was provided but is ignored until then.'
+import { db } from '@/mocks/db/singleton'
+import type { ISeedDataset } from '@/mocks/db'
 
-  throw new Error(`resetDatabase() has no implementation yet — it lands with the mock database slice (#14).${suffix}`)
+/**
+ * Resets the shared mock database (`src/mocks/db`) back to its deterministic
+ * seed, or to a given dataset override when one is provided. Call this
+ * between tests that mutate the database so each test starts from a known,
+ * independent state.
+ */
+export function resetDatabase<T extends ISeedDataset = ISeedDataset> (dataset?: T): void {
+  db.reset(dataset)
 }
 
 /** Implemented by the session and login slice (#19). */
