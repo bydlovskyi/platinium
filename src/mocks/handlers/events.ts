@@ -134,7 +134,7 @@ function bumpUpdatedAt (input: Partial<IEvent>): Partial<IEvent> {
  * the dependent count rather than a bare refusal — see `DependencyConflict`
  * in `src/mocks/openapi.yaml`. Events have no conflict rule on update.
  */
-function checkEventConflict (record: IEvent, action: 'update' | 'delete'): { message: string; entity: string; count: number } | undefined {
+function checkEventConflict (record: IEvent, action: 'create' | 'update' | 'delete'): { message: string; entity: string; count: number } | undefined {
   if (action !== 'delete') {
     return undefined
   }

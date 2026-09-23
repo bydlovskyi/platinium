@@ -1,6 +1,7 @@
 import type { HttpHandler } from 'msw'
 
 import { authHandlers } from './auth'
+import { categoryHandlers } from './categories'
 import { eventHandlers } from './events'
 import { healthHandlers } from './health'
 
@@ -10,20 +11,23 @@ import { healthHandlers } from './health'
  * and the Node server (`src/mocks/server.ts`) so both environments answer
  * requests identically.
  *
- * `/health`, the `/auth/*` paths and `/events` are registered here today.
- * The remaining entity paths (`/categories`, `/tickets`) are declared by
- * their own dedicated contract slices (#29, #31), which call
- * `createEntityHandlers` from `src/mocks/handlers/factory.ts` and append
- * their handlers to this array the same way `eventHandlers` does.
+ * `/health`, the `/auth/*` paths, `/events` and `/categories` are
+ * registered here today. The remaining entity paths (`/tickets`) are
+ * declared by their own dedicated contract slice (#31), which calls
+ * `createEntityHandlers` from `src/mocks/handlers/factory.ts` and appends
+ * its handlers to this array the same way `eventHandlers`/`categoryHandlers`
+ * do.
  */
 export const handlers: HttpHandler[] = [
   ...healthHandlers,
   ...authHandlers,
-  ...eventHandlers
+  ...eventHandlers,
+  ...categoryHandlers
 ]
 
 export { createEntityHandlers } from './factory'
 export type {
+  ICodedConflict,
   IEntityFieldDeclaration,
   IEntityHandlerOptions,
   IStructuredConflict,

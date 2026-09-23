@@ -47,3 +47,12 @@ type TEventListResponse = TApiComponents['schemas']['EventListResponse']
 
 /** The shared error envelope extended with the blocking dependent entity's type and count. */
 type TDependencyConflict = TApiComponents['schemas']['DependencyConflict']
+
+/** A ticket category (e.g. General Admission, VIP), shared across events. */
+type TCategory = TApiComponents['schemas']['Category']
+
+/** The writable subset of a Category, shared by create and update. */
+type TCategoryPayload = TApiComponents['schemas']['CategoryPayload']
+
+/** Body returned by `GET /categories`. */
+type TCategoryListResponse = TApiComponents['schemas']['CategoryListResponse']

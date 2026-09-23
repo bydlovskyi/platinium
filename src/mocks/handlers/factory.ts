@@ -77,15 +77,34 @@ export interface IStructuredConflict {
 }
 
 /**
- * A hook a caller (an entity slice) can register to reject a mutation
- * before it reaches the collection — e.g. a referential-integrity check
- * before delete. Returning a plain string fails the request with
- * `409 Conflict` and that message; returning an {@link IStructuredConflict}
- * fails it with the richer `DependencyConflict` body instead (message plus
- * the blocking entity's type and count); returning `undefined` lets the
- * request proceed.
+ * A coded, non-dependency conflict a {@link TConflictCheck} may return —
+ * e.g. a uniqueness violation. Distinct from {@link IStructuredConflict}:
+ * it carries no `entity`/`count` (there is no blocking dependent record,
+ * just a clash with another record of the same collection), but its `code`
+ * overrides the plain string form's hardcoded `'CONFLICT'`, so a client can
+ * tell a duplicate-name rejection apart from a referential-integrity one.
  */
-export type TConflictCheck<T> = (record: T, action: 'update' | 'delete') => string | IStructuredConflict | undefined
+export interface ICodedConflict {
+  code: string
+  message: string
+}
+
+/**
+ * A hook a caller (an entity slice) can register to reject a mutation
+ * before it reaches the collection — e.g. a uniqueness check before create,
+ * or a referential-integrity check before delete. Returning a plain string
+ * fails the request with `409 Conflict` and that message; returning an
+ * {@link ICodedConflict} fails it with that distinct `code` instead;
+ * returning an {@link IStructuredConflict} fails it with the richer
+ * `DependencyConflict` body instead (message plus the blocking entity's type
+ * and count); returning `undefined` lets the request proceed. On `create`,
+ * `record` is the input payload cast to `T` — the record does not exist yet,
+ * so only fields present on the payload should be inspected.
+ */
+export type TConflictCheck<T> = (
+  record: T,
+  action: 'create' | 'update' | 'delete'
+) => string | ICodedConflict | IStructuredConflict | undefined
 
 /** Context passed to a `validate` callback alongside the input payload. See {@link IEntityHandlerOptions.validate}. */
 export interface IValidateContext<T> {
@@ -127,11 +146,20 @@ function errorBody (code: string, message: string, errors?: Record<string, strin
   return errors === undefined ? { code, message } : { code, message, errors }
 }
 
-/** Builds the `409` response body for a {@link TConflictCheck} result, plain-string or structured alike. */
-function conflictBody (conflict: string | IStructuredConflict): TErrorResponse | TDependencyConflict {
-  return typeof conflict === 'string'
-    ? errorBody('CONFLICT', conflict)
-    : { code: 'CONFLICT', message: conflict.message, entity: conflict.entity, count: conflict.count }
+/** Narrows a {@link TConflictCheck} result to the structured, `DependencyConflict`-shaped case. */
+function isStructuredConflict (conflict: ICodedConflict | IStructuredConflict): conflict is IStructuredConflict {
+  return 'entity' in conflict && 'count' in conflict
+}
+
+/** Builds the `409` response body for a {@link TConflictCheck} result — plain string, coded or structured alike. */
+function conflictBody (conflict: string | ICodedConflict | IStructuredConflict): TErrorResponse | TDependencyConflict {
+  if (typeof conflict === 'string') {
+    return errorBody('CONFLICT', conflict)
+  }
+
+  return isStructuredConflict(conflict)
+    ? { code: 'CONFLICT', message: conflict.message, entity: conflict.entity, count: conflict.count }
+    : errorBody(conflict.code, conflict.message)
 }
 
 const HTTP_STATUS = {
@@ -351,6 +379,12 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       )
     }
 
+    const conflict = conflictCheck?.(input as T, 'create')
+
+    if (conflict !== undefined) {
+      return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
+    }
+
     const record = createRecord ? createRecord(input) : (input as T)
     const inserted = collection.insert(withGeneratedId(record))
 
@@ -381,7 +415,11 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       )
     }
 
-    const conflict = conflictCheck?.(existing, 'update')
+    // The *effective* post-patch record — existing fields overlaid with the
+    // given patch — not the pre-patch `existing` alone, so a conflictCheck
+    // that inspects a field the patch changes (e.g. a uniqueness check on
+    // `name`) sees the value the update would actually produce.
+    const conflict = conflictCheck?.({ ...existing, ...input }, 'update')
 
     if (conflict !== undefined) {
       return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })

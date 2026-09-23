@@ -260,6 +260,152 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DependencyConflict'
+
+  /categories:
+    get:
+      operationId: getCategories
+      summary: List categories
+      description: >
+        Returns a page of ticket categories, filtered and sorted per the
+        given query parameters.
+      tags:
+        - Categories
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200':
+          description: A page of categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+
+    post:
+      operationId: postCategories
+      summary: Create a category
+      description: >
+        Creates a new category from the given payload. Rejects a name that
+        already exists (case-insensitively, ignoring leading/trailing
+        whitespace) with a `409` carrying the `DUPLICATE_NAME` code.
+      tags:
+        - Categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPayload'
+      responses:
+        '201':
+          description: The category was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: A category with this name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/{id}:
+    get:
+      operationId: getCategoriesId
+      summary: Fetch a category
+      description: Returns a single category by id.
+      tags:
+        - Categories
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The category record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchCategoriesId
+      summary: Partially update a category
+      description: >
+        Applies a partial update to an existing category. Rejects a name
+        that already belongs to another category (case-insensitively,
+        ignoring leading/trailing whitespace) with a `409` carrying the
+        `DUPLICATE_NAME` code.
+      tags:
+        - Categories
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPayload'
+      responses:
+        '200':
+          description: The updated category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Another category already has this name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      operationId: deleteCategoriesId
+      summary: Delete a category
+      description: >
+        Deletes a category, unless a ticket still references it — cascade
+        deletion is deliberately not supported; the caller must resolve or
+        remove the dependent tickets first.
+      tags:
+        - Categories
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The category was deleted.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >
+            The category cannot be deleted because one or more tickets still
+            reference it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyConflict'
 components:
   schemas:
     HealthStatus:
@@ -323,7 +469,16 @@ components:
           type: string
           description: >
             Machine-readable error code, e.g. `VALIDATION_ERROR`,
-            `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`.
+            `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. `409`
+            responses use a code more specific than the generic `CONFLICT`
+            where the failure reason needs to be distinguishable by the
+            client: `DUPLICATE_NAME` for a uniqueness violation (e.g.
+            `POST /categories`/`PATCH /categories/{id}` on an existing
+            name), versus the plain `CONFLICT` carried by
+            `DependencyConflict` for a referential-integrity violation (e.g.
+            deleting a category or event tickets still reference). Not
+            modelled as a closed enum here because new codes are added by
+            each owning slice as needed, same as `message`.
         message:
           type: string
           description: Human-readable summary of the failure.
@@ -523,6 +678,78 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Event'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    Category:
+      type: object
+      description: >
+        A ticket category (e.g. General Admission, VIP), shared across
+        events. Names are unique case-insensitively and ignoring
+        leading/trailing whitespace, enforced by the mock handler
+        (`src/mocks/handlers/categories.ts`), not by this schema.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name, unique across all categories.
+        description:
+          type: string
+          description: Human-readable description of the category.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - description
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    CategoryPayload:
+      type: object
+      description: >
+        The writable subset of a Category, shared by `POST /categories`
+        (full create) and `PATCH /categories/{id}` (partial update).
+        Deliberately carries no `required` list, for the same reason
+        `EventPayload` does not: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force `name` on a `PATCH` too,
+        defeating "partial". Which fields are mandatory for create instead
+        of update — and the uniqueness check — is enforced at runtime by the
+        mock handler's `validate`/`conflictCheck` functions
+        (`src/mocks/handlers/categories.ts`); do not add `required` back to
+        this schema.
+      properties:
+        name:
+          type: string
+          description: Display name, unique across all categories.
+        description:
+          type: string
+          description: Human-readable description of the category.
+      additionalProperties: false
+
+    CategoryListResponse:
+      type: object
+      description: Body returned by `GET /categories`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
         meta:
           allOf:
             - $ref: '#/components/schemas/PaginationMeta'

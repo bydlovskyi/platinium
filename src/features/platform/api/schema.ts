@@ -136,6 +136,58 @@ export interface paths {
         patch: operations["patchEventsId"];
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List categories
+         * @description Returns a page of ticket categories, filtered and sorted per the given query parameters.
+         */
+        get: operations["getCategories"];
+        put?: never;
+        /**
+         * Create a category
+         * @description Creates a new category from the given payload. Rejects a name that already exists (case-insensitively, ignoring leading/trailing whitespace) with a `409` carrying the `DUPLICATE_NAME` code.
+         */
+        post: operations["postCategories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a category
+         * @description Returns a single category by id.
+         */
+        get: operations["getCategoriesId"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a category
+         * @description Deletes a category, unless a ticket still references it — cascade deletion is deliberately not supported; the caller must resolve or remove the dependent tickets first.
+         */
+        delete: operations["deleteCategoriesId"];
+        options?: never;
+        head?: never;
+        /**
+         * Partially update a category
+         * @description Applies a partial update to an existing category. Rejects a name that already belongs to another category (case-insensitively, ignoring leading/trailing whitespace) with a `409` carrying the `DUPLICATE_NAME` code.
+         */
+        patch: operations["patchCategoriesId"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -165,7 +217,7 @@ export interface components {
         };
         /** @description The shared error envelope returned by every failed request: a machine-readable code, a human message and, for validation failures, a per-field message map. */
         ErrorResponse: {
-            /** @description Machine-readable error code, e.g. `VALIDATION_ERROR`, `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. */
+            /** @description Machine-readable error code, e.g. `VALIDATION_ERROR`, `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. `409` responses use a code more specific than the generic `CONFLICT` where the failure reason needs to be distinguishable by the client: `DUPLICATE_NAME` for a uniqueness violation (e.g. `POST /categories`/`PATCH /categories/{id}` on an existing name), versus the plain `CONFLICT` carried by `DependencyConflict` for a referential-integrity violation (e.g. deleting a category or event tickets still reference). Not modelled as a closed enum here because new codes are added by each owning slice as needed, same as `message`. */
             code: string;
             /** @description Human-readable summary of the failure. */
             message: string;
@@ -279,6 +331,38 @@ export interface components {
         /** @description Body returned by `GET /events`. */
         EventListResponse: {
             data: components["schemas"]["Event"][];
+            /** @description Pagination metadata for the returned page. */
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        /** @description A ticket category (e.g. General Admission, VIP), shared across events. Names are unique case-insensitively and ignoring leading/trailing whitespace, enforced by the mock handler (`src/mocks/handlers/categories.ts`), not by this schema. */
+        Category: {
+            /** @description Opaque unique identifier. */
+            id: string;
+            /** @description Display name, unique across all categories. */
+            name: string;
+            /** @description Human-readable description of the category. */
+            description: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the record was last updated.
+             */
+            updatedAt: string;
+        };
+        /** @description The writable subset of a Category, shared by `POST /categories` (full create) and `PATCH /categories/{id}` (partial update). Deliberately carries no `required` list, for the same reason `EventPayload` does not: OpenAPI's `required` is schema-wide, not per-operation, so a list here would force `name` on a `PATCH` too, defeating "partial". Which fields are mandatory for create instead of update — and the uniqueness check — is enforced at runtime by the mock handler's `validate`/`conflictCheck` functions (`src/mocks/handlers/categories.ts`); do not add `required` back to this schema. */
+        CategoryPayload: {
+            /** @description Display name, unique across all categories. */
+            name?: string;
+            /** @description Human-readable description of the category. */
+            description?: string;
+        };
+        /** @description Body returned by `GET /categories`. */
+        CategoryListResponse: {
+            data: components["schemas"]["Category"][];
             /** @description Pagination metadata for the returned page. */
             meta: components["schemas"]["PaginationMeta"];
         };
@@ -585,6 +669,161 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getCategories: {
+        parameters: {
+            query?: {
+                /** @description Free-text search applied across an endpoint's declared searchable fields. */
+                search?: components["parameters"]["search"];
+                /** @description Field name to sort by. Valid values are declared by the owning endpoint. */
+                sort?: components["parameters"]["sort"];
+                /** @description Sort direction, paired with `sort`. */
+                order?: components["parameters"]["order"];
+                /** @description 1-indexed page number. */
+                page?: components["parameters"]["page"];
+                /** @description Number of items per page. */
+                perPage?: components["parameters"]["perPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of categories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryListResponse"];
+                };
+            };
+        };
+    };
+    postCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryPayload"];
+            };
+        };
+        responses: {
+            /** @description The category was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description A category with this name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCategoriesId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The category record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteCategoriesId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The category was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The category cannot be deleted because one or more tickets still reference it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyConflict"];
+                };
+            };
+        };
+    };
+    patchCategoriesId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryPayload"];
+            };
+        };
+        responses: {
+            /** @description The updated category. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Another category already has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
 }
