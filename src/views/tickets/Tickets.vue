@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 /**
  * Tickets list screen (GitHub issue #34, PRD-006 "Tickets list —
- * cross-entity filters, deep-link entry, deletion"). This is the slice where
- * a filter spans two foreign keys (event, category) plus status, currency
- * and a price range, all funnelled into a single `GET /tickets` request via
- * `useTicketsList`'s `computed(() => ({...}))` query — the same
- * `useEventsList` pattern, just with more filters. List-only: no
- * create/edit route or button here (issue #35's scope), mirroring
- * `Categories.vue`/`Events.vue`'s thin-view shape otherwise.
+ * cross-entity filters, deep-link entry, deletion"; extended by GitHub issue
+ * #35 "Tickets form" with the create button and edit row action). This is
+ * the slice where a filter spans two foreign keys (event, category) plus
+ * status, currency and a price range, all funnelled into a single
+ * `GET /tickets` request via `useTicketsList`'s `computed(() => ({...}))`
+ * query — the same `useEventsList` pattern, just with more filters. Otherwise
+ * mirrors `Categories.vue`/`Events.vue`'s thin-view shape.
  *
  * Deep links from PRD-004/PRD-005 (a blocked event/category deletion linking
  * here with a pre-applied filter) work by construction because
@@ -249,6 +249,7 @@ function rowKey (row: TTicket): string {
 }
 
 const rowActions: IDataTableRowAction<TTicket>[] = [
+  { key: 'edit', label: 'Edit' },
   { key: 'delete', label: 'Delete', danger: true }
 ]
 
@@ -278,9 +279,15 @@ async function deleteTicket (ticket: TTicket): Promise<void> {
 }
 
 function onRowAction ({ action, row }: { action: string; row: TTicket }): void {
-  if (action === 'delete') {
+  if (action === 'edit') {
+    void router.push({ name: routeNames.ticketEdit, params: { id: row.id }, query: { from: route.fullPath } })
+  } else if (action === 'delete') {
     void deleteTicket(row)
   }
+}
+
+function onCreateClicked (): void {
+  void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
 </script>
 
@@ -390,6 +397,13 @@ function onRowAction ({ action, row }: { action: string; row: TTicket }): void {
             :value="option.value"
           />
         </el-select>
+
+        <el-button type="primary" @click="onCreateClicked">
+          <template #icon>
+            <Icon name="plus" />
+          </template>
+          Create ticket
+        </el-button>
       </template>
     </ListToolbar>
 

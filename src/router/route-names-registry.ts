@@ -7,5 +7,7 @@ export const routeNames = {
   home: 'home',
   login: 'login',
   notFound: 'notFound',
+  ticketCreate: 'ticketCreate',
+  ticketEdit: 'ticketEdit',
   tickets: 'tickets'
 }
