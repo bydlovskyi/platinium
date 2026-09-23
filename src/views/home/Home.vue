@@ -19,7 +19,9 @@ onMounted(init)
 </script>
 
 <template>
-  <div class="p-5 space-y-5">
+  <div class="space-y-5">
+    <PageHeader title="Dashboard" />
+
     <Icon :name="iconName" class="size-10 text-primary" />
 
     <el-button @click="toggleIcon">Toggle Icon</el-button>

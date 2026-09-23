@@ -4,7 +4,8 @@ export const authRoutes: RouteRecordRaw[] = [
     name: routeNames.login,
     component: () => import('./Login.vue'),
     meta: {
-      requiresAnonymous: true
+      requiresAnonymous: true,
+      layout: 'auth'
     }
   }
 ]

@@ -1,0 +1,57 @@
+import AppSidebar from './AppSidebar.vue'
+
+import { mountWithRouterAndPinia } from '../../../tests/support'
+
+/**
+ * `AppSidebar` unit tests — data-driven rendering from `navEntries`
+ * (PRD-002 "Navigation model" / issue #20 acceptance criteria): the current
+ * route is highlighted by route name, and `collapsed` hides the label
+ * without removing the entry.
+ */
+function signIn (): void {
+  const authStore = useAuthStore()
+
+  authStore.token = 'mock-token-under-test'
+  authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
+}
+
+describe('AppSidebar', () => {
+  it('renders every declared nav entry and highlights the current route', async () => {
+    const { wrapper, router } = await mountWithRouterAndPinia(AppSidebar, { initialRoute: '/' })
+
+    // `/` requires auth; sign in and re-navigate so the guard actually
+    // lands on `home` rather than bouncing to `login`.
+    signIn()
+    await router.push('/')
+
+    const link = wrapper.get('a[href="/"]')
+
+    expect(link.text()).toContain('Dashboard')
+    expect(link.attributes('aria-current')).toBe('page')
+  })
+
+  it('does not mark a non-matching entry as current', async () => {
+    const { wrapper } = await mountWithRouterAndPinia(AppSidebar, {
+      initialRoute: '/login'
+    })
+
+    const link = wrapper.get('a[href="/"]')
+
+    expect(link.attributes('aria-current')).toBeUndefined()
+  })
+
+  it('hides the label but keeps the entry accessible when collapsed', async () => {
+    const { wrapper, router } = await mountWithRouterAndPinia(AppSidebar, {
+      initialRoute: '/',
+      props: { collapsed: true }
+    })
+
+    signIn()
+    await router.push('/')
+
+    const link = wrapper.get('a[href="/"]')
+
+    expect(link.text()).not.toContain('Dashboard')
+    expect(link.attributes('title')).toBe('Dashboard')
+  })
+})
