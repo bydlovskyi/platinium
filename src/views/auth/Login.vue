@@ -11,7 +11,7 @@ const route = useRoute()
 const router = useRouter()
 
 const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
-const form = useElFormModel<ILoginForm>({ email: '', password: '' })
+const form = useElFormModel<ILoginForm>({ email: 'admin@platinium.test', password: 'admin123' })
 
 const rules: IElementPlus['FormRules'] = {
   email: [

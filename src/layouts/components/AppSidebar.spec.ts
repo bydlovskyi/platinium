@@ -2,12 +2,6 @@ import AppSidebar from './AppSidebar.vue'
 
 import { mountWithRouterAndPinia } from '../../../tests/support'
 
-/**
- * `AppSidebar` unit tests — data-driven rendering from `navEntries`
- * (PRD-002 "Navigation model" / issue #20 acceptance criteria): the current
- * route is highlighted by route name, and `collapsed` hides the label
- * without removing the entry.
- */
 function signIn (): void {
   const authStore = useAuthStore()
 

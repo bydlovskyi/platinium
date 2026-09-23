@@ -24,6 +24,10 @@ describe('Login screen', () => {
   it('shows inline required errors when submitted empty', async () => {
     const { wrapper } = await mountWithRouterAndPinia(Login, { initialRoute: '/login' })
 
+    // The form comes pre-filled with the seeded credentials, so clear it first.
+    await wrapper.find('input[type="email"]').setValue('')
+    await wrapper.find('input[type="password"]').setValue('')
+
     await submit(wrapper)
 
     await vi.waitFor(() => {

@@ -1,10 +1,4 @@
 <script lang="ts" setup>
-/**
- * Account menu (PRD-002 user story 14/17, issue #20): shows the signed-in
- * administrator's name and role, with a sign-out action. An Element Plus
- * dropdown rather than a hand-built popover, per "check Element Plus first
- * for every UI primitive."
- */
 const authStore = useAuthStore()
 
 async function onSignOut (): Promise<void> {
