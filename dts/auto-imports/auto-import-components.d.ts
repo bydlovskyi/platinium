@@ -16,6 +16,7 @@ declare module 'vue' {
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
+    ElBadge: typeof import('element-plus/es')['ElBadge']
     ElBreadcrumb: typeof import('element-plus/es')['ElBreadcrumb']
     ElBreadcrumbItem: typeof import('element-plus/es')['ElBreadcrumbItem']
     ElButton: typeof import('element-plus/es')['ElButton']
@@ -49,10 +50,12 @@ declare module 'vue' {
     HomeModal: typeof import('./../../src/views/home/components/modals/HomeModal.vue')['default']
     HomeNestedComponent: typeof import('./../../src/views/home/components/nested/HomeNestedComponent.vue')['default']
     Icon: typeof import('./../../src/features/platform/icons/components/Icon.vue')['default']
+    ListToolbar: typeof import('./../../src/components/data-table/ListToolbar.vue')['default']
     Modals: typeof import('./../../src/features/platform/modals/components/Modals.vue')['default']
     PageHeader: typeof import('./../../src/components/PageHeader.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StatusTag: typeof import('./../../src/components/StatusTag.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
