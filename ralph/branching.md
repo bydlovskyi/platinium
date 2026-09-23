@@ -1,72 +1,65 @@
 # Branching (§3 step 4)
 
-Slices declare `Blocked by: #X`. That names the work this slice builds on — it does
-**not** by itself decide the base branch. Check whether the blocker has already
-landed, and branch accordingly.
+**Every slice branches off `main` and its PR targets `main`.** One slice, one branch,
+one PR, one merge. No stacks.
 
 ```bash
 git fetch origin --prune
+git checkout --quiet main && git pull --ff-only
+git checkout -b "feat/<N>-<this-slug>"
 ```
 
-## Decide the base
+Use the branch name from this issue's **Branch:** line verbatim.
+
+Open the PR against `main`:
+
+```bash
+gh pr create --base main ...
+```
+
+## Check the blocker first
+
+A slice declares `Blocked by: #X`. That slice's work must already be **in `main`**
+before this one can build on it:
 
 ```bash
 BLOCKER_BRANCH="feat/<X>-<blocker-slug>"     # from the blocker issue's Branch: line
 
-if git merge-base --is-ancestor "origin/$BLOCKER_BRANCH" origin/main 2>/dev/null; then
-  BASE=main                 # blocker already merged — build on main, clean history
-else
-  BASE="$BLOCKER_BRANCH"    # blocker still open — stack on it, don't wait
+if git rev-parse --verify --quiet "origin/$BLOCKER_BRANCH" >/dev/null &&
+   ! git merge-base --is-ancestor "origin/$BLOCKER_BRANCH" origin/main; then
+  echo "blocker #X is not merged into main yet"
 fi
 ```
 
-A slice with no `Blocked by` (only slice #11) always uses `main`.
+If the blocker is not in `main`, **stop**. Comment on this issue saying which blocker
+is outstanding and that the work cannot start until it merges, then exit with
+`<promise>NO MORE TASKS</promise>`.
 
-## Create the branch
+Do not branch off the blocker. Do not branch off `main` anyway and hope — the code
+this slice needs is not there, so it will not compile.
 
-```bash
-git checkout --quiet "$BASE" && git pull --ff-only
-git checkout -b "feat/<N>-<this-slug>"
-```
+A slice with no `Blocked by` has nothing to check.
 
-Use the branch name from this issue's **Branch:** line verbatim — the next slice in
-the chain looks for it.
+## Why not stack
 
-## Open the PR against the same base
+Stacking a slice on its unmerged blocker lets work continue while a PR sits in
+review. It costs a tangled graph, PR bases pointing at branches that later
+disappear, dependence on GitHub's auto-retarget, and diffs that carry someone
+else's commits.
 
-```bash
-gh pr create --base "$BASE" ...
-```
+This project merges each PR as it lands, so stacking buys nothing. Waiting is
+cheaper than untangling.
 
-`$BASE` must be the branch you actually cut from. Never target `main` from a branch
-cut off an unmerged blocker: the diff would include the blocker's commits and the
-reviewer could not tell your work from theirs.
-
-## Why it adapts
-
-Branching off the blocker is what lets work continue while a PR sits in review — it
-is the only reason an unattended run of many slices is possible. But when the
-reviewer merges promptly, that stacking buys nothing and costs a tangled graph, PR
-bases pointing at dead branches, and reliance on GitHub's auto-retarget.
-
-Checking `merge-base --is-ancestor` gives both: a clean linear history when review
-keeps up, and a working stack when it does not.
-
-## If the blocker's branch does not exist on the remote
-
-Its slice has not been started. Do not skip ahead and do not silently fall back to
-`main` — the code you need is not there. Pick the blocker up first, or exit with
-`<promise>NO MORE TASKS</promise>` if it is not actionable.
+**Escape hatch:** the host can set `RALPH_ALLOW_STACK=1`, which appears in the
+prompt header. Only then may a slice branch off an unmerged blocker's branch — and
+its PR must target that same branch, never `main`. Use it for an unattended batch
+run where nobody is merging in between. When it is unset or `0`, the rule above is
+absolute.
 
 ## Rules that keep the history sane
 
-- **Never `git merge main` into a branch cut from an unmerged blocker.** Rebase onto
-  the blocker if it advances. Merging `main` in puts commits on your branch that the
-  blocker does not have, and the stack stops merging cleanly bottom-up.
-- **Never merge sibling branches into each other.** A branch that fails to typecheck
-  because a sibling changed shared types means an undeclared dependency — report it,
-  don't paper over it.
-- **One direct child per parent.** Two open slices with the same `Blocked by` is a
-  Y-fork; escalate rather than guessing.
-- **Merging is a human's job.** When a stack does exist, it merges bottom-up: deepest
-  child first, then its parent.
+- **Never `git merge main` into your branch mid-slice.** Rebase if `main` moves.
+- **Never merge another slice's branch into yours.** A branch that fails to
+  typecheck because another slice changed shared types means the blocker is not
+  merged — stop and say so.
+- **Merging is a human's job.** Never run `gh pr merge`.

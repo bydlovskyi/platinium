@@ -73,18 +73,26 @@ docker volume rm platinum-ralph-work                                          # 
 
 ## How work is ordered
 
-The 41 slices are strictly ordered: each declares the slice it builds on. The base
-branch is then **decided per run, not fixed**:
+The 41 slices are strictly ordered: each declares the slice it builds on.
 
-- **Blocker already merged into `main`** → cut from `main`. Linear history, clean diff.
-- **Blocker still open** → cut from the blocker's branch, producing a stacked PR.
+**Every slice branches off `main` and its PR targets `main`.** One slice, one branch,
+one PR, one merge. If a slice's blocker has not merged yet, the agent stops and says
+so rather than stacking — the code it needs is not there.
 
-That adaptation matters. Stacking is what lets an unattended run get through many
-slices without waiting on review — but when you merge each PR promptly, stacking
-buys nothing and costs a tangled graph and PR bases pointing at dead branches. The
-agent runs `git merge-base --is-ancestor` and picks accordingly.
+That means the loop runs as far as your merging does. `afk.sh 5` will implement one
+slice, then find the next one blocked on a PR you have not merged, and exit. Merge
+it and run again.
 
-When a stack does exist, it merges bottom-up, and merging is always a human's job.
+**For an unattended batch**, set `RALPH_ALLOW_STACK=1`. Slices may then branch off an
+unmerged blocker, producing stacked PRs that merge bottom-up:
+
+```bash
+RALPH_ALLOW_STACK=1 caffeinate -i ./ralph/afk.sh 10
+```
+
+Stacking gets many slices done without review in between, at the cost of a tangled
+graph and PR bases pointing at branches that later vanish. Merging is always a
+human's job either way.
 
 Each issue body carries the metadata the agent reads:
 

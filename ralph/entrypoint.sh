@@ -41,13 +41,20 @@ git fetch origin --prune --quiet
 # Park on main between runs. The agent creates its own branch per §3; leaving a
 # previous iteration's branch checked out would make it easy to build on the
 # wrong base.
-git checkout --quiet main
+# --force matters: an iteration that dies mid-slice leaves modified tracked
+# files behind (the auto-import generators rewrite committed files whenever a
+# composable or service is added). A plain checkout refuses to clobber them,
+# set -e kills the entrypoint, and the volume is wedged — every later run fails
+# at the same line. This checkout is disposable; discard whatever is there.
+git checkout --force --quiet main
 git reset --hard --quiet origin/main
 git clean -fdq -e node_modules
 
 # node_modules lives in the volume. Reinstall only when the lockfile moved,
-# otherwise a five-iteration run pays the install cost five times.
-lock_stamp=/work/.ralph-lock-hash
+# otherwise a five-iteration run pays the install cost five times. The stamp
+# lives inside node_modules so `git clean` does not delete it and it never
+# shows up in `git status`.
+lock_stamp=/work/node_modules/.ralph-lock-hash
 current=$(sha1sum package-lock.json | cut -d' ' -f1)
 if [ ! -f "$lock_stamp" ] || [ "$(cat "$lock_stamp")" != "$current" ] || [ ! -d node_modules ]; then
   echo "Installing dependencies..."

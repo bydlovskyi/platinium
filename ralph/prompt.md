@@ -16,7 +16,7 @@ This repository is a **Vue 3 admin portal with a mocked backend**. There is no s
 3. **NEVER commit with failing lint or typecheck.** No `--no-verify`. No `as any`. No `// @ts-ignore` without a 1-line justification.
 4. **NEVER mark a task "done" without running §6.** "Looks right" is not verification.
 5. **ONE task per session.** Pick, finish or fail explicit. No drifting.
-6. **The base branch is decided, not assumed.** If this slice's blocker is already merged into `main`, cut from `main`. If it is still open, cut from the blocker's branch and stack on it. Never guess — run the check in `ralph/branching.md` before any `git checkout -b`, and open the PR against the same base you cut from.
+6. **Branch off `main`, PR into `main`.** One slice, one branch, one PR. If this slice's blocker has not merged yet, stop and say so rather than stacking on it — unless the header carries `RALPH_ALLOW_STACK=1`. Run the check in `ralph/branching.md` before any `git checkout -b`.
 7. **ONLY a slice labelled `contract` may touch `src/mocks/openapi.yaml` or commit a regenerated `src/features/platform/api/schema.ts`.** If a code slice needs a contract change it did not expect, stop and comment on the owning contract issue — never edit the spec from a code slice. Parallel edits to the generated file produce unreadable conflicts.
 
 # 0. BOOTSTRAP
@@ -25,7 +25,7 @@ The container entrypoint has already cloned the repository to `/work`, authentic
 
 `/work` is a clone inside the container, not the developer's working tree — your commits reach a human only when you push a branch and open a PR.
 
-The prompt header carries `GIT_USER_NAME`, `GIT_USER_EMAIL`, `WORKSPACE_PATH` and `GH_TOKEN` for reference. Never paste the token into a committed file, a commit message, a PR body or an issue comment.
+The prompt header carries `GIT_USER_NAME`, `GIT_USER_EMAIL`, `WORKSPACE_PATH`, `GH_TOKEN` and `RALPH_ALLOW_STACK` for reference. Never paste the token into a committed file, a commit message, a PR body or an issue comment.
 
 # 1. CONTEXT PARSING
 
@@ -33,7 +33,7 @@ You receive: recent commits, a GitHub issues dump, and this prompt.
 
 The host already filters `HITL` issues out of the `afk.sh` list. If you are handed an `HITL` issue explicitly (via `once.sh` or `list.sh`), it needs a human — comment saying what is ready for them to decide and exit with `<promise>NEEDS HUMAN — SEE ISSUE COMMENT</promise>`.
 
-An issue is **actionable** if no open PR already covers its full scope. `Blocked by` does **not** make an issue unactionable — it only sets the base branch (§3). Work starts immediately; never wait for a blocker PR to merge.
+An issue is **actionable** if no open PR already covers its full scope **and** its `Blocked by` slice is already merged into `main`. A slice whose blocker is still outstanding is not actionable — the code it builds on does not exist yet.
 
 Never pick up a PRD issue (#1–#10). Those are the parent specifications. They are closed by a human, never by you.
 
@@ -41,11 +41,12 @@ If no issue is actionable, output `<promise>NO MORE TASKS</promise>` and exit.
 
 # 2. TASK SELECTION
 
-Pick ONE. Because the slices are a strict chain, **the correct pick is almost always the lowest-numbered open slice whose blocker is merged or has an open PR.** Priority order:
+Pick ONE. Because the slices are a strict chain, **the correct pick is the lowest-numbered open slice whose blocker is already merged into `main`.** Priority order:
 
-1. The lowest-numbered open slice with no `Blocked by`, or whose blocker already merged.
-2. The lowest-numbered open slice whose blocker has an open PR (stack on it).
-3. A bug found in already-merged work.
+1. The lowest-numbered open slice with no `Blocked by`, or whose blocker has merged.
+2. A bug found in already-merged work.
+
+If the lowest-numbered open slice is waiting on an unmerged blocker, nothing is actionable — exit with `<promise>NO MORE TASKS</promise>` rather than reaching further down the chain.
 
 Do not skip ahead in the chain to grab something that looks easier. Slice 20 built on a missing slice 14 will not compile.
 
@@ -62,10 +63,10 @@ Before writing code:
 1. **Read the project rules.** `architecture.md` (layering, views vs features, naming) and `.claude/skills/code-conventions/SKILL.md` (the enforceable checklist). Also `docs/prd/README.md` — the cross-cutting decisions section binds every slice.
 2. **Read the parent PRD.** The issue body links it. The PRD carries the reasoning; the issue carries the scope. Both matter.
 3. **Read the issue body and every comment.** Understand the acceptance criteria literally.
-4. **Set the base branch.** Exact commands in `ralph/branching.md`. The rule adapts:
-   - **No `Blocked by`** → `main`.
-   - **`Blocked by: #X`, blocker already merged into `main`** → `main`. Keeps history linear.
-   - **`Blocked by: #X`, blocker still open** → `feat/<X>-<slug>`, producing a stacked PR. Work starts immediately; never wait for a merge.
+4. **Branch off `main`.** Exact commands in `ralph/branching.md`.
+   - If this slice has a `Blocked by`, first confirm that blocker is **merged into `main`**. If it is not, comment saying which blocker is outstanding and exit with `<promise>NO MORE TASKS</promise>` — the code you need is not there.
+   - The PR targets `main`.
+   - Only when the prompt header carries `RALPH_ALLOW_STACK=1` may you branch off an unmerged blocker's branch, and then the PR targets that branch.
 5. **Grep for related code** — services, stores, composables, components, mock handlers.
 6. If the issue conflicts with `architecture.md` or the code conventions, comment and ABORT. Don't guess.
 
@@ -149,8 +150,8 @@ gh pr view --json number,state   # existing PR?
 
 - Open PR exists → `git push` attaches the new commit.
 - No PR → `gh pr create --base <base>` with a plain-prose body.
-  - **`<base>` is whatever you cut from in §3** — `main` when the blocker had already merged, the blocker's branch when it had not.
-  - **NEVER `--base main` from a branch cut off an unmerged blocker.** The diff would carry the blocker's commits and a reviewer could not separate your work from theirs.
+  - **`<base>` is `main`**, matching what you cut from in §3.
+  - The only exception is a `RALPH_ALLOW_STACK=1` run, where the base is the blocker's branch you cut from. **Never `--base main` from a branch cut off an unmerged blocker** — the diff would carry the blocker's commits and a reviewer could not separate your work from theirs.
   - One-paragraph summary plus `Refs #N`. Use `Closes #N` only when every acceptance criterion is met.
   - Screenshots if the UI changed.
   - Anything manual a reviewer must do, and the real reason for any skipped verification.

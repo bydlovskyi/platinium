@@ -85,8 +85,8 @@ ralph_write_prompt() {
   commits=$(git log -n 5 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No commits found")
   prompt_body=$(cat ralph/prompt.md)
 
-  printf 'GIT_USER_NAME=%s\nGIT_USER_EMAIL=%s\nWORKSPACE_PATH=/work\nGH_TOKEN=%s\n\nPrevious commits:\n%s\n\n%s\n\n%s' \
-    "$git_user_name" "$git_user_email" "$gh_token" \
+  printf 'GIT_USER_NAME=%s\nGIT_USER_EMAIL=%s\nWORKSPACE_PATH=/work\nGH_TOKEN=%s\nRALPH_ALLOW_STACK=%s\n\nPrevious commits:\n%s\n\n%s\n\n%s' \
+    "$git_user_name" "$git_user_email" "$gh_token" "${RALPH_ALLOW_STACK:-0}" \
     "$commits" "$task_block" "$prompt_body" \
     > "$prompt_file"
 }
