@@ -21,6 +21,8 @@ Blocked by: #11
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The token layer every screen in this project is built from. This is the foundation
@@ -31,8 +33,13 @@ colours have spread is an audit rather than a feature.
 Semantic CSS custom properties — `surface`, `surface-raised`, `border-subtle`,
 `text-primary`, `text-muted`, `accent`, `danger` and the rest — each with a light and a
 dark value, over a literal palette that no component reaches past. Element Plus is
-themed through those same tokens and Tailwind consumes them, so a utility class and a
-library component cannot disagree about what a surface is.
+themed by mapping those same tokens onto its `--el-*` CSS variables
+(`--el-color-primary`, `--el-bg-color`, `--el-text-color-*`, `--el-border-color-*`,
+`--el-border-radius-base`, `--el-font-family`, `--el-transition-duration*`) in
+`src/assets/styles/element-reset/theme.css` for both themes — not by overriding `.el-*`
+selectors — and Tailwind consumes them, so a utility class and a library component
+cannot disagree about what a surface is. One root `el-config-provider` in `App.vue` owns
+size, z-index base, locale and `button.autoInsertSpace`.
 
 HITL because the palette, the typeface and the density decisions are design judgements
 that need a human eye before forty screens inherit them.
@@ -42,18 +49,20 @@ that need a human eye before forty screens inherit them.
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
 - [ ] Semantic token layer defined with a light and a dark value for every token; a token missing its dark counterpart fails the test
 - [ ] Literal palette exists beneath the semantic layer; no component references a literal or a hex value
-- [ ] Element Plus themed through the tokens rather than per-component overrides
+- [ ] Element Plus themed by mapping semantic tokens onto `--el-*` variables in `element-reset/theme.css`, under both the light and the dark theme selector (layered on `element-plus/theme-chalk/dark/css-vars.css`); no selector-level `.el-*` override without a comment naming what the variable could not express
+- [ ] Root `el-config-provider` in `App.vue` sets size, z-index base, locale and `button.autoInsertSpace`; no component sets these individually
+- [ ] Theme-chalk base and every Element Plus component in use imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
 - [ ] Tailwind theme consumes the same token values
 - [ ] Type scale fixed with defined weight and line height per step: screen heading, section heading, label, body, caption
-- [ ] Typeface self-hosted and preloaded; no flash of unstyled text, no runtime third-party request
-- [ ] Tabular-figure variant available and applied to numeric table columns
-- [ ] Spacing scale on a consistent rhythm; exactly three radii and three elevations
+- [ ] Typeface self-hosted and preloaded, and assigned to `--el-font-family`; type scale mapped onto `--el-font-size-*`; no flash of unstyled text, no runtime third-party request
+- [ ] Tabular-figure variant available as a utility and applied to numeric `el-table-column`s (via descriptor `class-name`) and `el-statistic` values
+- [ ] Spacing scale on a consistent rhythm; exactly three radii and three elevations, mapped onto `--el-border-radius-*` and `--el-box-shadow*`
 - [ ] Body text and interactive elements meet WCAG AA contrast against their own surface in both themes, verified with a tool and the results recorded
 - [ ] Dark mode is a designed palette: surfaces lighten with elevation, borders lower-contrast, shadows replaced by surface separation
-- [ ] Focus-ring treatment defined once and visible on every focusable element in both themes
-- [ ] Motion primitives: two durations and two easing curves as tokens, all wrapped by the reduced-motion preference
-- [ ] Status colour mapping defined for all event and ticket statuses, distinguishable in greyscale
-- [ ] Unit test asserts token completeness across both themes
+- [ ] Focus-ring treatment defined once and visible on every focusable element in both themes, including the native controls Element Plus renders
+- [ ] Motion primitives: two durations and two easing curves as tokens, mapped onto `--el-transition-duration` / `--el-transition-duration-fast`; all set to `0s` under `prefers-reduced-motion`
+- [ ] Status colour mapping defined for all event and ticket statuses as `el-tag` `type` + `effect` pairs, distinguishable in greyscale
+- [ ] Unit test asserts token completeness across both themes, including every mapped `--el-*` variable
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

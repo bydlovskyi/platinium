@@ -41,9 +41,10 @@ one command to run everything, and the ability to run either half alone. A secon
 for integration tests would double the configuration and the CI time for no gain.
 
 **Integration tests use the real everything.** A real router, a real Pinia instance,
-real services, real components — and MSW answering the network, using the exact handlers
-that serve the browser during development. Nothing between the component and the wire is
-mocked. That is what makes these integration tests rather than component tests with a
+real services, real components — including the real Element Plus components they are
+built from — and MSW answering the network, using the exact handlers that serve the
+browser during development. Nothing between the component and the wire is mocked, and no
+Element Plus component is stubbed. That is what makes these integration tests rather than component tests with a
 stubbed service, and it is the reason PRD-001 invested in handlers that run in Node.
 
 **A test kit that removes the boilerplate.** Mounting a view with a configured router,
@@ -56,7 +57,8 @@ the mock query engine, the list query composable, the currency input, the CSV
 serialiser, the capability check — are tested exhaustively at their boundary, including
 edge cases. User journeys are tested end to end through the UI. Presentational
 components with no logic are not tested directly; they are covered by the journeys that
-render them. Coverage is reported and reviewed, but no numeric threshold gates the
+render them. Element Plus itself is not re-tested either — tests assert the portal's
+behaviour through the Element Plus components it configures, not the library's. Coverage is reported and reviewed, but no numeric threshold gates the
 build, because a threshold pushes contributors toward testing what is easy rather than
 what matters.
 
@@ -147,6 +149,13 @@ fails in CI.
 
 ## Implementation Decisions
 
+### Component library
+
+Every screen under test is built from Element Plus, governed by
+[`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md); shared components wrap Element Plus rather than
+replace it. This PRD owns how those components are tested — see *Testing Element Plus
+components* below — and the runner configuration that makes Element Plus behave in jsdom.
+
 ### Scheduling — the two halves
 
 **Harness (blocks PRD-001).** Runner configuration, the MSW Node server, the test kit,
@@ -179,6 +188,11 @@ the classification — no tag conventions to remember.
 Globals enabled so test files stay terse. Deterministic time available through fake
 timers where a test depends on the current date.
 
+`element-plus` is inlined through the Vite transform pipeline (`server.deps.inline`)
+rather than pre-bundled. Without it, `el-form`'s CJS `async-validator` dependency hits a
+default-export interop mismatch under Vitest and every `el-form-item` rule silently
+passes — a validation test would go green against a form that validates nothing.
+
 ### MSW in Node
 
 A Node server built from the same handler modules the browser worker uses. Started once
@@ -193,7 +207,8 @@ tests force a failure through the same mechanism the browser debug surface uses.
 ### Test kit
 
 - Mount a component or a view with a configured router at a given route, a fresh Pinia
-  and the global plugins.
+  and the global plugins, with Element Plus components resolved as in the app (real,
+  never stubbed).
 - Seed an authenticated session for a chosen role without driving the login form.
 - Reset and seed the mock database with a specified dataset.
 - Wait for a list to settle — loading finished, rows rendered — without arbitrary
@@ -206,6 +221,45 @@ Queries by accessible role and label, with test identifiers used only where no
 accessible query exists. Assertions are on what the administrator sees, never on
 component internals or store state. A test asserting `wrapper.vm.items.length` passes
 while the screen is blank.
+
+### Testing Element Plus components
+
+The portal is built from Element Plus per [`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md): shared
+components (`AppDataTable`, `ListToolbar`, `StatusTag`, `CurrencyInput`, `RemoteSelect`,
+…) wrap and configure Element Plus rather than replace it. The tests follow from that.
+
+- **Mount the real components, never stubs.** Sorting, selection, validation and
+  pagination behaviour *is* `el-table`, `el-form`, `el-pagination`; a stub (or
+  `shallowMount`) tests nothing. No `global.stubs` entry for an `El*` component.
+- **Drive through the DOM Element Plus renders.** Click the `el-table` header cell to
+  sort and assert `aria-sort` on it; toggle the selection checkbox's real `<input>`; click
+  an `el-option` to choose; type into the `<input>` inside `el-input` /
+  `el-input-number`; page through `el-pagination`'s buttons. Prefer roles and labels
+  where Element Plus exposes them; fall back to its stable `el-*` class names only when it
+  does not.
+- **Poppers are teleported.** `el-select`, `el-dropdown`, `el-date-picker`,
+  `el-tooltip`, `ElMessageBox`, `ElNotification` and `ElMessage` render into
+  `document.body`, not the wrapper. Query `document.body`, or pass `:teleported="false"` in
+  a unit mount where the component allows it. Clean the body between tests so a leftover
+  popper cannot satisfy the next test's query.
+- **Confirmations are asserted through `ElMessageBox`.** The confirm journey is: the
+  message box appears in `document.body`, the confirm `el-button` shows its loading state
+  while the request is in flight (`beforeClose` + `confirmButtonLoading`), and the box
+  closes on success.
+- **Validation through `el-form`.** Client rules are exercised by submitting the form and
+  asserting the `el-form-item__error` text next to the field; server 400/409 errors by
+  asserting the same slot fed by `el-form-item :error`.
+- **Accessibility on the native control.** Attributes set on a wrapper do not always
+  reach the element Element Plus renders (the `el-checkbox` / `aria-describedby` lesson
+  in `.claude/skills/worker-team-agent/lessons-learned.md`) — assert on the real
+  `<input>` or `<button>`.
+- **Transitions and async rendering.** Element Plus opens and closes poppers, drawers
+  and dialogs through transitions; await `nextTick` / `flushPromises` (or the kit's
+  settle helper) instead of arbitrary timeouts.
+- **Stylesheet registration is a review check, not a test.** jsdom does not render CSS,
+  so an unregistered `theme-chalk` stylesheet passes every test. Each slice that adopts
+  a component confirms its import in
+  `src/assets/styles/element-reset/components/index.css`.
 
 ### Quality gates
 
@@ -224,8 +278,9 @@ that the strategy should follow the shape of the code rather than a number.
 ### Documentation
 
 A testing guide covering the strategy, the layers and what belongs in each, the kit's
-helpers, naming and location conventions, and how to write an error-path test. It is the
-reference PRD-009 links to rather than duplicates.
+helpers, naming and location conventions, how to write an error-path test, and how to
+test Element Plus components (real mounts, teleported poppers, `ElMessageBox` confirms,
+`el-form` validation). It is the reference PRD-009 links to rather than duplicates.
 
 ## API Contract Plan
 

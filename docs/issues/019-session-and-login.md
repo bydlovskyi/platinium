@@ -19,14 +19,19 @@ Blocked by: #18
 
 #2 — [`docs/prd/PRD-002-authentication-and-admin-shell.md`](../prd/PRD-002-authentication-and-admin-shell.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 A working sign-in, and the session machinery every protected screen depends on.
 
-The login screen is mocked authentication with real form mechanics: validation with
-inline messages, a disabled-and-spinning submit while the request is in flight, and a
-clear error when credentials are rejected. The point is not the authentication — it is
-establishing the validation and loading patterns every other form in the portal follows.
+The login screen is mocked authentication with real form mechanics, built from Element
+Plus: an `el-card` holding an `el-form` (`:rules`, `label-position="top"`) whose
+`el-form-item` messages validate on blur, `el-input` fields (`show-password` on the
+password), an `el-button type="primary" :loading native-type="submit"` that disables and
+spins while the request is in flight, and an `el-alert` when credentials are rejected. The
+point is not the authentication — it is establishing the Element Plus validation and
+loading patterns every other form in the portal follows.
 
 The guard is declarative. Routes carry metadata describing what they require and one
 guard enforces it; no component performs its own access check. Session bootstrap runs
@@ -44,15 +49,18 @@ ordering is the most likely source of a subtle defect in this slice.
 - [ ] An anonymous visitor hitting an admin route is redirected to login with the intended destination preserved
 - [ ] After signing in, the administrator lands on the preserved destination, or the dashboard when there is none
 - [ ] An authenticated administrator hitting the login page is redirected to the dashboard
-- [ ] Login form: email format and required validation, messages on blur rather than on every keystroke
-- [ ] Submit shows progress and is disabled while in flight; Enter submits
-- [ ] Password visibility can be toggled
-- [ ] Credential rejection shows a clear, non-blaming message
+- [ ] Login screen built from `el-card`, `el-form`, `el-form-item`, `el-input`, `el-button`, `el-alert`; no raw `<button>`/`<input>`/`<table>`/`<select>` in this slice
+- [ ] Login form: `el-form :rules` with email format and required rules, `trigger: 'blur'` so messages show on blur rather than on every keystroke; validated through the form ref
+- [ ] Submit is `el-button type="primary" :loading native-type="submit"` — shows progress and is disabled while in flight; Enter submits the `el-form`
+- [ ] Password visibility toggled by `el-input show-password`
+- [ ] Credential rejection shows a clear, non-blaming `el-alert type="error"`
 - [ ] Sign-out clears token, user and cached entity state
 - [ ] Token stored in `localStorage`; the choice and its XSS exposure recorded for TECHNICAL_REVIEW
 - [ ] Unit tests: store sign-in success and failure, sign-out clearing state, restore from present and absent tokens
 - [ ] Unit tests: guard against every metadata combination, asserting redirect target and preserved destination
 - [ ] Integration test: validation failure, credential rejection, successful sign-in and redirect, and redirect back to a preserved destination
+- [ ] Component tests mount real Element Plus components (no stubs) and query teleported poppers in `document.body`
+- [ ] Every newly adopted Element Plus component's theme-chalk stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

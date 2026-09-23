@@ -5,6 +5,12 @@ Ten PRDs covering the Ticket Management Admin Portal. Each was produced with the
 vertical-slice issues with [`prd-to-issues`](../../.claude/skills/prd-to-issues/SKILL.md).
 The issue breakdowns live in [`../issues/`](../issues/).
 
+## Component library
+
+Every PRD and slice builds its UI from Element Plus, as set out in
+[`ELEMENT-PLUS.md`](ELEMENT-PLUS.md): shared components wrap Element Plus rather than
+replace it, and a hand-built control needs a written reason.
+
 ## Reading order
 
 | # | PRD | Delivers | Depends on |

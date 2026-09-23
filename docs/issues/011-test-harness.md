@@ -18,6 +18,8 @@ Branch: feat/11-test-harness
 
 #8 — [`docs/prd/PRD-008-testing-strategy-and-quality-gates.md`](../prd/PRD-008-testing-strategy-and-quality-gates.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 Stand up the test runner and the quality gates that every later slice depends on.
@@ -27,7 +29,10 @@ written after the fact against code that was never shaped for them.
 
 Vitest in jsdom with two named projects — `unit` (tests beside their subject) and
 `integration` (a top-level directory organised by journey) — sharing the Vite config so
-aliases, the Vue plugin and auto-imports behave identically in tests and in the app.
+aliases, the Vue plugin, auto-imports and the Element Plus component resolver behave
+identically in tests and in the app. Components mount with real Element Plus, never
+stubs — the library's sorting, selection and validation behaviour is what the portal
+relies on, so a stub would test nothing.
 The MSW Node server and the test kit land here as stubs with the seams defined; they are
 filled in by the mock slices. Husky hooks and a CI workflow run the same commands
 locally and on every pull request.
@@ -43,11 +48,14 @@ A smoke test proves the harness works end to end.
 - [ ] Auto-imported globals (Vue, Router, Pinia, VueUse, project composables) resolve in test files without manual imports
 - [ ] Path aliases resolve identically in tests and in the application
 - [ ] Fake timers are available for date-dependent assertions
+- [ ] Element Plus components resolve in tests exactly as in the app; the kit mounts them real, with no `global.stubs` for any `El*` component
+- [ ] `element-plus` inlined via `test.server.deps.inline` so `el-form` validation (CJS `async-validator`) actually runs under Vitest, with a comment citing the upstream issue
+- [ ] Teleported poppers (`el-select`, `el-dropdown`, `ElMessageBox`, `ElNotification`) are queryable from `document.body`, and the body is cleaned between tests
 - [ ] Test kit exposes: mount-with-router-and-pinia, set-viewport-to-breakpoint, and seams for seed-session and reset-database
 - [ ] Pre-commit hook lints staged files with autofix; pre-push hook runs type-check and the full suite
 - [ ] Documented escape hatch for bypassing a hook in an emergency
 - [ ] CI workflow runs install-from-lockfile, lint, type-check, test with coverage, and build on every push and pull request
-- [ ] A smoke test asserting a trivial component mounts passes in both projects
+- [ ] A smoke test asserting a trivial component mounts passes in both projects, including one that renders a real Element Plus component (e.g. `el-button`)
 - [ ] Suite completes in under 60 seconds on a cold run
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied

@@ -40,10 +40,12 @@ every feature PRD**, and **a polish pass that depends on all of them**.
 
 **A design system, not a stylesheet.** A token layer — colour, typography, spacing,
 radius, elevation, motion — defined once as CSS custom properties, with a dark
-counterpart for every semantic token. Element Plus is themed through those tokens
-rather than overridden component by component, and Tailwind consumes the same values,
-so a utility class and a library component cannot disagree about what "surface" or
-"muted text" means.
+counterpart for every semantic token. Element Plus is themed by mapping those tokens
+onto its own `--el-*` CSS variables (`--el-color-primary`, `--el-bg-color`,
+`--el-text-color-*`, `--el-border-color-*`, …) in both themes, rather than overriding
+`.el-*` selectors component by component, and Tailwind consumes the same values, so a
+utility class and a library component cannot disagree about what "surface" or "muted
+text" means.
 
 **A deliberate visual identity.** Not the library default blue, and not an arbitrary
 brand colour either. A palette with a real accent, a neutral ramp with enough steps to
@@ -60,20 +62,24 @@ than busy.
 
 **Motion that explains rather than decorates.** Transitions carry meaning: a row
 leaving a list on delete, a panel sliding rather than appearing, a skeleton fading into
-content, a number counting into place on the dashboard. All short, all respecting the
-reduced-motion preference, none of them blocking an interaction. Motion is what makes
+content, a number counting into place on the dashboard. Element Plus's own transitions
+(`el-drawer`, `el-dialog`, `el-dropdown`, `ElNotification`) are the motion for those
+components, tuned through `--el-transition-duration*` mapped from the motion tokens. All
+short, all respecting the reduced-motion preference, none of them blocking an interaction. Motion is what makes
 an interface feel alive; unmotivated motion is what makes one feel cheap.
 
-**States designed rather than defaulted.** Empty states with an illustration, a
-sentence explaining what would be here and the action that creates it. Loading
-skeletons shaped like the content they replace. Error states that look like a
-condition, not like a crash. These are the screens a reviewer will deliberately go
-looking for.
+**States designed rather than defaulted.** Empty states built on `el-empty` with a
+token illustration in its `#image` slot, a sentence explaining what would be here and
+the `el-button` that creates it. Loading skeletons built from `el-skeleton` /
+`el-skeleton-item`, shaped like the content they replace. Error states on `el-result`
+that look like a condition, not like a crash. These are the screens a reviewer will
+deliberately go looking for.
 
 **A dashboard that is worth looking at.** The statistics from PRD-007 presented with
-real visual hierarchy — headline figures that dominate, proportional breakdowns that
-can be read in one glance, and per-currency values grouped clearly. This is the first
-screen after login and it carries the impression of the whole portal.
+real visual hierarchy — `el-statistic` headline figures that dominate, `el-progress`
+proportional breakdowns that can be read in one glance, and per-currency values grouped
+clearly. This is the first screen after login and it carries the impression of the
+whole portal.
 
 ## User Stories
 
@@ -169,6 +175,39 @@ work that PRD-002 references as its theme slice, and it is owned here.
 finished screens: empty states, motion, the dashboard's visual design, iconography and
 the responsive pass. This cannot happen earlier because there is nothing to polish.
 
+### Component library
+
+Element Plus is the portal's component library, governed by
+[`ELEMENT-PLUS.md`](ELEMENT-PLUS.md). This PRD does not build a parallel set of controls:
+it themes Element Plus, and shared portal components (`AppDataTable`, `StatusTag`,
+`ListToolbar`, …) wrap and configure Element Plus components rather than replace them.
+No raw `<button>`, `<input>`, `<select>`, `<textarea>` or `<table>` appears where an
+Element Plus equivalent exists. Per module:
+
+- **Theme bridge** — tokens mapped onto `--el-*` variables in
+  `src/assets/styles/element-reset/theme.css` for both themes; one root
+  `el-config-provider` in `App.vue` owns size, z-index base, locale and
+  `button.autoInsertSpace`.
+- **Stylesheets** — the resolver runs with `importStyle: false`; every adopted component's
+  `element-plus/theme-chalk/el-<name>.css` is imported in
+  `src/assets/styles/element-reset/components/index.css` in the same commit that adopts it.
+- **States** — `el-empty` (empty variants), `el-result` (errors, not-found, forbidden),
+  `el-skeleton` + `el-skeleton-item` (first load), `v-loading` (refetch with rows on
+  screen); illustrations go inside their `#image` / `#icon` slots.
+- **Status** — `el-tag` with `type` + `effect` mapped from the status enum, via `StatusTag`.
+- **Actions** — `el-button` (`type="primary"` for the one main action, `type="danger"` for
+  destructive ones), `el-dropdown` for row actions, `ElMessageBox.confirm` via `useConfirm`.
+- **Feedback** — `ElNotification` / `ElMessage` through the notification service, themed
+  by the same variables.
+- **Dashboard** — `el-statistic`, `el-row` / `el-col`, `el-progress`, `el-descriptions`,
+  `el-card shadow="never"`.
+- **Icons** — the type-safe `<Icon>` passed through Element Plus `#icon` / `#prefix` /
+  `#suffix` slots or wrapped in `el-icon`; `@element-plus/icons-vue` is not added.
+
+Standing exceptions (from the map): the `<Icon>` SVG component, token-built line
+illustrations placed inside `el-empty` / `el-result` slots, a single stacked
+proportional distribution bar, and page-level layout with Tailwind utilities.
+
 ### Tokens
 
 Semantic rather than literal. Components reference `surface`, `surface-raised`,
@@ -179,6 +218,17 @@ of the semantic layer rather than an audit of every component.
 
 Every semantic token has a light and a dark value. A token without a dark counterpart
 is a bug, because it will be the one element that stays wrong in dark mode.
+
+The Element Plus bridge is part of the token layer, not a separate theme: each semantic
+token is assigned to its `--el-*` counterpart (`accent` → `--el-color-primary` and its
+`-light-*` / `-dark-2` steps, `danger` → `--el-color-danger`, `surface` →
+`--el-bg-color`, `surface-raised` → `--el-bg-color-overlay`, `text-primary` /
+`text-muted` → `--el-text-color-primary` / `-secondary`, `border-subtle` →
+`--el-border-color-lighter`, radii → `--el-border-radius-*`, typeface →
+`--el-font-family`, motion → `--el-transition-duration*`) under both the light and the
+dark theme selector, on top of `element-plus/theme-chalk/dark/css-vars.css`. A
+selector-level `.el-*` override is a last resort and carries a comment naming what the
+variable could not express.
 
 Scales are constrained deliberately: a fixed type scale, a spacing scale on a
 consistent rhythm, three radii, three elevations. Constraint is what produces
@@ -198,7 +248,12 @@ Two rules govern the palette:
   monitor.
 - **Status is never encoded by colour alone.** Every status carries a label, and
   shape or weight differs alongside the colour. The four ticket statuses and four
-  event statuses must remain distinguishable in greyscale.
+  event statuses must remain distinguishable in greyscale. Status renders as `el-tag`
+  (through `StatusTag`) whose `type` and `effect` (`dark` / `light` / `plain`) are mapped
+  from the status enum, always with a text label.
+- **Destructive actions use the danger variant.** `el-button type="danger"` (or
+  `el-dropdown-item divided` with danger styling for row actions), never the primary
+  accent.
 
 Dark mode is a designed palette, not a programmatic inversion. Surfaces lighten with
 elevation rather than darken; borders become lower-contrast; shadows are replaced by
@@ -207,22 +262,38 @@ surface separation, because a shadow on a dark background does almost nothing.
 ### Typography
 
 A chosen typeface with a variable weight range, self-hosted and preloaded so there is
-no flash of unstyled text and no third-party request at runtime. A tabular-figure
-variant for numeric columns, so prices and quantities align down a column — a small
-detail with an outsized effect on how a data table reads.
+no flash of unstyled text and no third-party request at runtime, and assigned to
+`--el-font-family` so every Element Plus component uses it. A tabular-figure variant for
+numeric columns — applied to numeric `el-table-column`s through their `class-name`
+from the column descriptor, and to `el-statistic` values — so prices and quantities
+align down a column: a small detail with an outsized effect on how a data table reads.
 
-A fixed scale with defined weights and line heights per step. Screen-level headings,
-section headings, labels, body and captions are each a named step, not an ad-hoc size.
+A fixed scale with defined weights and line heights per step, mapped onto
+`--el-font-size-*` so Element Plus labels and body text sit on the same steps.
+Screen-level headings, section headings, labels, body and captions are each a named
+step, not an ad-hoc size.
 
 ### Motion
 
-Two durations and two easing curves, as tokens. Transitions are applied to a short
-list of meaningful moments: route changes, list item enter and leave, dialog and
-drawer entry, skeleton-to-content, notification entry, and dashboard figures counting
-in on first load.
+Two durations and two easing curves, as tokens, mapped onto
+`--el-transition-duration` and `--el-transition-duration-fast` (and the Element Plus
+easing variables) so the library's own transitions run on the same timing.
+Transitions are applied to a short list of meaningful moments, each owned by a named
+mechanism:
 
-Every animation is wrapped by the reduced-motion preference. This is a hard rule, not
-a refinement — unconditional motion is an accessibility defect.
+- Route changes and skeleton-to-content — Vue `<Transition>` (the latter swapping
+  `el-skeleton`'s `#template` for real content via its `loading` prop).
+- Dialog and drawer entry — `el-dialog` / `el-drawer`'s built-in transitions.
+- Notification entry — `ElNotification` / `ElMessage`'s built-in transitions.
+- List item leave — `el-table` renders its own body, so a deleted row animates out
+  through a `row-class-name` leaving class and a CSS animation before the refetch, not
+  through `<TransitionGroup>`; mobile cards may use `<TransitionGroup>`.
+- Dashboard figures counting in — VueUse `useTransition` feeding `el-statistic :value`.
+
+Every animation is wrapped by the reduced-motion preference: under
+`prefers-reduced-motion` the duration tokens and `--el-transition-duration*` are set to
+`0s`, and `useTransition` is bypassed. This is a hard rule, not a refinement —
+unconditional motion is an accessibility defect.
 
 Nothing animates for longer than the interaction it accompanies, and no animation
 blocks input.
@@ -230,61 +301,89 @@ blocks input.
 ### Layout and density
 
 The shell's content area uses a constrained maximum width with consistent gutters, so
-the portal does not stretch uncomfortably on a wide monitor. Tables get a row height
-chosen for scanning, with zebra striping or row hover — not both. Forms use a single
-column with grouped fieldsets rather than a dense grid, because scanning down one
-column is faster than reading across two.
+the portal does not stretch uncomfortably on a wide monitor (Tailwind layout utilities
+inside `el-main`). `el-table` gets a row height chosen for scanning (its `size` plus
+cell padding variables), with zebra striping (`stripe`) or row hover
+(`--el-table-row-hover-bg-color`) — not both. Forms are a single-column `el-form
+label-position="top"` with `el-form-item` groups separated by `el-divider
+content-position="left"` or a section heading, rather than a dense `el-row` grid,
+because scanning down one column is faster than reading across two.
 
-Cards are used where a card is meaningful — a dashboard statistic, a mobile list item —
-and not as a default container for every section.
+Cards (`el-card shadow="never"`) are used where a card is meaningful — a dashboard
+statistic, a mobile list item — and not as a default container for every section.
 
 ### Empty, loading and error states
 
 Each gets a designed treatment: a simple line illustration built from the token
-palette so it themes automatically, a sentence of explanation, and the action that
-resolves it. The three empty variants — nothing exists, nothing matched, something
-failed — are visually distinct, because conflating them is what makes an administrator
-believe their data was deleted.
+palette so it themes automatically, a sentence of explanation, and the `el-button`
+that resolves it. The illustration is the standing hand-built exception and is placed
+*inside* Element Plus — `el-empty`'s `#image` slot, `el-result`'s `#icon` slot — never
+as a hand-built panel around it. The three empty variants — nothing exists, nothing
+matched, something failed — are visually distinct, because conflating them is what
+makes an administrator believe their data was deleted. In lists they render through
+`el-table`'s `#empty` slot; load failed uses `el-result` (or an `el-empty` variant)
+with a retry `el-button`. Not-found and forbidden pages are `el-result` with the
+illustration in `#icon` and the way back in `#extra`.
 
-Skeletons mirror the shape of the content they replace, including column widths, so
-the layout does not shift when real content arrives.
+Skeletons are `el-skeleton` with a `#template` of `el-skeleton-item`s that mirror the
+shape of the content they replace, including column widths, so the layout does not
+shift when real content arrives. A refetch with rows already on screen uses
+`v-loading` on `el-table` rather than a skeleton.
 
 ### Dashboard presentation
 
-Headline figures at the largest type step with a muted label and, where useful, a
-supporting secondary figure. Breakdowns rendered as proportional bars built from
-tokens — no charting dependency is added unless a genuine chart earns its place, and
-if one is added it must theme correctly in both modes.
+Headline figures are `el-statistic` at the largest type step with a muted `title` and,
+where useful, a supporting secondary figure in `#suffix` or a second statistic, laid
+out in an `el-row` / `el-col` grid with breakpoint spans. Per-status breakdowns are
+`el-progress` bars (`:percentage`, `:color` from status tokens, `:format` for the
+count); a single stacked proportional distribution bar, which `el-progress` cannot
+express, is the one hand-built exception, built from tokens with an accessible text
+equivalent. No charting dependency is added unless a genuine chart earns its place,
+and if one is added it must theme correctly in both modes.
 
-Per-currency values are grouped into one clearly labelled block so that two currencies
-can never be misread as one total.
+Per-currency values are grouped into one clearly labelled block (`el-descriptions`, or
+a group of `el-statistic` under one heading) so that two currencies can never be
+misread as one total.
 
 ### Iconography
 
 One icon set, used through the existing type-safe icon component and its generated
-union. Icons accompany text for important actions and stand alone only where the
-meaning is unambiguous and the control has an accessible label.
+union, passed into Element Plus through `#icon` / `#prefix` / `#suffix` slots or
+wrapped in `el-icon`. `@element-plus/icons-vue` is not added. Icons accompany text for
+important actions and stand alone only where the meaning is unambiguous and the
+control — an `el-button circle` / `text` with `aria-label`, usually paired with
+`el-tooltip` — has an accessible label.
 
 ### Documentation
 
-A short design-system reference: the tokens and what each means, the type scale, the
-spacing rhythm, the motion rules, the status colour mapping, and the rules for adding
-a new screen. It is what keeps the system intact after this PRD closes, and PRD-009
-links to it.
+A short design-system reference: the tokens and what each means, the token → `--el-*`
+mapping for both themes, the type scale, the spacing rhythm, the motion rules
+(including which Element Plus transitions they drive), the status colour → `el-tag`
+mapping, the Element Plus-first rule with a link to [`ELEMENT-PLUS.md`](ELEMENT-PLUS.md),
+and the rules for adding a new screen. It is what keeps the system intact after this
+PRD closes, and PRD-009 links to it.
 
 ### Testing boundary
 
-- Token completeness — unit tested: every semantic token has a value in both themes.
+Component tests mount real Element Plus components — never stubs — and query
+teleported poppers (dropdown, select, message box, notification) in `document.body`.
+
+- Token completeness — unit tested: every semantic token has a value in both themes,
+  and every mapped `--el-*` variable is assigned in both themes.
+- Stylesheet registration — every Element Plus component used in `src/` has its
+  theme-chalk import in `element-reset/components/index.css`.
 - Contrast ratios — verified with a tool as part of the foundation slice, with the
-  results recorded.
-- Reduced-motion — component tested: animations are suppressed when the preference is
-  set.
+  results recorded, including Element Plus text on its own surfaces.
+- Reduced-motion — component tested: under the preference the duration tokens and
+  `--el-transition-duration*` resolve to `0s` and `el-statistic` shows the final value
+  without counting.
 - Empty, loading and error states — component tested for each of the three empty
-  variants and the error variant.
+  variants (`el-empty`) and the error variant (`el-result`).
 - Focus visibility — covered by the accessible-query discipline in the PRD-008 suite,
-  with an explicit test that the focus ring is present on interactive elements.
+  with an explicit test that the focus ring is present on interactive elements,
+  asserted on the native control Element Plus renders.
 - Dark mode — integration tested: toggling the theme updates the document and
-  persists, and no screen renders a hardcoded colour.
+  persists, `--el-*` variables switch with it, and no screen renders a hardcoded colour.
 
 ## API Contract Plan
 
@@ -293,7 +392,8 @@ None. This PRD introduces no endpoint, parameter or schema component.
 ## Out of Scope
 
 - A full brand identity: logo design, brand guidelines, marketing surfaces.
-- A component library or Storybook — noted as out of scope in PRD-009 as well.
+- A bespoke component library or Storybook — Element Plus is the component library;
+  noted as out of scope in PRD-009 as well.
 - Custom illustration beyond simple token-built line art for empty states.
 - Theming beyond light and dark: no per-tenant palettes, no user-selected accent.
 - A charting library, unless a specific chart earns it during the dashboard slice.

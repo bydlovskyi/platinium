@@ -19,6 +19,8 @@ Blocked by: #46
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 Get the repository into the state a reviewer should find it in.
@@ -26,7 +28,8 @@ Get the repository into the state a reviewer should find it in.
 The inherited `architecture.md` is reconciled with what was actually built — every rule it
 states must be true of the code, and every pattern the code relies on must appear in it. A
 document that describes an intention rather than the result is worse than no document,
-because it misleads.
+because it misleads. It states the Element Plus-first rule and links the component map
+in `ELEMENT-PLUS.md`, and the code is audited against it.
 
 Template placeholder code from the original skeleton is removed, along with dead code,
 unused dependencies and stale comments. `.env.example` is verified against what the
@@ -39,12 +42,16 @@ because a reviewer forms an impression before reading anything.
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
 - [ ] `architecture.md` reconciled: every rule it states is true of the code, every pattern the code relies on appears in it
+- [ ] `architecture.md` states the Element Plus-first rule and links [`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md)
+- [ ] Audit: no raw `<button>`, `<input>`, `<select>`, `<textarea>` or `<table>` in feature or shared code outside the standing exceptions in `ELEMENT-PLUS.md`; any other hand-built control is replaced or carries its written reason
+- [ ] Audit: every Element Plus component in use has its `theme-chalk` stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`), and no unused import remains
+- [ ] Audit: every `.el-*` selector override in the styles carries a comment naming what the `--el-*` variable could not express
 - [ ] All template placeholder code from the original skeleton removed
 - [ ] Dead code, unused dependencies and stale comments removed
 - [ ] `.env.example` verified against what the application actually reads
 - [ ] No TODO or FIXME left without an owner or an issue reference
 - [ ] `npm run lint` and `npm run type-check` clean
-- [ ] Screenshots captured from a seeded build: dashboard, a list and a form, at desktop and mobile widths, in both themes
+- [ ] Screenshots captured from a seeded build: dashboard, a list and a form, at desktop and mobile widths, in both themes — with an open popper (select or dropdown) in dark mode to show Element Plus themed through the tokens
 - [ ] Screenshots committed and sized reasonably
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied

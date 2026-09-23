@@ -29,14 +29,19 @@ Deliver complete event management through the shared list and form machinery.
 
 **A list that answers real questions.** Search across name and venue, filter by status
 and by country, filter by a date range that overlaps the event's own range, sort by
-name, start date, end date or status. Because this is built on the PRD-003 composable,
-all of it lives in the URL and all of it is computed server-side by the mock.
+name, start date, end date or status. The list is `AppDataTable` (an `el-table` with
+`sortable="custom"` columns) under a `ListToolbar` of `el-input`, `el-select` and
+`el-date-picker type="daterange"`, with `el-pagination` below. Because this is built on
+the PRD-003 composable, all of it lives in the URL and all of it is computed server-side
+by the mock.
 
-**A form that prevents bad data rather than reporting it afterwards.** The end date
-cannot precede the start date, and the constraint is enforced in the picker itself, not
-only on submit. Country is a searchable select over a controlled list, so a reviewer
-never sees "USA", "U.S.A." and "United States" in the same dataset. Status is a select
-over the enum. Required fields are marked before they are violated.
+**A form that prevents bad data rather than reporting it afterwards.** The form is an
+`el-form` with `:rules`. The end date cannot precede the start date, and the constraint
+is enforced in the `el-date-picker` itself through `:disabled-date`, not only on submit.
+Country is an `el-select filterable` over a controlled list, so a reviewer never sees
+"USA", "U.S.A." and "United States" in the same dataset. Status is an `el-radio-group`
+(or `el-segmented`) over the four-value enum. Required fields are marked by
+`el-form-item`'s required asterisk before they are violated.
 
 **Create and edit are the same form.** One component, two routes, differing only in
 whether it loads an existing record first. The alternative — separate create and edit
@@ -47,9 +52,11 @@ that still has tickets, returning a conflict that names the count. The portal su
 that as an actionable message telling the administrator how many tickets block the
 delete and offering to open them, rather than a generic failure toast. This is the
 honest behaviour for a referenced entity, and it is why the conflict response exists in
-the PRD-001 contract.
+the PRD-001 contract. The confirmation itself is `ElMessageBox.confirm` through
+`useConfirm`, with the confirm button's built-in loading state while the request runs.
 
-**Unsaved work is protected.** Navigating away from a dirty form asks for confirmation.
+**Unsaved work is protected.** Navigating away from a dirty form asks for confirmation
+through `ElMessageBox.confirm`.
 Nothing else in the assessment demands it, and its absence is the single most common
 way an administrator loses ten minutes of typing.
 
@@ -136,7 +143,7 @@ way an administrator loses ten minutes of typing.
 
 A single events view owning three routes: the list, the create form and the edit form.
 Create and edit share one form component; the route decides whether an existing record
-is loaded first. The form is a full route rather than a modal — an event has seven
+is loaded first. The form is a full route rather than an `el-dialog` — an event has seven
 fields including two date pickers and a searchable country select, which is more than a
 dialog should carry on a phone, and a route gives each record a shareable URL.
 
@@ -149,15 +156,19 @@ by reaching into an events store. A store here would be a store created out of h
 
 Dates are stored and transported as ISO-8601 date strings without a time component. An
 event occupies whole days; introducing times would raise timezone questions the domain
-does not need. The picker binds directly to that representation, so nothing converts
-between a `Date` object and a string in more than one place.
+does not need. The `el-date-picker` binds directly to that representation through
+`value-format="YYYY-MM-DD"`, so nothing converts between a `Date` object and a string in
+more than one place.
 
 Country uses ISO 3166-1 alpha-2 codes over a bundled list of code-and-name pairs. The
-stored value is the code; the display value is the name. This keeps the data
+stored value is the code (`el-option :value`); the display value is the name
+(`el-option :label`). This keeps the data
 normalised and makes a future translation of country names a presentation change only.
 
 The date-range constraint is enforced in three places for three different reasons: in
-the picker, so the administrator cannot express the mistake; in the form rules, so a
+the picker (`:disabled-date` on the end-date `el-date-picker`), so the administrator
+cannot express the mistake; in the `el-form` rules (a validator on the end-date
+`el-form-item`), so a
 programmatic change is still caught; and in the mock handler, so the contract is
 honest about what the server accepts. A client-only constraint would leave the mock
 accepting data the UI forbids.
@@ -173,23 +184,61 @@ scope rather than silently omitted.
 
 Referential integrity is enforced by the mock: deleting an event with dependent tickets
 returns a conflict carrying the dependent count. The portal renders that as a specific,
-actionable message with a link to the tickets list pre-filtered to that event.
+actionable message — an `ElNotification` (or `ElMessageBox.alert`) whose body carries
+an `el-link` / `router-link` to the tickets list pre-filtered to that event.
 
 Cascade deletion is explicitly rejected. Silently destroying an unknown number of
 tickets behind a single confirmation is the wrong default for an administrative tool.
 
+### Component library
+
+Every control in this PRD is an Element Plus component, per
+[`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md). Shared portal components (`AppDataTable`,
+`ListToolbar`, `StatusTag`, `useConfirm`) wrap and configure Element Plus; they do not
+replace it. No raw `<button>`, `<input>`, `<select>` or `<table>` appears in the events
+view. Every Element Plus component adopted for the first time here has its
+`theme-chalk` stylesheet imported in
+`src/assets/styles/element-reset/components/index.css` (the resolver runs with
+`importStyle: false`).
+
+- **List** — `AppDataTable` (`el-table` + `el-table-column`, `sortable="custom"` +
+  `@sort-change`, `el-skeleton` on first load, `v-loading` on refetch, `el-empty` in the
+  `#empty` slot, `el-card` rows below tablet); `ListToolbar` (`el-input clearable`
+  search, `el-select filterable clearable` for status and country, `el-date-picker
+  type="daterange"`, `el-tag closable` chips, `el-button link` clear all, `el-drawer` +
+  `el-badge` on mobile); `el-pagination`; `StatusTag` (`el-tag`); row actions in an
+  `el-dropdown`.
+- **Page header** — the shared `PageHeader` (`el-breadcrumb` + title), the create action
+  an `el-button type="primary"` in its `actions` slot; the form route may use
+  `el-page-header` for its back-to-list control.
+- **Form** — `el-form :model :rules label-position="top"` and `el-form-item prop` with
+  `:error` bound to mapped server field errors; name and venue `el-input maxlength
+  show-word-limit`; country `el-select filterable` + `el-option`; start and end
+  `el-date-picker type="date" value-format="YYYY-MM-DD"`, end with `:disabled-date`;
+  end-date-cleared warning as `el-alert type="warning" :closable="false"` under the
+  field; status `el-radio-group` / `el-segmented`; submit `el-button type="primary"
+  :loading native-type="submit"`, cancel `el-button`.
+- **Edit of a missing record** — `el-result icon="warning"` with a back-to-list
+  `el-button` in `#extra`.
+- **Delete and unsaved changes** — `ElMessageBox.confirm` (delete through `useConfirm`
+  with `beforeClose` setting `confirmButtonLoading`); success and conflict feedback
+  through the notification service (`ElNotification` / `ElMessage`).
+
 ### Modules
 
-**Event form component (deep module).** Owns the field set, validation rules, the
-cross-field date constraint, dirty tracking and submission. Consumed by both routes and
-testable without a router.
+**Event form component (deep module).** Owns the `el-form` field set, its `:rules`, the
+cross-field date constraint, dirty tracking and submission. Validation runs through the
+form ref (`validate()` / `validateField()`), not ad-hoc checks. Consumed by both routes
+and testable without a router.
 
 **Unsaved-changes guard composable.** Compares current form state against the loaded
-baseline and registers a navigation guard plus a beforeunload handler. Built generically
-here because PRD-005 and PRD-006 reuse it unchanged.
+baseline and registers a navigation guard plus a beforeunload handler; the in-app prompt
+is `ElMessageBox.confirm`. Built generically here because PRD-005 and PRD-006 reuse it
+unchanged.
 
-**Country reference data.** A bundled static list with a lookup by code. Not fetched —
-it never changes at runtime and a round trip for it would be waste.
+**Country reference data.** A bundled static list with a lookup by code, rendered as
+`el-option`s. Not fetched — it never changes at runtime and a round trip for it would be
+waste.
 
 The list screen itself is thin: column descriptors, a filter descriptor, and the
 PRD-003 composables. Any meaningful list logic appearing in this view is a signal that
@@ -197,15 +246,22 @@ PRD-003 under-delivered.
 
 ### Testing boundary
 
+Component and integration tests mount the real Element Plus components — no stubs — and
+drive the DOM they render (header-cell click for sort, `el-option` click, date-picker
+cells). Teleported poppers (`el-select` dropdowns, `el-date-picker` panels,
+`ElMessageBox`, `el-dropdown` menus) are queried in `document.body`, or mounted with
+`:teleported="false"`.
+
 - Event form validation — unit tested: required fields, name length bounds, the date
   ordering constraint in both directions, and clearing the end date when the start date
   moves past it.
 - Unsaved-changes composable — unit tested: clean form navigates freely, dirty form
-  prompts, saving clears the dirty state.
+  prompts through `ElMessageBox.confirm`, saving clears the dirty state.
 - Events service — unit tested for correct request shaping of the full filter set.
 - Full CRUD flow — integration tested against MSW: create with a validation failure then
   a success, verify the row appears; edit and verify the change; delete with
-  confirmation; attempt to delete a referenced event and assert the conflict message.
+  confirmation through the `ElMessageBox` in `document.body`; attempt to delete a
+  referenced event and assert the conflict message.
 - List behaviour — integration tested: search, each filter, sort toggling and pagination
   all reflected in the URL and in the request the mock receives.
 

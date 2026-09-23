@@ -19,6 +19,8 @@ Blocked by: #15
 
 #1 — [`docs/prd/PRD-001-platform-foundation.md`](../prd/PRD-001-platform-foundation.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The single place where an HTTP failure becomes something an administrator can
@@ -32,22 +34,25 @@ Aborted requests are swallowed silently — a cancelled request is not an error,
 treating it as one produces spurious toasts on every fast-typing administrator.
 
 A per-request flag suppresses the global toast so a form can render the error inline
-without duplicating it. The notification service is a thin wrapper over the Element Plus
-API so the presentation can change in one place and tests can assert on notifications
-without reaching into a UI library.
+(through `el-form-item :error`) without duplicating it. The notification service is a
+thin wrapper over `ElNotification` so the presentation can change in one place and tests
+can assert on notifications without reaching into a UI library. Nothing else calls
+`ElNotification` directly.
 
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
 - [ ] Successful responses normalised to their payload
 - [ ] 401 resets the session and redirects to login with an explanation
-- [ ] 400 rejects with a parsed field-error map that forms can attach to inputs
+- [ ] 400 rejects with a parsed field-error map that forms can bind to `el-form-item :error`
 - [ ] 404, 409 and 500 reject and raise a toast with a human-readable message
 - [ ] Network failure and timeout produce a distinct, intelligible message rather than a raw axios error
 - [ ] Aborted requests are swallowed silently and raise no notification
 - [ ] A per-request flag suppresses the global toast; the rejection still propagates
-- [ ] Notification service exposes success, error, warning and info; everything that notifies goes through it
-- [ ] Notifications are themed through the design tokens rather than library defaults
+- [ ] Notification service wraps `ElNotification` and exposes success, error, warning and info; everything that notifies goes through it — no direct `ElNotification` calls elsewhere
+- [ ] Notifications are themed through the design tokens rather than library defaults: `--el-color-success|warning|info|danger` mapped in `theme.css`, no inline colour or class
+- [ ] `el-notification.css` imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Tests use the real `ElNotification`, not a stub, and assert on the notification teleported into `document.body`
 - [ ] Unit tests cover every failure class including abort and network failure
 - [ ] Integration test proves a forced 500 via chaos controls produces exactly one toast
 - [ ] `npm run lint` and `npm run type-check` clean

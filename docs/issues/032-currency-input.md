@@ -19,6 +19,8 @@ Blocked by: #31
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 One of the two most valuable extractions in the project: a deep module by the
@@ -34,18 +36,28 @@ defect, because a second conversion site is how rounding inconsistencies enter a
 codebase. If this ends up inlined into the ticket form, the project loses its clearest
 demonstration of the principle and the next entity will reimplement it.
 
+`CurrencyInput` **wraps `el-input-number`**; it does not replace it. Decimal entry,
+precision clamping and the lower bound are `el-input-number` behaviour, configured
+through `:precision` (from the currency), `:min="0"` and `:controls="false"`; the symbol
+sits in the `#prefix` slot. What the wrapper adds is the minor-unit conversion on the
+way in and out — and nothing else.
+
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
+- [ ] Built from `el-input-number`; no raw `<input>` in this slice
 - [ ] Accepts a minor-unit integer value and emits a minor-unit integer value
 - [ ] Presents and accepts a decimal amount from the administrator
-- [ ] Input constrained to the selected currency's decimal precision
-- [ ] Negative values rejected
-- [ ] Currency symbol displayed alongside the input
+- [ ] Input constrained to the selected currency's decimal precision via `el-input-number :precision`, derived from the currency
+- [ ] Negative values rejected via `:min="0"`
+- [ ] Stepper controls hidden (`:controls="false"`)
+- [ ] Currency symbol displayed in the `el-input-number` `#prefix` slot
 - [ ] Changing the currency preserves the entered amount correctly rather than reinterpreting the integer
+- [ ] Label, `aria-*` and `disabled` forwarded so they land on the native `<input>` inside `el-input-number`
 - [ ] No conversion logic exists anywhere else in the codebase — verified by review
 - [ ] Testable with no network and no router
-- [ ] Exhaustive unit tests: decimal-to-minor and minor-to-decimal in both directions, precision clamping, zero, a large value, negative rejection, and a currency change
+- [ ] Exhaustive unit tests mounting the real `el-input-number` (no stub), asserting on its `<input>`: decimal-to-minor and minor-to-decimal in both directions, precision clamping, zero, a large value, negative rejection, and a currency change
+- [ ] `el-input-number`'s theme-chalk stylesheet imported in `src/assets/styles/element-reset/components/index.css` if not already present (resolver runs with `importStyle: false`)
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

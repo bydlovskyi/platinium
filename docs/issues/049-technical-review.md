@@ -42,12 +42,13 @@ HITL: this is the author's own engineering judgement and cannot be delegated.
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
 - [ ] Architectural decisions: local OpenAPI contract, in-browser MSW with server-side semantics, URL-driven list state, integer minor units, enforced layer direction, one configurable table — each with the alternative that was rejected
+- [ ] Architectural decisions include Element Plus first: shared components (`AppDataTable`, `ListToolbar`, `StatusTag`, `CurrencyInput`, `RemoteSelect`, `useConfirm`) wrap `el-table`, `el-form`, `el-select`, `el-pagination`, `ElMessageBox` rather than hand-building controls; theming through `--el-*` variables; the rejected alternatives (bespoke components, a headless library) and what the choice costs (bundle weight, `.el-*` coupling, upgrade risk); links [`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md)
 - [ ] Two more days: a ranked list with the reasoning for the ranking, drawn from what each PRD deferred
 - [ ] Accepted debt, each item stating what was accepted, why it was reasonable here, what it would cost in production, and the condition that would change the answer
 - [ ] Debt covers at minimum: token in `localStorage`, no optimistic updates, no Playwright layer, free status transitions, timezone-naive dates, no cross-currency aggregation, page-scoped selection, no request caching layer
-- [ ] First refactors identified from the implementation as built, written after the code exists
+- [ ] First refactors identified from the implementation as built, written after the code exists — including any hand-built control or `.el-*` override the Element Plus audit left in place
 - [ ] Scaling: where offset pagination breaks and what cursor pagination changes for the UI
-- [ ] Scaling: virtualised rendering, server-side aggregation, caching and invalidation strategy, bundle splitting
+- [ ] Scaling: virtualised rendering (`el-table-v2` versus the current `el-table`, and what `AppDataTable` would need to change), server-side aggregation, caching and invalidation strategy, bundle splitting
 - [ ] Scaling: optimistic concurrency for concurrent administrators, including what the conflict UI looks like
 - [ ] Team standards: conventional commits, PR templates and review checklists, ESLint rules encoding this project's layering, dependency and security scanning, definition of done, architecture decision records
 - [ ] AI in the daily workflow, including the boundary of what should not be delegated; cross-references the AI workflow document rather than duplicating it

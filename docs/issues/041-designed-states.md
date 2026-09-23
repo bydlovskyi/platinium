@@ -19,6 +19,8 @@ Blocked by: #40
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 **The strongest signal of care in an admin interface is not the palette — it is the
@@ -27,29 +29,35 @@ not-found page. These are what a reviewer looks for when they want to know wheth
 work was finished or abandoned at the happy path, and they are cheap to do well once the
 tokens exist.
 
-Each gets a designed treatment: a simple line illustration built from the token palette
-so it themes automatically, a sentence explaining what would be here, and the action that
-resolves it.
+Each gets a designed treatment on an Element Plus component: `el-empty` for the empty
+variants and `el-result` for errors, not-found and forbidden. A simple line illustration
+built from the token palette, so it themes automatically, goes inside `el-empty`'s
+`#image` / `el-result`'s `#icon` slot; the sentence is the `description` / `sub-title`; the
+`el-button` that resolves it sits in the default / `#extra` slot. In lists, the variants
+render through `el-table`'s `#empty` slot inside `AppDataTable`.
 
 The three empty variants must be visually distinct. Conflating "nothing exists yet" with
 "nothing matched your filters" is what makes an administrator believe their data was
 deleted.
 
-Skeletons mirror the shape of what they replace, including column widths, so the layout
-does not shift when real content arrives.
+Skeletons are `el-skeleton` with a `#template` of `el-skeleton-item`s that mirror the
+shape of what they replace, including column widths, so the layout does not shift when
+real content arrives. A refetch with rows on screen uses `v-loading` on `el-table`.
 
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
-- [ ] Token-built line illustrations that theme automatically in both modes — no raster assets, no colour literals
-- [ ] Three visually distinct empty variants: nothing exists (offers create), nothing matched (offers clear filters), load failed (offers retry)
-- [ ] Error states read as a condition with a way forward, not as a crash
-- [ ] Skeletons mirror content shape including column widths; no layout shift on content arrival
-- [ ] Designed not-found page consistent with the rest of the portal
-- [ ] Login screen given a considered treatment — it is the first impression
-- [ ] Notifications styled through the tokens rather than library defaults
+- [ ] Token-built line illustrations that theme automatically in both modes — no raster assets, no colour literals — placed inside `el-empty` `#image` / `el-result` `#icon` slots, never as a hand-built panel
+- [ ] Three visually distinct empty variants: nothing exists (`el-empty`, create `el-button type="primary"`), nothing matched (`el-empty`, clear-filters `el-button`), load failed (`el-result` or `el-empty` variant, retry `el-button`)
+- [ ] Error states built on `el-result` (`#icon`, `title`, `sub-title`, `#extra` action) read as a condition with a way forward, not as a crash
+- [ ] `el-skeleton` / `el-skeleton-item` templates mirror content shape including column widths; no layout shift on content arrival
+- [ ] Designed not-found (and forbidden) page on `el-result` with the illustration in `#icon` and the way back in `#extra`
+- [ ] Login screen given a considered treatment — it is the first impression — within `el-card`, `el-form`, `el-input`, `el-button` and `el-alert`, themed through `--el-*` variables
+- [ ] `ElNotification` / `ElMessage` styled through the `--el-*` variables mapped from tokens rather than library defaults or `.el-notification` overrides
 - [ ] Every state readable at 375px
-- [ ] Component tests for each of the three empty variants and the error variant
+- [ ] Built from `el-empty`, `el-result`, `el-skeleton` and `el-button`; no raw `<button>`/`<input>`/`<table>`/`<select>` and no hand-built state panels in this slice
+- [ ] Every newly adopted Element Plus component's theme-chalk stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Component tests for each of the three empty variants and the error variant, mounting real Element Plus components (no stubs)
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

@@ -30,7 +30,9 @@ request cannot overwrite a newer result — a real defect on a fast-typing admin
 not a theoretical one.
 
 Previous results stay visible and dimmed while a new page loads rather than being
-cleared, so the screen never flashes empty between pages.
+cleared, so the screen never flashes empty between pages. No UI in this slice: the
+composable keeps the previous data and exposes loading; the dimming itself is
+`v-loading` on `el-table` in `AppDataTable` (#23).
 
 ## Acceptance criteria
 

@@ -37,7 +37,8 @@ pristine list has a clean address, and malformed parameters fall back to default
 than propagating a bad request.
 
 Generic over the entity's query type, tested with a memory router — no components, no
-network.
+network. No UI in this slice; translating its sort direction to and from `el-table`'s
+`ascending` / `descending` belongs to `AppDataTable` (#23), not here.
 
 ## Acceptance criteria
 

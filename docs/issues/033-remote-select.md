@@ -19,6 +19,8 @@ Blocked by: #32
 
 #6 — [`docs/prd/PRD-006-tickets-management.md`](../prd/PRD-006-tickets-management.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The second deep module of PRD-006. One generic component parameterised by a fetch
@@ -34,18 +36,26 @@ noticed.** Without it, editing a ticket whose event sits on page four shows an e
 selector, and saving silently drops the reference. It belongs in the acceptance criteria
 explicitly rather than being left to the implementer's diligence.
 
+`RemoteSelect` **wraps `el-select`** in remote mode — `filterable remote
+:remote-method :loading` — with `el-option` for each result. Keyboard navigation,
+clearing, the dropdown and its positioning are `el-select`'s; the wrapper adds
+debouncing, paging, the scroll trigger and preselected-value resolution.
+
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
+- [ ] Built from `el-select` (`filterable`, `remote`, `:remote-method`, `:loading`) and `el-option`; no raw `<input>`/`<select>`/`<button>` in this slice
 - [ ] Generic over a fetch function, an option renderer and a value resolver
-- [ ] Debounced search against the remote endpoint
-- [ ] Incremental loading of further results on scroll
-- [ ] A preselected value absent from the loaded page is fetched by identifier and merged into the options
+- [ ] Debounced search against the remote endpoint, driven by `:remote-method`
+- [ ] Incremental loading of further results on scroll: a scroll listener on the dropdown's `el-scrollbar` wrap, located via a `popper-class`, using VueUse `useInfiniteScroll`
+- [ ] A "loading more" row rendered in the `el-select` `#footer` slot while the next page is in flight
+- [ ] A preselected value absent from the loaded page is fetched by identifier and merged into `options`, so `el-select` resolves its label
 - [ ] The field never renders a bare identifier or an empty box for a valid selection
-- [ ] Loading and empty states within the dropdown
-- [ ] Option renderer supports secondary detail — the event picker shows country and dates alongside the name
-- [ ] Keyboard navigable; clears to empty for an optional field
-- [ ] Component tests: debounced search, incremental load, resolution of a preselected value absent from the first page, loading and empty states
+- [ ] Loading and empty states within the dropdown through the `#loading` and `#empty` slots
+- [ ] Option renderer fills the `el-option` default slot and supports secondary detail — the event picker shows country and dates alongside the name
+- [ ] Keyboard navigable (native `el-select`); `clearable` clears to empty for an optional field
+- [ ] Component tests mount the real `el-select` (no stub) and query the teleported dropdown in `document.body` (or mount with `:teleported="false"`): debounced search, incremental load by scrolling the dropdown `el-scrollbar`, resolution of a preselected value absent from the first page, loading and empty states
+- [ ] Every newly adopted Element Plus component's theme-chalk stylesheet (`el-select`, `el-option`, `el-scrollbar`, `el-tag` as needed) imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

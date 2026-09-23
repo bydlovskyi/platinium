@@ -28,8 +28,10 @@ A review against every declared boundary, closing anything missed, and verifying
 runs clean from a cold clone — not from the machine that has been building it all along.
 
 This is also where the testing guide is finalised: the strategy, the layers and what
-belongs in each, the kit's helpers, naming and location conventions, and how to write an
-error-path test.
+belongs in each, the kit's helpers, naming and location conventions, how to write an
+error-path test, and how to test Element Plus components per
+[`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md) — real mounts, teleported poppers,
+`ElMessageBox` confirms, `el-form` validation.
 
 ## Acceptance criteria
 
@@ -39,10 +41,12 @@ error-path test.
 - [ ] Every store and every composable is covered
 - [ ] Integration coverage confirmed for: login journey, full CRUD per entity, search/filter/sort/pagination through the UI, validation failures end to end, API failure handling, permissions from both roles, responsive presentation at each breakpoint
 - [ ] Unhandled-request failure is still enforced — no handler was quietly added to silence a test
+- [ ] No test stubs or `shallowMount`s an Element Plus component; sort, selection, validation, select and confirm tests drive the real `el-table`, `el-form`, `el-select`, `ElMessageBox` DOM, querying teleported poppers in `document.body`
+- [ ] `element-plus` still inlined in the Vitest config, and at least one test proves an `el-form` rule actually rejects invalid input
 - [ ] Suite runs clean from a cold clone in a fresh directory
 - [ ] Suite still completes in under 60 seconds
 - [ ] Coverage report reviewed; notable gaps either closed or documented with a reason
-- [ ] Testing guide written: strategy, layers, kit helpers, naming and location conventions, how to write an error-path test
+- [ ] Testing guide written: strategy, layers, kit helpers, naming and location conventions, how to write an error-path test, and a section on testing Element Plus components
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

@@ -42,6 +42,7 @@ HITL: this is the author's own account of their working method.
 - [ ] Explains the specific adaptations made for this project — including replacing the inherited database-migration concept in the PRD skills with the OpenAPI contract, this project's equivalent shared bottleneck file
 - [ ] Explains the path-rules hook and what it enforces
 - [ ] Records where AI output was wrong, incomplete or had to be redirected, and how that was caught
+- [ ] Includes the Element Plus retrofit as a worked correction: library-neutral spec wording ("a data table", "a confirmation") led the builder to hand-roll a `<table>`, raw `<button>` sort headers and bespoke skeleton/empty states despite `architecture.md`'s "check Element Plus first"; the fix was a spec change — [`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md) and component-named PRDs and issues — and slices 011–023 were retrofitted
 - [ ] Describes what was deliberately not delegated and why
 - [ ] Lives in `docs/` and is linked from the README and from TECHNICAL_REVIEW.md
 - [ ] `npm run lint` and `npm run type-check` clean

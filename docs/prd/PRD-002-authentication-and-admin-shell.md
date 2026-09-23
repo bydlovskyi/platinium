@@ -28,10 +28,11 @@ frame before the first feature screen exists.
 Deliver the authenticated frame of the portal.
 
 **A login screen with real form mechanics.** Mocked credentials, but a real form:
-field validation with inline messages, a disabled-and-spinning submit button while the
-request is in flight, and a clear, non-blaming error when the credentials are wrong.
-The point is not the authentication — it is demonstrating the validation and loading
-patterns every other form in the portal will follow.
+an `el-card` holding an `el-form` whose `:rules` drive inline `el-form-item` messages, an
+`el-button type="primary" :loading native-type="submit"` that disables and spins while the
+request is in flight, and a clear, non-blaming `el-alert` when the credentials are wrong.
+The point is not the authentication — it is demonstrating the Element Plus validation and
+loading patterns every other form in the portal will follow.
 
 **A session that behaves like a session.** Logging in stores a mocked token and the
 current administrator. A reload restores the session without a round trip to the login
@@ -46,14 +47,17 @@ is sent to the dashboard; an anonymous visitor hitting any admin route is sent t
 login with their intended destination preserved. No component performs its own access
 check.
 
-**A shell that adapts rather than collapses.** On desktop, a persistent sidebar beside
-the content. On tablet, the sidebar collapses to icons, recoverable by hover or toggle.
-On mobile, it becomes an off-canvas drawer behind a hamburger, closing on navigation
-and trapping focus while open. The content area is the same component in all three
-cases — only the navigation presentation changes.
+**A shell that adapts rather than collapses.** An `el-container` frame with `el-aside`,
+`el-header` and `el-main`. On desktop, a persistent `el-menu` sidebar beside the content.
+On tablet, the same `el-menu` with `:collapse` becomes an icon rail (the `el-aside :width`
+narrows), recoverable by hover or an `el-button` toggle. On mobile, it moves into an
+`el-drawer` behind an `el-button` hamburger, closing on navigation and trapping focus while
+open. The content area (`el-main`) is the same component in all three cases — only the
+navigation presentation changes.
 
-**Dark mode as part of the frame.** A theme toggle in the shell header, driven by CSS
-custom properties and the Element Plus dark class, defaulting to the operating system
+**Dark mode as part of the frame.** A theme toggle in the shell header (an
+`el-button circle` with an `el-tooltip`), driven by CSS custom properties mapped onto
+Element Plus `--el-*` variables and the Element Plus dark class, defaulting to the operating system
 preference and remembering an explicit choice. Because it is defined in the shell with
 tokens, every screen built afterwards inherits it for free. Retrofitting it later would
 mean auditing every component.
@@ -144,6 +148,39 @@ from JavaScript. There is no server here to set one. The choice, its XSS exposur
 the production alternative must be recorded in `TECHNICAL_REVIEW.md` — a reviewer will
 look for whether this was a decision or an accident.
 
+### Component library
+
+Element Plus is the component library for everything this PRD renders, per the binding
+policy in [`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md). Shared components (`AppShell`,
+`PageHeader`, the account menu) **wrap and configure** Element Plus components; they do not
+replace them, and no raw `<button>`, `<input>` or `<select>` appears in this PRD's code.
+
+- **Root** — one `el-config-provider` in `App.vue` owns size, z-index base, locale and
+  `button.autoInsertSpace`.
+- **Login** — `el-card`; `el-form` (`:rules`, `label-position="top"`, blur triggers),
+  `el-form-item`, `el-input` (`show-password` on the password field); `el-button
+  type="primary" :loading native-type="submit"`; `el-alert` for the credentials error.
+- **Admin layout** — `el-container`, `el-aside`, `el-header`, `el-main`.
+- **Sidebar** — `el-menu` + `el-menu-item` inside `el-scrollbar`; `:collapse` for the icon
+  rail; `:default-active` bound to the current route **name**; navigation through
+  `router.push({ name })` in `@select` — `el-menu`'s `router` mode is not used because it
+  navigates by path.
+- **Mobile navigation** — `el-drawer` holding the same `el-menu`.
+- **Header controls** — hamburger and rail toggle as `el-button text` / `circle` with the
+  `<Icon>` in `#icon` and an `aria-label`; theme toggle as `el-button circle` +
+  `el-tooltip`.
+- **Page header** — `PageHeader` wrapping `el-breadcrumb` / `el-breadcrumb-item
+  :to="{ name }"`, an `<h1>` title and an `actions` slot of `el-button`s. `el-page-header`
+  is not used here: it always renders a back control, which a list screen does not have.
+- **Account menu** — `el-dropdown` triggered by an `el-button text`, showing `el-avatar`,
+  the name and an `el-tag` for the role; sign-out as an `el-dropdown-item`.
+- **Not-found** — `el-result` with the illustration in `#icon` and an `el-button` back to
+  the dashboard in `#extra`.
+
+Every Element Plus component adopted here has its `element-plus/theme-chalk/el-<name>.css`
+imported in `src/assets/styles/element-reset/components/index.css` (the resolver runs with
+`importStyle: false`).
+
 ### Modules
 
 **Auth store (global).** Owns the token, the current administrator and the derived
@@ -160,22 +197,24 @@ authentication, or requires the visitor to be anonymous — and redirects accord
 preserving the intended destination as a query parameter. One guard, no per-route
 logic, no component-level checks.
 
-**Layouts.** An auth layout (centred card, no navigation) and an admin layout (the
-shell). Layouts are selected by route metadata rather than imported by pages, so a page
+**Layouts.** An auth layout (a centred `el-card`, no navigation) and an admin layout
+(the shell: `el-container` / `el-aside` / `el-header` / `el-main`). Layouts are selected by route metadata rather than imported by pages, so a page
 never knows which frame it sits in.
 
-**Navigation model.** The sidebar renders from a declared list of entries — label,
-icon, target route name and an optional permission requirement — rather than hardcoded
-markup. PRD-007 filters this list by role without touching the sidebar component. New
+**Navigation model.** The sidebar's `el-menu-item`s render from a declared list of
+entries — label, icon, target route name and an optional permission requirement — rather
+than hardcoded markup; the route name is the `el-menu-item` `index`. PRD-007 filters this list by role without touching the sidebar component. New
 sections are added by extending the list.
 
-**Page header (deep module).** A reusable header owning the title, optional
-breadcrumbs, and a slot for page actions. Every feature screen uses it, so heading
+**Page header (deep module).** A reusable header owning the `<h1>` title, optional
+`el-breadcrumb` crumbs and an `actions` slot for `el-button` page actions (`el-page-header`
+is reserved for screens with a real back action, since it always renders one). Every feature screen uses it, so heading
 hierarchy, spacing and action placement are consistent by construction rather than by
 review.
 
 **Theme.** A design-token layer of CSS custom properties with light and dark values,
-consumed by both the Element Plus reset and Tailwind. A composable built on the VueUse
+mapped onto Element Plus `--el-*` variables in the element reset and consumed by
+Tailwind. A composable built on the VueUse
 colour-mode primitive owns the current mode and persistence. An inline script in the
 document head applies the stored or preferred class before hydration, preventing the
 flash.
@@ -188,8 +227,9 @@ above. The shell reads the current breakpoint through a single composable backed
 VueUse media-query primitive, so breakpoint logic is never duplicated as ad-hoc window
 listeners.
 
-The drawer is an Element Plus drawer rather than a hand-built overlay, inheriting
-focus trapping and Escape handling instead of reimplementing accessibility.
+The drawer is an `el-drawer` rather than a hand-built overlay, inheriting focus trapping
+and Escape handling instead of reimplementing accessibility. The tablet icon rail is
+`el-menu :collapse` inside a narrowed `el-aside`, not a second hand-built sidebar.
 
 ### Testing boundary
 
@@ -202,8 +242,12 @@ focus trapping and Escape handling instead of reimplementing accessibility.
 - Login screen — integration tested end to end against MSW: validation failure,
   credential rejection, successful sign-in and redirect, and redirect back to a
   preserved destination.
-- Shell — component tested at each breakpoint for the correct navigation presentation,
-  and tested for drawer-closes-on-navigate.
+- Shell — component tested at each breakpoint for the correct navigation presentation
+  (`el-menu` expanded, `el-menu :collapse`, `el-drawer`), and tested for
+  drawer-closes-on-navigate.
+- Component and integration tests mount the real Element Plus components, never stubs,
+  and query teleported poppers (`el-dropdown` menu, `el-drawer`, `el-tooltip`) in
+  `document.body`.
 
 ## API Contract Plan
 

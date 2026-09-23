@@ -19,6 +19,8 @@ Blocked by: #36
 
 #7 — [`docs/prd/PRD-007-dashboard-statistics-and-bulk-operations.md`](../prd/PRD-007-dashboard-statistics-and-bulk-operations.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 Two roles, enforced in layers.
@@ -27,15 +29,20 @@ A capability composable is the single answer to "may the current user do this?",
 expressed as entity-and-operation pairs. Navigation entries, page actions, row actions
 and bulk operations all consult it; nothing performs its own role comparison. The sidebar
 was built from a declared entry list in PRD-002 precisely so it could be filtered here
-without touching the component.
+without touching the component. Gated entries are `el-menu-item`s, page actions
+`el-button`s, row actions `el-dropdown-item`s and the bulk bar — all removed with `v-if`,
+not disabled.
 
 **Enforcement is layered, and only one layer is a real control.** The UI hides what the
 user cannot do; the router guard rejects direct navigation to a route requiring a
 capability they lack; the mock rejects the write regardless. The first two are usability
 — a reviewer who sends a direct write request will find out which was actually built.
+A route the guard refuses renders an `el-result` 403 with an explanation and a back
+`el-button` in `#extra`.
 
-The response interceptor gains a 403 branch that notifies without signing the user out: a
-permission failure is not a session failure.
+The response interceptor gains a 403 branch that notifies through `ElNotification` (via
+the notification service) without signing the user out: a permission failure is not a
+session failure. The role is shown as an `el-tag` inside the `el-dropdown` account menu.
 
 ## Acceptance criteria
 
@@ -45,12 +52,16 @@ permission failure is not a session failure.
 - [ ] Navigation entries filtered by their declared permission requirement
 - [ ] Create, edit, delete and bulk actions hidden rather than shown-and-rejected for a viewer
 - [ ] Route metadata carries an optional required capability; the guard enforces it
-- [ ] A viewer navigating directly to an edit URL is turned away with an explanation
+- [ ] A viewer navigating directly to an edit URL is turned away to an `el-result` 403 page with an explanation and a back `el-button`
 - [ ] The mock rejects a viewer's write with 403 regardless of the UI
-- [ ] Response interceptor handles 403 with a notification and no session reset
-- [ ] Role shown in the account menu
+- [ ] Response interceptor handles 403 with an `ElNotification` (via the notification service) and no session reset
+- [ ] Role shown as an `el-tag` in the `el-dropdown` account menu
+- [ ] Gated `el-menu-item`, `el-button` and `el-dropdown-item` controls removed with `v-if`, not rendered disabled
+- [ ] Built from `el-result`, `el-tag`, `el-button`; no raw `<button>`/`<input>`/`<table>`/`<select>` in this slice
+- [ ] Every newly adopted Element Plus component's `theme-chalk` stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
 - [ ] Unit tests for every role-and-operation combination
 - [ ] Integration tests: signed in as a viewer, write actions are absent, a direct edit URL is refused, and a forced write request is rejected
+- [ ] Tests mount real Element Plus components (no stubs); teleported poppers queried in `document.body`
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

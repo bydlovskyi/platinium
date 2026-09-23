@@ -48,7 +48,7 @@ rather than theoretical.
 - [ ] Handlers return realistic errors: 400 with per-field messages, 401, 404, 409, 500
 - [ ] `GET /health` served and returning 200
 - [ ] Chaos controls: configurable latency, force a status code on the next request to a path, make a path fail persistently
-- [ ] Chaos controls exposed programmatically to tests and through a debug surface in the browser
+- [ ] Chaos controls exposed programmatically to tests and through a debug surface in the browser (`window.__mockChaos`, development only — a console API, so no hand-built UI)
 - [ ] Mock database reset and re-seed exposed to the test kit
 - [ ] Realistic default latency in development so loading states are visible
 - [ ] Integration test proves the full query vocabulary works end to end through the service layer for one entity
