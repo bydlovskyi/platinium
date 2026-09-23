@@ -235,6 +235,7 @@
     "useKeyModifier": true,
     "useLastChanged": true,
     "useLink": true,
+    "useListQuery": true,
     "useLocalStorage": true,
     "useMagicKeys": true,
     "useManualRefHistory": true,
