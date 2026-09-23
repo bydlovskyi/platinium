@@ -4,7 +4,7 @@ import { PERSISTENCE_KEY, PERSISTENCE_VERSION, loadPersistedDataset, persistData
 import type { ISeedDataset } from './fixtures'
 
 function emptyDataset (): ISeedDataset {
-  return { events: [], categories: [], tickets: [] }
+  return { events: [], categories: [], tickets: [], users: [] }
 }
 
 describe('persistDataset / loadPersistedDataset', () => {
@@ -106,6 +106,25 @@ describe('persistDataset / loadPersistedDataset', () => {
     const seed = createSeedDataset()
 
     expect(db.categories.list({}).meta.total).toBe(seed.categories.length)
+  })
+
+  it('discards and returns undefined when a user has a required field of the wrong type', () => {
+    const dataset = createSeedDataset()
+    const [firstUser, ...restUsers] = dataset.users
+
+    if (firstUser === undefined) {
+      throw new Error('expected the seed dataset to contain at least one user')
+    }
+
+    const userWithBadSessionActive = { ...firstUser, sessionActive: 'false' }
+
+    localStorage.setItem(PERSISTENCE_KEY, JSON.stringify({
+      version: PERSISTENCE_VERSION,
+      dataset: { ...dataset, users: [userWithBadSessionActive, ...restUsers] }
+    }))
+
+    expect(loadPersistedDataset()).toBeUndefined()
+    expect(localStorage.getItem(PERSISTENCE_KEY)).toBeNull()
   })
 
   it('overwrites a previously persisted dataset', () => {

@@ -13,15 +13,8 @@ const app = createApp(App)
 
 app
   .use(createPinia())
-  .use(router)
   .use(VueGlobalPropertiesPlugin)
 
-/**
- * Starts the MSW browser worker in development only — never bundled into a
- * production build's request path. `import.meta.env.DEV` is statically
- * replaced by Vite, so the `import('@/mocks/browser')` below is dropped
- * entirely from a production bundle rather than merely skipped at runtime.
- */
 async function enableMockingIfNeeded (): Promise<void> {
   if (!import.meta.env.DEV) {
     return
@@ -34,13 +27,25 @@ async function enableMockingIfNeeded (): Promise<void> {
   await worker.start({ onUnhandledRequest: 'warn' })
 }
 
+function redirectToLogin (): void {
+  if (router.currentRoute.value.name !== routeNames.login) {
+    void router.push({ name: routeNames.login, query: { redirect: router.currentRoute.value.fullPath } })
+  }
+}
+
+helpers.eventEmitter.listen('sessionExpired', () => {
+  useAuthStore().endSession()
+})
+
+helpers.eventEmitter.listen('authSignedOut', redirectToLogin)
+
 enableMockingIfNeeded()
   .catch((error: unknown) => {
-    // A worker that fails to register (an unsupported browser, a stale
-    // service-worker registration, a blocked `mockServiceWorker.js`) must not
-    // take the app down with it: log it and mount against the real network
-    // rather than leaving a blank page behind an unresolved promise.
     console.error('[mocks] failed to start the MSW worker; continuing without it.', error)
+  })
+  .then(() => useAuthStore().restore())
+  .then(() => {
+    app.use(router)
   })
   .then(() => router.isReady())
   .then(() => {

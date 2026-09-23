@@ -33,6 +33,71 @@ paths:
                 $ref: '#/components/schemas/HealthStatus'
         '500':
           $ref: '#/components/responses/InternalError'
+  /auth/login:
+    post:
+      operationId: postAuthLogin
+      summary: Authenticate with email and password
+      description: >
+        Validates the given credentials against the mock backend's seeded
+        administrator account and, on success, issues an opaque bearer token
+        together with the authenticated user record.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Credentials were valid; a session token was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      operationId: postAuthLogout
+      summary: Invalidate the current session
+      description: >
+        Invalidates the bearer token presented on the request, so a
+        subsequent request with the same token is rejected as unauthorized.
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: The session was invalidated.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      operationId: getAuthMe
+      summary: Fetch the current session's user
+      description: >
+        Returns the user record associated with the bearer token presented on
+        the request.
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The authenticated user record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   schemas:
     HealthStatus:
@@ -142,6 +207,69 @@ components:
         - asc
         - desc
 
+    UserRole:
+      type: string
+      description: >
+        Role granted to an authenticated user. Currently seeded with a single
+        administrator role; extended with a viewer role by PRD-007.
+      enum:
+        - admin
+
+    User:
+      type: object
+      description: An authenticated administrator or viewer of the portal.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name.
+        email:
+          type: string
+          description: Login email address.
+        role:
+          allOf:
+            - $ref: '#/components/schemas/UserRole'
+          description: The role granted to this user.
+      required:
+        - id
+        - name
+        - email
+        - role
+      additionalProperties: false
+
+    LoginRequest:
+      type: object
+      description: Body of `POST /auth/login`.
+      properties:
+        email:
+          type: string
+          description: Login email address.
+        password:
+          type: string
+          description: Login password.
+      required:
+        - email
+        - password
+      additionalProperties: false
+
+    LoginResponse:
+      type: object
+      description: Body returned by a successful `POST /auth/login`.
+      properties:
+        token:
+          type: string
+          description: "Opaque bearer token to send as `Authorization: Bearer <token>` on subsequent requests."
+        user:
+          allOf:
+            - $ref: '#/components/schemas/User'
+          description: The authenticated user record.
+      required:
+        - token
+        - user
+      additionalProperties: false
+
   parameters:
     search:
       name: search
@@ -223,3 +351,13 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: >
+        Documentation-only: declares that an endpoint expects
+        `Authorization: Bearer <token>`. The mock backend's MSW handlers
+        (`src/mocks/handlers/auth.ts`) perform the real enforcement — this
+        scheme does not, by itself, cause any request to be rejected.
+      scheme: bearer
