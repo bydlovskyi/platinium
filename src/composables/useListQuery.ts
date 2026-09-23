@@ -254,7 +254,14 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
         resetValues[filterKey] = filterDescriptors[filterKey].default
       }
 
-      return pushQuery({ filters: resetValues, page: DEFAULT_PAGE })
+      // Also clears `search` (bypassing its debounce, since this is a
+      // discrete "start over" action, not typing) — otherwise a search-only
+      // query (e.g. `?search=zzz`) would survive "clear filters"/"clear all"
+      // and the empty state's promise to show the full list again would be
+      // broken (GitHub issue #26).
+      search.value = ''
+
+      return pushQuery({ filters: resetValues, search: '', page: DEFAULT_PAGE })
     })
   }
 

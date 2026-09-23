@@ -22,6 +22,12 @@
  *
  * Colour is never the only signal: the mapped text label always renders
  * alongside the tag's colour/effect, satisfying the greyscale requirement.
+ *
+ * Tolerates a `status` that isn't (yet) one of the known values — rendering
+ * nothing rather than throwing — as defensive handling for an
+ * unrecognised/undefined status (GitHub issue #26), e.g. new backend values
+ * this component hasn't been taught yet, rather than crashing the row's
+ * render over it.
  */
 type TStatus = TEventStatus | TTicketStatus
 
@@ -44,11 +50,11 @@ const props = defineProps<{
   status: TStatus
 }>()
 
-const presentation = computed(() => STATUS_PRESENTATION[props.status])
+const presentation = computed<IStatusPresentation | undefined>(() => STATUS_PRESENTATION[props.status])
 </script>
 
 <template>
-  <el-tag :type="presentation.type" effect="light" round>
+  <el-tag v-if="presentation" :type="presentation.type" effect="light" round>
     {{ presentation.label }}
   </el-tag>
 </template>

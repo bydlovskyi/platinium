@@ -20,6 +20,7 @@ declare global {
   const computedWithControl: typeof import('@vueuse/core').computedWithControl
   const controlledComputed: typeof import('@vueuse/core').controlledComputed
   const controlledRef: typeof import('@vueuse/core').controlledRef
+  const countries: typeof import('../../src/utils/countries').countries
   const createApp: typeof import('vue').createApp
   const createEventHook: typeof import('@vueuse/core').createEventHook
   const createGlobalState: typeof import('@vueuse/core').createGlobalState
@@ -39,6 +40,7 @@ declare global {
   const defineStore: typeof import('pinia').defineStore
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
+  const eventsService: typeof import('../../src/views/events/events.service').eventsService
   const extendRef: typeof import('@vueuse/core').extendRef
   const filters: typeof import('../../src/utils/filters').filters
   const generalService: typeof import('../../src/services/general.service').generalService
@@ -198,6 +200,7 @@ declare global {
   const useEventBus: typeof import('@vueuse/core').useEventBus
   const useEventListener: typeof import('@vueuse/core').useEventListener
   const useEventSource: typeof import('@vueuse/core').useEventSource
+  const useEventsList: typeof import('../../src/views/events/composables/useEventsList').useEventsList
   const useEyeDropper: typeof import('@vueuse/core').useEyeDropper
   const useFavicon: typeof import('@vueuse/core').useFavicon
   const useFetch: typeof import('@vueuse/core').useFetch
@@ -349,6 +352,9 @@ declare global {
   // @ts-ignore
   export type { TConfirmIntent } from '../../src/composables/useConfirm'
   import('../../src/composables/useConfirm')
+  // @ts-ignore
+  export type { IEventsListFilters } from '../../src/views/events/composables/useEventsList'
+  import('../../src/views/events/composables/useEventsList')
 }
 
 // for vue template auto import
@@ -370,6 +376,7 @@ declare module 'vue' {
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
+    readonly countries: UnwrapRef<typeof import('../../src/utils/countries')['countries']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
@@ -389,6 +396,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
+    readonly eventsService: UnwrapRef<typeof import('../../src/views/events/events.service')['eventsService']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly filters: UnwrapRef<typeof import('../../src/utils/filters')['filters']>
     readonly generalService: UnwrapRef<typeof import('../../src/services/general.service')['generalService']>
@@ -548,6 +556,7 @@ declare module 'vue' {
     readonly useEventBus: UnwrapRef<typeof import('@vueuse/core')['useEventBus']>
     readonly useEventListener: UnwrapRef<typeof import('@vueuse/core')['useEventListener']>
     readonly useEventSource: UnwrapRef<typeof import('@vueuse/core')['useEventSource']>
+    readonly useEventsList: UnwrapRef<typeof import('../../src/views/events/composables/useEventsList')['useEventsList']>
     readonly useEyeDropper: UnwrapRef<typeof import('@vueuse/core')['useEyeDropper']>
     readonly useFavicon: UnwrapRef<typeof import('@vueuse/core')['useFavicon']>
     readonly useFetch: UnwrapRef<typeof import('@vueuse/core')['useFetch']>
