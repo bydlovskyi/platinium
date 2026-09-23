@@ -325,6 +325,7 @@
     "useToString": true,
     "useToggle": true,
     "useTransition": true,
+    "useUnsavedChangesGuard": true,
     "useUrlSearchParams": true,
     "useUserMedia": true,
     "useVModel": true,

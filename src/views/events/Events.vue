@@ -9,7 +9,10 @@
  * one layer down, in the shared composables — see the composable's own
  * comment.
  */
-import type { IDataTableColumn } from '@/components/data-table/data-table.types'
+import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
+
+const router = useRouter()
+const route = useRoute()
 
 const {
   search,
@@ -94,6 +97,24 @@ function onFilterRemoved (key: string): void {
 function rowKey (row: TEvent): string {
   return row.id
 }
+
+// Uses `AppDataTable`'s existing `rowActions` / `row-action-invoked`
+// vocabulary (GitHub issue #23) rather than adding anything new to that
+// shared component — this issue's file scope is this view and the events
+// form only.
+const rowActions: IDataTableRowAction<TEvent>[] = [
+  { key: 'edit', label: 'Edit' }
+]
+
+function onRowAction ({ action, row }: { action: string; row: TEvent }): void {
+  if (action === 'edit') {
+    void router.push({ name: routeNames.eventEdit, params: { id: row.id }, query: { from: route.fullPath } })
+  }
+}
+
+function onCreateClicked (): void {
+  void router.push({ name: routeNames.eventCreate, query: { from: route.fullPath } })
+}
 </script>
 
 <template>
@@ -157,14 +178,7 @@ function rowKey (row: TEvent): string {
       </template>
 
       <template #actions>
-        <!--
-          The create/edit form and its route are a separate, not-yet-built
-          slice (GitHub issue #27, blocked by this one) — this button
-          satisfies #26's own "page header with title and a create action"
-          criterion visually without inventing a `routeNames` entry that
-          issue #27 owns and would otherwise have to reconcile with.
-        -->
-        <el-button type="primary">
+        <el-button type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>
@@ -182,12 +196,14 @@ function rowKey (row: TEvent): string {
       :error="error"
       :empty-reason="emptyReason"
       :sort="dataTableSort"
+      :row-actions="rowActions"
       caption="Events"
       @sort-requested="setSort"
       @page-requested="setPage"
       @page-size-requested="setPerPage"
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
+      @row-action-invoked="onRowAction"
     >
       <template #cell-country="{ row }">
         {{ countries.getCountryName((row as TEvent).country) }}
