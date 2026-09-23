@@ -63,6 +63,7 @@ declare module 'vue' {
     ListToolbar: typeof import('./../../src/components/data-table/ListToolbar.vue')['default']
     Modals: typeof import('./../../src/features/platform/modals/components/Modals.vue')['default']
     PageHeader: typeof import('./../../src/components/PageHeader.vue')['default']
+    RemoteSelect: typeof import('./../../src/components/RemoteSelect.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StatusTag: typeof import('./../../src/components/StatusTag.vue')['default']
