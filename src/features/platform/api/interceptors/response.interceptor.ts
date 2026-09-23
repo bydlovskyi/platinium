@@ -35,6 +35,16 @@ const HTTP_STATUS = {
   unauthorized: 401
 } as const
 
+/**
+ * A 401 from this endpoint is a rejected credential, not an expired
+ * session — there is no session yet to expire. Excluded from the generic
+ * 401 handling below so a bad login attempt surfaces the mock's actual
+ * per-request message ("Email or password is incorrect.") instead of the
+ * generic session-expiry copy, and does not publish `sessionExpired` (issue
+ * #19's login form has nothing to sign out of).
+ */
+const LOGIN_PATH = '/auth/login'
+
 const responseInterceptor = (response: AxiosResponse): Promise<AxiosResponse> => {
   return response.data
 }
@@ -58,10 +68,16 @@ const errorInterceptor = (error: AxiosError): Promise<never> => {
 
   const status = error.response?.status
 
+  if (status === HTTP_STATUS.unauthorized && error.config?.url === LOGIN_PATH) {
+    const message = errorResponseBody(error)?.message ?? GENERIC_ERROR_MESSAGE
+
+    return Promise.reject(new Error(message))
+  }
+
   if (status === HTTP_STATUS.unauthorized) {
-    // No auth store / login route exists yet (they land in #19). Publish a
-    // typed event instead of redirecting directly; #19 will subscribe to
-    // clear the session and navigate to login once that machinery exists.
+    // The auth store (issue #19) subscribes to clear the session and
+    // navigate to login. Publish a typed event instead of redirecting
+    // directly, keeping this module ignorant of the router/store.
     helpers.eventEmitter.publish('sessionExpired', { message: SESSION_EXPIRED_MESSAGE })
 
     return Promise.reject(new SessionExpiredError(SESSION_EXPIRED_MESSAGE))
