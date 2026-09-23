@@ -6,5 +6,6 @@ export const routeNames = {
   events: 'events',
   home: 'home',
   login: 'login',
-  notFound: 'notFound'
+  notFound: 'notFound',
+  tickets: 'tickets'
 }

@@ -68,6 +68,7 @@ declare global {
   const mapStores: typeof import('pinia').mapStores
   const mapWritableState: typeof import('pinia').mapWritableState
   const markRaw: typeof import('vue').markRaw
+  const minorUnitsToPriceFilter: typeof import('../../src/views/tickets/composables/useTicketsList').minorUnitsToPriceFilter
   const nextTick: typeof import('vue').nextTick
   const notificationService: typeof import('../../src/services/notification.service').notificationService
   const onActivated: typeof import('vue').onActivated
@@ -92,6 +93,7 @@ declare global {
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
+  const priceFilterToMinorUnits: typeof import('../../src/views/tickets/composables/useTicketsList').priceFilterToMinorUnits
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
   const reactify: typeof import('@vueuse/core').reactify
@@ -122,6 +124,7 @@ declare global {
   const templateRef: typeof import('@vueuse/core').templateRef
   const throttledRef: typeof import('@vueuse/core').throttledRef
   const throttledWatch: typeof import('@vueuse/core').throttledWatch
+  const ticketsService: typeof import('../../src/views/tickets/tickets.service').ticketsService
   const toRaw: typeof import('vue').toRaw
   const toReactive: typeof import('@vueuse/core').toReactive
   const toRef: typeof import('vue').toRef
@@ -301,6 +304,7 @@ declare global {
   const useThrottle: typeof import('@vueuse/core').useThrottle
   const useThrottleFn: typeof import('@vueuse/core').useThrottleFn
   const useThrottledRefHistory: typeof import('@vueuse/core').useThrottledRefHistory
+  const useTicketsList: typeof import('../../src/views/tickets/composables/useTicketsList').useTicketsList
   const useTimeAgo: typeof import('@vueuse/core').useTimeAgo
   const useTimeAgoIntl: typeof import('@vueuse/core').useTimeAgoIntl
   const useTimeout: typeof import('@vueuse/core').useTimeout
@@ -358,6 +362,9 @@ declare global {
   // @ts-ignore
   export type { IEventsListFilters } from '../../src/views/events/composables/useEventsList'
   import('../../src/views/events/composables/useEventsList')
+  // @ts-ignore
+  export type { ITicketsListFilters } from '../../src/views/tickets/composables/useTicketsList'
+  import('../../src/views/tickets/composables/useTicketsList')
 }
 
 // for vue template auto import
@@ -427,6 +434,7 @@ declare module 'vue' {
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
+    readonly minorUnitsToPriceFilter: UnwrapRef<typeof import('../../src/views/tickets/composables/useTicketsList')['minorUnitsToPriceFilter']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notificationService: UnwrapRef<typeof import('../../src/services/notification.service')['notificationService']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -451,6 +459,7 @@ declare module 'vue' {
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
+    readonly priceFilterToMinorUnits: UnwrapRef<typeof import('../../src/views/tickets/composables/useTicketsList')['priceFilterToMinorUnits']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -481,6 +490,7 @@ declare module 'vue' {
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
+    readonly ticketsService: UnwrapRef<typeof import('../../src/views/tickets/tickets.service')['ticketsService']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toReactive: UnwrapRef<typeof import('@vueuse/core')['toReactive']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
@@ -660,6 +670,7 @@ declare module 'vue' {
     readonly useThrottle: UnwrapRef<typeof import('@vueuse/core')['useThrottle']>
     readonly useThrottleFn: UnwrapRef<typeof import('@vueuse/core')['useThrottleFn']>
     readonly useThrottledRefHistory: UnwrapRef<typeof import('@vueuse/core')['useThrottledRefHistory']>
+    readonly useTicketsList: UnwrapRef<typeof import('../../src/views/tickets/composables/useTicketsList')['useTicketsList']>
     readonly useTimeAgo: UnwrapRef<typeof import('@vueuse/core')['useTimeAgo']>
     readonly useTimeAgoIntl: UnwrapRef<typeof import('@vueuse/core')['useTimeAgoIntl']>
     readonly useTimeout: UnwrapRef<typeof import('@vueuse/core')['useTimeout']>

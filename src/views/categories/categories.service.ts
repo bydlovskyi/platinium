@@ -1,12 +1,14 @@
 /**
  * Categories service (GitHub issue #30, PRD-005 "Ticket Categories
- * Management"). A thin wrapper over `apiClient` — parameters in, data out,
- * no store or composable knowledge (code-conventions "Service layer").
- * Mirrors `src/views/events/events.service.ts`'s shape exactly, minus a
- * `get` method: unlike events (a route-based form that loads its record from
- * `route.params.id`), the category edit dialog receives the full record
- * directly from the list's already-fetched row data, so there is no
- * fetch-by-id call anywhere in this feature.
+ * Management"; extended by GitHub issue #34, PRD-006 "Tickets list" with
+ * `get`). A thin wrapper over `apiClient` — parameters in, data out, no
+ * store or composable knowledge (code-conventions "Service layer"). Mirrors
+ * `src/views/events/events.service.ts`'s shape. The category edit dialog
+ * itself still receives the full record directly from the list's
+ * already-fetched row data rather than calling `get` — `get` exists purely
+ * so `RemoteSelect`'s `resolveOption` (issue #33) can fetch a preselected
+ * category by id from the tickets list/form, the same way
+ * `eventsService.get` backs the event picker.
  */
 interface ICategoryListParams {
   search?: string
@@ -23,6 +25,10 @@ class CategoriesService {
 
   create (payload: TCategoryPayload): Promise<TCategory> {
     return apiClient.post('/categories', payload)
+  }
+
+  get (id: string): Promise<TCategory> {
+    return apiClient.get('/categories/{id}', { dynamicKeys: { id } })
   }
 
   update (id: string, payload: TCategoryPayload): Promise<TCategory> {

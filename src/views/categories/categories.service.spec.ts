@@ -90,6 +90,22 @@ describe('categoriesService', () => {
     })
   })
 
+  describe('get', () => {
+    it('sends a GET request to /categories/{id} with the given id interpolated into the URL', async () => {
+      db.categories.insert(buildCategory({ id: 'category-42', name: 'VIP' }))
+      const requests = captureRequests()
+
+      const category = await categoriesService.get('category-42')
+
+      expect(requests).toEqual([expect.objectContaining({ method: 'GET', pathname: '/categories/category-42' })])
+      expect(category.name).toBe('VIP')
+    })
+
+    it('rejects when the id does not exist', async () => {
+      await expect(categoriesService.get('does-not-exist')).rejects.toBeDefined()
+    })
+  })
+
   describe('create', () => {
     it('sends a POST request to /categories with the payload', async () => {
       const requests = captureRequests()
