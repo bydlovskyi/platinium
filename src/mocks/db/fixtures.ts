@@ -90,8 +90,16 @@ function cycle<T> (items: readonly T[], index: number): T {
   return item
 }
 
+const ISO_DATE_LENGTH = 10
+
+/**
+ * Adds `days` to `isoDate` and returns a date-only string (`YYYY-MM-DD`, no
+ * time component) — event dates are date-only per the OpenAPI contract
+ * (`startDate`/`endDate` on `Event`, `format: date`), unlike `createdAt`/
+ * `updatedAt`, which stay full ISO date-time strings.
+ */
 function addDays (isoDate: string, days: number): string {
-  return new Date(new Date(isoDate).getTime() + days * MILLISECONDS_PER_DAY).toISOString()
+  return new Date(new Date(isoDate).getTime() + days * MILLISECONDS_PER_DAY).toISOString().slice(0, ISO_DATE_LENGTH)
 }
 
 function createCategories (random: TSeededRandom): ICategory[] {

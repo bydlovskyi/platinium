@@ -84,6 +84,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List events
+         * @description Returns a page of events, filtered and sorted per the given query parameters. `startDateFrom`/`startDateTo` match events whose own `[startDate, endDate]` range overlaps the requested window, not events strictly contained within it — a long-running event must not be hidden from the list because it started before the window began.
+         */
+        get: operations["getEvents"];
+        put?: never;
+        /**
+         * Create an event
+         * @description Creates a new event from the given payload.
+         */
+        post: operations["postEvents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch an event
+         * @description Returns a single event by id.
+         */
+        get: operations["getEventsId"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an event
+         * @description Deletes an event, unless another entity still depends on it — cascade deletion is deliberately not supported; the caller must resolve or remove the dependents first.
+         */
+        delete: operations["deleteEventsId"];
+        options?: never;
+        head?: never;
+        /**
+         * Partially update an event
+         * @description Applies a partial update to an existing event.
+         */
+        patch: operations["patchEventsId"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -169,6 +221,73 @@ export interface components {
             token: string;
             /** @description The authenticated user record. */
             user: components["schemas"]["User"];
+        };
+        /** @description An event administrators create tickets against. */
+        Event: {
+            /** @description Opaque unique identifier. */
+            id: string;
+            /** @description Display name. */
+            name: string;
+            /** @description ISO 3166-1 alpha-2 country code, e.g. `US`. */
+            country: string;
+            /** @description Venue name. */
+            venue: string;
+            /**
+             * Format: date
+             * @description ISO 8601 date string, no time component.
+             */
+            startDate: string;
+            /**
+             * Format: date
+             * @description ISO 8601 date string, no time component.
+             */
+            endDate: string;
+            /** @description The event's lifecycle status. */
+            status: components["schemas"]["EventStatus"];
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the record was last updated.
+             */
+            updatedAt: string;
+        };
+        /** @description The writable subset of an Event, shared by `POST /events` (full create) and `PATCH /events/{id}` (partial update). Deliberately carries no `required` list: OpenAPI's `required` is schema-wide, not per-operation, so a list here would force every field on a PATCH too, defeating "partial". Which fields are mandatory for create instead of update is enforced at runtime by the mock handler's `validate` function (`src/mocks/handlers/events.ts`) — do not add `required` back to this schema; add stricter runtime validation instead. */
+        EventPayload: {
+            /** @description Display name. */
+            name?: string;
+            /** @description ISO 3166-1 alpha-2 country code, e.g. `US`. */
+            country?: string;
+            /** @description Venue name. */
+            venue?: string;
+            /**
+             * Format: date
+             * @description ISO 8601 date string, no time component.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description ISO 8601 date string, no time component.
+             */
+            endDate?: string;
+            /** @description The event's lifecycle status. */
+            status?: components["schemas"]["EventStatus"];
+        };
+        /** @description Body returned by `GET /events`. */
+        EventListResponse: {
+            data: components["schemas"]["Event"][];
+            /** @description Pagination metadata for the returned page. */
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        /** @description The shared error envelope, extended with the blocking dependent entity's type and count, so a `409` on delete carries enough information for an administrator to act on it instead of a bare refusal. Introduced by the Events contract (PRD-004) and reused by the Categories contract (PRD-005). */
+        DependencyConflict: components["schemas"]["ErrorResponse"] & {
+            /** @description The type of the blocking dependent entity, e.g. `ticket`. */
+            entity: string;
+            /** @description The number of dependent records blocking the operation. */
+            count: number;
         };
     };
     responses: {
@@ -321,6 +440,151 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    getEvents: {
+        parameters: {
+            query?: {
+                /** @description Free-text search applied across an endpoint's declared searchable fields. */
+                search?: components["parameters"]["search"];
+                /** @description Field name to sort by. Valid values are declared by the owning endpoint. */
+                sort?: components["parameters"]["sort"];
+                /** @description Sort direction, paired with `sort`. */
+                order?: components["parameters"]["order"];
+                /** @description 1-indexed page number. */
+                page?: components["parameters"]["page"];
+                /** @description Number of items per page. */
+                perPage?: components["parameters"]["perPage"];
+                /** @description Filters to events with this exact lifecycle status. */
+                status?: components["schemas"]["EventStatus"];
+                /** @description Filters to events with this exact ISO 3166-1 alpha-2 country code. */
+                country?: string;
+                /** @description Lower bound of the requested date window, inclusive. Matched by overlap against each event's own `[startDate, endDate]` range, not containment. */
+                startDateFrom?: string;
+                /** @description Upper bound of the requested date window, inclusive. Matched by overlap against each event's own `[startDate, endDate]` range, not containment. */
+                startDateTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventListResponse"];
+                };
+            };
+        };
+    };
+    postEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventPayload"];
+            };
+        };
+        responses: {
+            /** @description The event was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getEventsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteEventsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The event cannot be deleted because another entity (e.g. a ticket) still references it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyConflict"];
+                };
+            };
+        };
+    };
+    patchEventsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventPayload"];
+            };
+        };
+        responses: {
+            /** @description The updated event. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

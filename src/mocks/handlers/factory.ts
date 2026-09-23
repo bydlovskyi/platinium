@@ -1,7 +1,7 @@
 import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 
 import { chaos } from '../chaos'
-import type { IEntityCollection, IIdentifiable, IListQuery, IRangeFilter, TSortOrder } from '../db'
+import type { IEntityCollection, IIdentifiable, IListQuery, IOverlapFilter, IRangeFilter, TSortOrder } from '../db'
 
 /**
  * Given a collection (from `src/mocks/db`) and a declaration of its
@@ -32,6 +32,23 @@ interface IRangeFilterField<T> {
   parse?: (raw: string) => number | string
 }
 
+/**
+ * A record date range usable in an overlap query filter (e.g.
+ * `startDateFrom`/`startDateTo` matching any event whose own
+ * `[startDate, endDate]` range overlaps the requested window). Distinct
+ * from {@link IRangeFilterField}, which tests a single field for
+ * containment within `[min, max]` rather than testing two fields for
+ * overlap against a requested window.
+ */
+interface IOverlapFilterField<T> {
+  /** The record field holding the start of its own range, e.g. `startDate`. */
+  startField: keyof T
+  /** The record field holding the end of its own range, e.g. `endDate`. */
+  endField: keyof T
+  /** Query-string parameter prefix, e.g. `startDate` for `startDateFrom`/`startDateTo`. */
+  param: string
+}
+
 /** Declares which fields participate in search, filtering and sorting for one entity's handlers. */
 export interface IEntityFieldDeclaration<T> {
   /** Fields matched by the free-text `search` query parameter. */
@@ -42,17 +59,40 @@ export interface IEntityFieldDeclaration<T> {
   equalityFilters?: IEqualityFilterField<T>[]
   /** Fields filterable via `<param>Min`/`<param>Max` query parameters. */
   rangeFilters?: IRangeFilterField<T>[]
+  /** Date ranges filterable via `<param>From`/`<param>To` query parameters, matched by overlap. */
+  overlapFilters?: IOverlapFilterField<T>[]
 }
 
 /**
- * A hook a caller (a later entity slice) can register to reject a mutation
- * before it reaches the collection — e.g. a referential-integrity check
- * before delete. Returning a message fails the request with `409 Conflict`
- * and that message; returning `undefined` lets the request proceed. This is
- * a minimal mechanism only: no entity has real relationships wired up yet,
- * so nothing calls it with actual business rules in this slice.
+ * The structured form a {@link TConflictCheck} may return: enough for the
+ * factory to build a `DependencyConflict`-shaped body (`code`, `message`,
+ * `entity`, `count`) rather than the bare `{code, message}` a plain string
+ * produces. `entity` is the blocking dependent entity's type (e.g.
+ * `'ticket'`); `count` is how many dependents were found.
  */
-export type TConflictCheck<T> = (record: T, action: 'update' | 'delete') => string | undefined
+export interface IStructuredConflict {
+  message: string
+  entity: string
+  count: number
+}
+
+/**
+ * A hook a caller (an entity slice) can register to reject a mutation
+ * before it reaches the collection — e.g. a referential-integrity check
+ * before delete. Returning a plain string fails the request with
+ * `409 Conflict` and that message; returning an {@link IStructuredConflict}
+ * fails it with the richer `DependencyConflict` body instead (message plus
+ * the blocking entity's type and count); returning `undefined` lets the
+ * request proceed.
+ */
+export type TConflictCheck<T> = (record: T, action: 'update' | 'delete') => string | IStructuredConflict | undefined
+
+/** Context passed to a `validate` callback alongside the input payload. See {@link IEntityHandlerOptions.validate}. */
+export interface IValidateContext<T> {
+  action: 'create' | 'update'
+  /** The record being patched, present only on update — absent on create, where there is nothing to merge against. */
+  existing?: T
+}
 
 /** Options accepted by {@link createEntityHandlers}. */
 export interface IEntityHandlerOptions<T extends IIdentifiable> {
@@ -60,8 +100,15 @@ export interface IEntityHandlerOptions<T extends IIdentifiable> {
   path: string
   collection: IEntityCollection<T>
   fields?: IEntityFieldDeclaration<T>
-  /** Validates a create/update payload, returning a field→message map when invalid. Omit for no validation. */
-  validate?: (input: Partial<T>) => Record<string, string> | undefined
+  /**
+   * Validates a create/update payload, returning a field→message map when
+   * invalid. Omit for no validation. Receives `context.action` so
+   * create-only requirements ("required" fields) are not enforced on a
+   * partial update, and `context.existing` (present on update only) so
+   * cross-field checks (e.g. end date not preceding start date) can be run
+   * against the effective merged record rather than just the raw patch.
+   */
+  validate?: (input: Partial<T>, context: IValidateContext<T>) => Record<string, string> | undefined
   /**
    * Builds a new record's id and any server-assigned fields (e.g. timestamps)
    * from a validated create payload. Omit it and the payload is stored as-is
@@ -78,6 +125,13 @@ export interface IEntityHandlerOptions<T extends IIdentifiable> {
 
 function errorBody (code: string, message: string, errors?: Record<string, string>): TErrorResponse {
   return errors === undefined ? { code, message } : { code, message, errors }
+}
+
+/** Builds the `409` response body for a {@link TConflictCheck} result, plain-string or structured alike. */
+function conflictBody (conflict: string | IStructuredConflict): TErrorResponse | TDependencyConflict {
+  return typeof conflict === 'string'
+    ? errorBody('CONFLICT', conflict)
+    : { code: 'CONFLICT', message: conflict.message, entity: conflict.entity, count: conflict.count }
 }
 
 const HTTP_STATUS = {
@@ -148,6 +202,24 @@ function parseRange<T> (url: URL, declarations: IRangeFilterField<T>[]): Partial
   return range
 }
 
+function parseOverlap<T> (url: URL, declarations: IOverlapFilterField<T>[]): IOverlapFilter | undefined {
+  for (const declaration of declarations) {
+    const rawFrom = url.searchParams.get(`${declaration.param}From`)
+    const rawTo = url.searchParams.get(`${declaration.param}To`)
+
+    if (rawFrom !== null || rawTo !== null) {
+      return {
+        startField: String(declaration.startField),
+        endField: String(declaration.endField),
+        from: rawFrom ?? undefined,
+        to: rawTo ?? undefined
+      }
+    }
+  }
+
+  return undefined
+}
+
 /** Parses the shared query vocabulary (`search`, `sort`, `order`, `page`, `perPage`) plus an entity's declared filters. */
 function parseListQuery<T extends IIdentifiable> (url: URL, fields: IEntityFieldDeclaration<T>): IListQuery<T> {
   const query: IListQuery<T> = {}
@@ -192,6 +264,12 @@ function parseListQuery<T extends IIdentifiable> (url: URL, fields: IEntityField
 
   if (Object.keys(range).length > 0) {
     query.range = range
+  }
+
+  const overlap = parseOverlap(url, fields.overlapFilters ?? [])
+
+  if (overlap !== undefined) {
+    query.overlap = overlap
   }
 
   return query
@@ -264,7 +342,7 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
 
   const create = http.post(path, ({ request }) => withChaos(path, async () => {
     const input = await readJsonBody(request) as Partial<T>
-    const validationErrors = validate?.(input)
+    const validationErrors = validate?.(input, { action: 'create' })
 
     if (validationErrors !== undefined && Object.keys(validationErrors).length > 0) {
       return HttpResponse.json(
@@ -294,7 +372,7 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
     }
 
     const input = await readJsonBody(request) as Partial<T>
-    const validationErrors = validate?.(input)
+    const validationErrors = validate?.(input, { action: 'update', existing })
 
     if (validationErrors !== undefined && Object.keys(validationErrors).length > 0) {
       return HttpResponse.json(
@@ -303,10 +381,10 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       )
     }
 
-    const conflictMessage = conflictCheck?.(existing, 'update')
+    const conflict = conflictCheck?.(existing, 'update')
 
-    if (conflictMessage !== undefined) {
-      return HttpResponse.json(errorBody('CONFLICT', conflictMessage), { status: HTTP_STATUS.conflict })
+    if (conflict !== undefined) {
+      return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
     }
 
     const patch = buildUpdatePatch ? buildUpdatePatch(input) : input
@@ -325,10 +403,10 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       return existing
     }
 
-    const conflictMessage = conflictCheck?.(existing, 'delete')
+    const conflict = conflictCheck?.(existing, 'delete')
 
-    if (conflictMessage !== undefined) {
-      return HttpResponse.json(errorBody('CONFLICT', conflictMessage), { status: HTTP_STATUS.conflict })
+    if (conflict !== undefined) {
+      return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
     }
 
     collection.remove(id)

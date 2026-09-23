@@ -98,6 +98,168 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /events:
+    get:
+      operationId: getEvents
+      summary: List events
+      description: >
+        Returns a page of events, filtered and sorted per the given query
+        parameters. `startDateFrom`/`startDateTo` match events whose own
+        `[startDate, endDate]` range overlaps the requested window, not
+        events strictly contained within it — a long-running event must not
+        be hidden from the list because it started before the window began.
+      tags:
+        - Events
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - name: status
+          in: query
+          required: false
+          description: Filters to events with this exact lifecycle status.
+          schema:
+            $ref: '#/components/schemas/EventStatus'
+        - name: country
+          in: query
+          required: false
+          description: Filters to events with this exact ISO 3166-1 alpha-2 country code.
+          schema:
+            type: string
+        - name: startDateFrom
+          in: query
+          required: false
+          description: >
+            Lower bound of the requested date window, inclusive. Matched by
+            overlap against each event's own `[startDate, endDate]` range,
+            not containment.
+          schema:
+            type: string
+            format: date
+        - name: startDateTo
+          in: query
+          required: false
+          description: >
+            Upper bound of the requested date window, inclusive. Matched by
+            overlap against each event's own `[startDate, endDate]` range,
+            not containment.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: A page of events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+
+    post:
+      operationId: postEvents
+      summary: Create an event
+      description: Creates a new event from the given payload.
+      tags:
+        - Events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '201':
+          description: The event was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /events/{id}:
+    get:
+      operationId: getEventsId
+      summary: Fetch an event
+      description: Returns a single event by id.
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The event record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchEventsId
+      summary: Partially update an event
+      description: Applies a partial update to an existing event.
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '200':
+          description: The updated event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteEventsId
+      summary: Delete an event
+      description: >
+        Deletes an event, unless another entity still depends on it — cascade
+        deletion is deliberately not supported; the caller must resolve or
+        remove the dependents first.
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The event was deleted.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >
+            The event cannot be deleted because another entity (e.g. a
+            ticket) still references it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyConflict'
 components:
   schemas:
     HealthStatus:
@@ -269,6 +431,129 @@ components:
         - token
         - user
       additionalProperties: false
+
+    Event:
+      type: object
+      description: An event administrators create tickets against.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name.
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code, e.g. `US`.
+        venue:
+          type: string
+          description: Venue name.
+        startDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        endDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/EventStatus'
+          description: The event's lifecycle status.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - country
+        - venue
+        - startDate
+        - endDate
+        - status
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    EventPayload:
+      type: object
+      description: >
+        The writable subset of an Event, shared by `POST /events` (full
+        create) and `PATCH /events/{id}` (partial update). Deliberately
+        carries no `required` list: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force every field on a PATCH too,
+        defeating "partial". Which fields are mandatory for create instead of
+        update is enforced at runtime by the mock handler's `validate`
+        function (`src/mocks/handlers/events.ts`) — do not add `required`
+        back to this schema; add stricter runtime validation instead.
+      properties:
+        name:
+          type: string
+          description: Display name.
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code, e.g. `US`.
+        venue:
+          type: string
+          description: Venue name.
+        startDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        endDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/EventStatus'
+          description: The event's lifecycle status.
+      additionalProperties: false
+
+    EventListResponse:
+      type: object
+      description: Body returned by `GET /events`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    DependencyConflict:
+      description: >
+        The shared error envelope, extended with the blocking dependent
+        entity's type and count, so a `409` on delete carries enough
+        information for an administrator to act on it instead of a bare
+        refusal. Introduced by the Events contract (PRD-004) and reused by
+        the Categories contract (PRD-005).
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            entity:
+              type: string
+              description: The type of the blocking dependent entity, e.g. `ticket`.
+            count:
+              type: integer
+              minimum: 1
+              description: The number of dependent records blocking the operation.
+          required:
+            - entity
+            - count
+          additionalProperties: false
 
   parameters:
     search:

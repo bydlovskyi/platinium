@@ -3,7 +3,10 @@ import { createSeedDataset, type ISeedDataset } from './fixtures'
 import { isPersistenceDisabled, loadPersistedDataset, persistDataset } from './persistence'
 import type { ICategory, IEvent, IIdentifiable, ITicket, IUser } from './types'
 
-const EVENT_SEARCHABLE_FIELDS: (keyof IEvent)[] = ['name', 'venue', 'country']
+// Per PRD-004's contract for `GET /events`'s `search` parameter: name and
+// venue only. `country` has its own dedicated exact-match filter
+// (`?country=`), so it deliberately does not also participate in free text.
+const EVENT_SEARCHABLE_FIELDS: (keyof IEvent)[] = ['name', 'venue']
 const CATEGORY_SEARCHABLE_FIELDS: (keyof ICategory)[] = ['name', 'description']
 const TICKET_SEARCHABLE_FIELDS: (keyof ITicket)[] = ['name']
 const USER_SEARCHABLE_FIELDS: (keyof IUser)[] = ['name', 'email']

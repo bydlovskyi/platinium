@@ -18,7 +18,7 @@ export type { IPaginationMeta } from './pagination.types'
 
 export { PERSISTENCE_KEY, PERSISTENCE_VERSION } from './persistence'
 
-export type { IListQuery, IListResult, IRangeFilter } from './query.types'
+export type { IListQuery, IListResult, IOverlapFilter, IRangeFilter } from './query.types'
 
 export type {
   ICategory,

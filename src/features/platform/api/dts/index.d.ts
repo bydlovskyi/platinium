@@ -35,3 +35,15 @@ type TLoginRequest = TApiComponents['schemas']['LoginRequest']
 
 /** Body returned by a successful `POST /auth/login`. */
 type TLoginResponse = TApiComponents['schemas']['LoginResponse']
+
+/** An event administrators create tickets against. */
+type TEvent = TApiComponents['schemas']['Event']
+
+/** The writable subset of an Event, shared by create and update. */
+type TEventPayload = TApiComponents['schemas']['EventPayload']
+
+/** Body returned by `GET /events`. */
+type TEventListResponse = TApiComponents['schemas']['EventListResponse']
+
+/** The shared error envelope extended with the blocking dependent entity's type and count. */
+type TDependencyConflict = TApiComponents['schemas']['DependencyConflict']
