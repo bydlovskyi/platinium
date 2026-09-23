@@ -106,48 +106,59 @@ describe('AppDataTable', () => {
   })
 
   describe('three-state sort cycling', () => {
-    it('cycles ascending -> descending -> unsorted and marks aria-sort accordingly', async () => {
+    function nameHeader (wrapper: ReturnType<typeof mountTable>) {
+      return wrapper.findAll('th').find(header => header.text().includes('Name'))!
+    }
+
+    it('requests a sort on every header activation as el-table cycles ascending -> descending -> unsorted', async () => {
       const wrapper = mountTable({ sort: undefined })
       await flushPromises()
 
-      const nameHeader = wrapper.findAll('th').find(header => header.text().includes('Name'))!
-      expect(nameHeader.attributes('aria-sort')).toBe('none')
+      await nameHeader(wrapper).trigger('click')
+      await nameHeader(wrapper).trigger('click')
+      await nameHeader(wrapper).trigger('click')
 
-      await nameHeader.find('button').trigger('click')
-      expect(wrapper.emitted('sort-requested')?.[0]).toEqual(['name'])
-
-      // Simulate the caller applying the resulting sort state back down.
-      await wrapper.setProps({ sort: { field: 'name', order: 'asc' } })
-      expect(
-        wrapper.findAll('th').find(header => header.text().includes('Name'))!.attributes('aria-sort')
-      ).toBe('ascending')
-
-      await wrapper.setProps({ sort: { field: 'name', order: 'desc' } })
-      expect(
-        wrapper.findAll('th').find(header => header.text().includes('Name'))!.attributes('aria-sort')
-      ).toBe('descending')
-
-      await wrapper.setProps({ sort: undefined })
-      expect(
-        wrapper.findAll('th').find(header => header.text().includes('Name'))!.attributes('aria-sort')
-      ).toBe('none')
+      expect(wrapper.emitted('sort-requested')).toEqual([['name'], ['name'], ['name']])
     })
 
-    it('does not mark a non-sortable column with aria-sort', async () => {
+    it('mirrors the sort prop into aria-sort without echoing it back as a request', async () => {
+      const wrapper = mountTable({ sort: undefined })
+      await flushPromises()
+
+      // el-table renders an empty `aria-sort` on an unsorted column, which
+      // assistive technology treats as the default, "none".
+      expect(nameHeader(wrapper).attributes('aria-sort') ?? '').toBe('')
+
+      await wrapper.setProps({ sort: { field: 'name', order: 'asc' } })
+      await flushPromises()
+      expect(nameHeader(wrapper).attributes('aria-sort')).toBe('ascending')
+
+      await wrapper.setProps({ sort: { field: 'name', order: 'desc' } })
+      await flushPromises()
+      expect(nameHeader(wrapper).attributes('aria-sort')).toBe('descending')
+
+      await wrapper.setProps({ sort: undefined })
+      await flushPromises()
+      expect(nameHeader(wrapper).attributes('aria-sort') ?? '').toBe('')
+
+      expect(wrapper.emitted('sort-requested')).toBeUndefined()
+    })
+
+    it('applies an initial sort from props on mount', async () => {
+      const wrapper = mountTable({ sort: { field: 'name', order: 'desc' } })
+      await flushPromises()
+
+      expect(nameHeader(wrapper).attributes('aria-sort')).toBe('descending')
+    })
+
+    it('ignores activation of a non-sortable header', async () => {
       const wrapper = mountTable({})
       await flushPromises()
 
       const statusHeader = wrapper.findAll('th').find(header => header.text().includes('Status'))!
       expect(statusHeader.attributes('aria-sort')).toBeUndefined()
-    })
 
-    it('emits sort-requested with the column key on header activation, and ignores non-sortable headers', async () => {
-      const wrapper = mountTable({})
-      await flushPromises()
-
-      const statusHeader = wrapper.findAll('th').find(header => header.text().includes('Status'))!
-      // Non-sortable headers render plain text, not a button.
-      expect(statusHeader.find('button').exists()).toBe(false)
+      await statusHeader.trigger('click')
       expect(wrapper.emitted('sort-requested')).toBeUndefined()
     })
   })
@@ -158,7 +169,7 @@ describe('AppDataTable', () => {
       await flushPromises()
 
       expect(wrapper.findAll('th')).toHaveLength(2)
-      expect(wrapper.find('table').exists()).toBe(true)
+      expect(wrapper.findAll('.el-skeleton__item').length).toBeGreaterThan(0)
       expect(wrapper.text()).not.toContain('Row 1')
     })
 
@@ -167,7 +178,7 @@ describe('AppDataTable', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Row 1')
-      expect(wrapper.find('table').classes()).toContain('opacity-60')
+      expect(wrapper.find('.el-loading-mask').exists()).toBe(true)
     })
 
     it('shows a create action when nothing exists yet', async () => {
@@ -215,7 +226,7 @@ describe('AppDataTable', () => {
 
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('Row 1')
-      expect(wrapper.find('table').classes()).toContain('opacity-60')
+      expect(wrapper.find('.el-loading-mask').exists()).toBe(true)
     })
 
     it('shows the loading skeleton, not the stale error panel, when a retry starts with no prior rows', async () => {
@@ -267,6 +278,8 @@ describe('AppDataTable', () => {
 
       const headerCheckbox = wrapper.find('thead input[type="checkbox"]')
       await headerCheckbox.setValue(true)
+      // el-table debounces its select-all toggle.
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       expect(wrapper.emitted('selection-changed')?.[0]).toEqual([['row-1', 'row-2', 'row-3']])
     })
@@ -368,7 +381,7 @@ describe('AppDataTable', () => {
       const wrapper = mountTable({ meta: buildMeta({ total: 42 }) })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('42 total')
+      expect(wrapper.find('.el-pagination__total').text()).toContain('42')
     })
 
     it('emits page-requested when a different page is chosen', async () => {

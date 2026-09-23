@@ -8,8 +8,8 @@
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-surface p-4">
-    <div class="w-full max-w-sm rounded-lg border border-border bg-surface-raised p-8 shadow-token-md">
+    <el-card shadow="never" class="w-full max-w-sm" body-class="!p-8">
       <router-view />
-    </div>
+    </el-card>
   </div>
 </template>

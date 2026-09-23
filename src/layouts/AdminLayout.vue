@@ -38,14 +38,14 @@ watch(() => route.fullPath, () => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-surface text-text-primary">
-    <aside
+  <el-container class="h-screen overflow-hidden bg-surface text-text-primary">
+    <el-aside
       v-if="!isMobile"
-      class="shrink-0 border-r border-border bg-surface-raised transition-[width] duration-base"
-      :class="showIconOnlyRail ? 'w-16' : 'w-60'"
+      :width="showIconOnlyRail ? '4rem' : '15rem'"
+      class="border-r border-border bg-surface-raised transition-[width] duration-base"
     >
       <AppSidebar :collapsed="showIconOnlyRail" />
-    </aside>
+    </el-aside>
 
     <el-drawer
       v-if="isMobile"
@@ -58,43 +58,46 @@ watch(() => route.fullPath, () => {
       <AppSidebar @navigate="mobileDrawerOpen = false" />
     </el-drawer>
 
-    <div class="flex min-w-0 flex-1 flex-col">
-      <header
-        class="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface-raised px-4"
+    <el-container class="min-w-0">
+      <el-header
+        height="4rem"
+        class="flex items-center justify-between gap-4 border-b border-border bg-surface-raised"
       >
         <div class="flex items-center gap-2">
-          <button
+          <el-button
             v-if="isMobile"
-            type="button"
+            text
+            circle
             aria-label="Open navigation"
-            class="flex size-9 items-center justify-center rounded-token-md text-text-muted
-              hover:bg-surface hover:text-text-primary"
             @click="mobileDrawerOpen = true"
           >
-            <Icon name="menu" class="size-5" />
-          </button>
+            <template #icon>
+              <Icon name="menu" />
+            </template>
+          </el-button>
 
-          <button
+          <el-button
             v-if="isTablet"
-            type="button"
+            text
+            circle
             :aria-label="showIconOnlyRail ? 'Expand navigation' : 'Collapse navigation'"
-            class="flex size-9 items-center justify-center rounded-token-md text-text-muted
-              hover:bg-surface hover:text-text-primary"
             @click="tabletSidebarExpanded = !tabletSidebarExpanded"
           >
-            <Icon :name="showIconOnlyRail ? 'chevron-right' : 'chevron-left'" class="size-5" />
-          </button>
+            <template #icon>
+              <Icon :name="showIconOnlyRail ? 'chevron-right' : 'chevron-left'" />
+            </template>
+          </el-button>
         </div>
 
         <div class="flex items-center gap-2">
           <ThemeToggle />
           <AccountMenu />
         </div>
-      </header>
+      </el-header>
 
-      <main class="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+      <el-main class="min-w-0">
         <router-view />
-      </main>
-    </div>
-  </div>
+      </el-main>
+    </el-container>
+  </el-container>
 </template>

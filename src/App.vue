@@ -8,6 +8,8 @@ const layout = computed(() => route.meta.layout === 'auth' ? AuthLayout : AdminL
 </script>
 
 <template>
-  <component :is="layout" />
-  <Modals />
+  <el-config-provider :button="{ autoInsertSpace: false }">
+    <component :is="layout" />
+    <Modals />
+  </el-config-provider>
 </template>

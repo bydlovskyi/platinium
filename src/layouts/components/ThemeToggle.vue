@@ -5,11 +5,14 @@ const { isDark, toggleTheme } = useTheme()
 <template>
   <el-tooltip :content="isDark ? 'Switch to light theme' : 'Switch to dark theme'">
     <el-button
-      type="text"
+      text
+      circle
       :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
       @click="toggleTheme"
     >
-      <Icon :name="isDark ? 'sun' : 'moon'" class="size-5" />
+      <template #icon>
+        <Icon :name="isDark ? 'sun' : 'moon'" />
+      </template>
     </el-button>
   </el-tooltip>
 </template>
