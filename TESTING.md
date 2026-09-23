@@ -81,9 +81,12 @@ inside it); it is test-only tooling and sits outside the app's auto-import surfa
   to `@vue/test-utils`' `mount`.
 - `setViewportToBreakpoint('mobile' | 'tablet' | 'desktop')` — resizes the jsdom window
   for responsive assertions.
-- `resetDatabase()` / `seedSession(role)` — seams. The mock database slice (#14) and the
-  session/login slice (#19) implement these; until then they throw so a test relying on
-  them fails loudly instead of silently passing against nothing.
+- `resetDatabase()` — resets the shared mock database to its deterministic seed (or a
+  given dataset override).
+- `seedSession(role)` — logs in as the seeded user with the given role through the real
+  `POST /auth/login` handler and persists the resulting token to `localStorage`, so a
+  test can start already authenticated without driving the login form. Returns
+  `{ token, user }`. Currently only the seeded `'admin'` role exists.
 
 ## Fake timers
 

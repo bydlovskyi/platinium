@@ -21,6 +21,9 @@ export type TCurrency = 'USD' | 'EUR' | 'GBP'
 /** Sort direction for any `sort` query parameter. Mirrors `SortOrder` in `openapi.yaml`. */
 export type TSortOrder = 'asc' | 'desc'
 
+/** Role granted to an authenticated user. Mirrors `UserRole` in `openapi.yaml`. */
+export type TUserRole = 'admin'
+
 /** An opaque, UUID-shaped identifier. Never assumed sequential or sortable. */
 export type TEntityId = string
 
@@ -73,4 +76,23 @@ export interface ITicket extends IEntityBase {
   status: TTicketStatus
   eventId: TEntityId
   categoryId: TEntityId
+}
+
+/**
+ * An authenticated administrator or viewer of the portal.
+ *
+ * `sessionActive` is internal mock bookkeeping only — it is never exposed on
+ * the public `User` API shape (`id`/`name`/`email`/`role`, per
+ * `openapi.yaml`). It tracks whether the current (deterministic) mock token
+ * for this user is currently valid, so `POST /auth/logout`
+ * (`src/mocks/handlers/auth.ts`) can genuinely invalidate a session rather
+ * than being a client-side no-op. There is deliberately no `token` field
+ * here — the mock token is derived deterministically from the user id, never
+ * stored.
+ */
+export interface IUser extends IEntityBase {
+  name: string
+  email: string
+  role: TUserRole
+  sessionActive: boolean
 }

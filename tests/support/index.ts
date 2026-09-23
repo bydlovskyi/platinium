@@ -5,3 +5,5 @@ export { setViewportToBreakpoint } from './viewport'
 export type { TBreakpoint } from './viewport'
 
 export { resetDatabase, seedSession } from './seams'
+
+export { setPreferredColorScheme } from './match-media'
