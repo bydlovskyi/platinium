@@ -223,6 +223,7 @@ declare global {
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
   const useListQuery: typeof import('../../src/composables/useListQuery').useListQuery
+  const useListResource: typeof import('../../src/composables/useListResource').useListResource
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
@@ -568,6 +569,7 @@ declare module 'vue' {
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>
     readonly useListQuery: UnwrapRef<typeof import('../../src/composables/useListQuery')['useListQuery']>
+    readonly useListResource: UnwrapRef<typeof import('../../src/composables/useListResource')['useListResource']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
