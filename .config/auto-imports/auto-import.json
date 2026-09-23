@@ -236,6 +236,7 @@
     "useLastChanged": true,
     "useLink": true,
     "useListQuery": true,
+    "useListResource": true,
     "useLocalStorage": true,
     "useMagicKeys": true,
     "useManualRefHistory": true,
