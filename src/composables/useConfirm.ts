@@ -42,6 +42,32 @@ interface IUseConfirmOptions {
  * boolean thrown/caught through a rejected promise.
  */
 export function useConfirm () {
+  // Set only while an `onConfirm` triggered by a confirm-button click is in
+  // flight (or has just failed and left the dialog deliberately open — see
+  // the `.catch()` below) — i.e. exactly the window where the dialog can be
+  // left stuck. `ElMessageBox` is a route-independent singleton teleported
+  // to `document.body`; it is NOT torn down when the component that opened
+  // it unmounts (e.g. the admin navigates away while the delete request is
+  // still in flight). `pendingClose` is Element Plus's own `done` callback
+  // for *this* dialog (the third argument `beforeClose` receives, which is
+  // that render's `doClose`) — calling it force-closes just this dialog.
+  //
+  // The public `ElMessageBox.close()` API was considered instead (it needs
+  // no reference threading), but it closes *every* currently open message
+  // box, and — because it clears Element Plus's internal instance map
+  // synchronously before the already-scheduled `action` event for a
+  // `state.action === 'confirm'` dialog fires on `nextTick` — it throws an
+  // unhandled `TypeError` from inside Element Plus's own promise resolution
+  // for exactly this "confirm clicked, request in flight" case. Reusing the
+  // per-dialog `done`/`doClose` callback we already have from `beforeClose`
+  // avoids that internal race entirely, since it's the same call a normal
+  // success/cancel/close already makes.
+  let pendingClose: (() => void) | undefined
+
+  onUnmounted(() => {
+    pendingClose?.()
+  })
+
   async function confirm ({
     subject,
     title = 'Confirm',
@@ -68,14 +94,24 @@ export function useConfirm () {
             }
 
             instance.confirmButtonLoading = true
+            // From here until `onConfirm` settles, this dialog can be left
+            // stuck if the invoking component unmounts — see `onUnmounted`
+            // above.
+            pendingClose = done
 
             onConfirm()
               .then(() => {
                 instance.confirmButtonLoading = false
+                pendingClose = undefined
                 done()
               })
               .catch(() => {
                 instance.confirmButtonLoading = false
+                // Intentionally still not calling `done()`: while the
+                // invoking view is still mounted, the dialog stays open so
+                // the administrator sees the failure and can retry or
+                // cancel. `pendingClose` stays set so `onUnmounted` can still
+                // force-close it if the view goes away before that happens.
               })
           }
         }
@@ -84,6 +120,8 @@ export function useConfirm () {
       return { confirmed: true }
     } catch (action) {
       return { confirmed: false, reason: action === 'cancel' ? 'cancel' : 'close' }
+    } finally {
+      pendingClose = undefined
     }
   }
 

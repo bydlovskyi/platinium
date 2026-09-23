@@ -2,7 +2,7 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
 
 import { helpers } from '@/utils/helpers'
 
-import { errorInterceptor, responseInterceptor, SessionExpiredError, ValidationFieldError } from './response.interceptor'
+import { errorInterceptor, responseInterceptor, SessionExpiredError, ValidationFieldError, DependencyConflictError } from './response.interceptor'
 
 const { notifySuccess, notifyError, notifyWarning, notifyInfo } = vi.hoisted(() => ({
   notifySuccess: vi.fn(),
@@ -128,7 +128,7 @@ describe('errorInterceptor', () => {
     })
   })
 
-  describe.each([404, 409, 500])('%i', (status) => {
+  describe.each([404, 500])('%i', (status) => {
     it('toasts a human-readable message and rejects', async () => {
       const error = buildError({ status, data: { code: 'X', message: 'Human readable message.' } })
 
@@ -144,6 +144,66 @@ describe('errorInterceptor', () => {
 
       await expect(errorInterceptor(error)).rejects.toBeDefined()
 
+      expect(notifyError).not.toHaveBeenCalled()
+    })
+
+    it('rejects with a plain Error, not a DependencyConflictError', async () => {
+      const error = buildError({ status, data: { code: 'X', message: 'Human readable message.' } })
+
+      try {
+        await errorInterceptor(error)
+        expect.unreachable()
+      } catch (rejected) {
+        expect(rejected).toBeInstanceOf(Error)
+        expect(rejected).not.toBeInstanceOf(DependencyConflictError)
+      }
+    })
+  })
+
+  describe('409', () => {
+    it('rejects with a DependencyConflictError carrying the parsed entity/count and raises no generic toast (PRD-004 "Deletion")', async () => {
+      const error = buildError({
+        status: 409,
+        data: { code: 'CONFLICT', message: '3 tickets reference this event.', entity: 'ticket', count: 3 }
+      })
+
+      await expect(errorInterceptor(error)).rejects.toBeInstanceOf(DependencyConflictError)
+
+      try {
+        await errorInterceptor(error)
+        expect.unreachable()
+      } catch (rejected) {
+        const conflict = rejected as DependencyConflictError
+        expect(conflict.message).toBe('3 tickets reference this event.')
+        expect(conflict.entity).toBe('ticket')
+        expect(conflict.count).toBe(3)
+      }
+
+      expect(notifyError).not.toHaveBeenCalled()
+    })
+
+    it('defaults entity to an empty string and count to 0 when the server omits them', async () => {
+      const error = buildError({ status: 409, data: { code: 'CONFLICT', message: 'Cannot delete.' } })
+
+      try {
+        await errorInterceptor(error)
+        expect.unreachable()
+      } catch (rejected) {
+        const conflict = rejected as DependencyConflictError
+        expect(conflict.entity).toBe('')
+        expect(conflict.count).toBe(0)
+      }
+    })
+
+    it('still rejects with a DependencyConflictError when showNotification: false is set (there is no toast to suppress)', async () => {
+      const config = buildConfig({ showNotification: false })
+      const error = buildError({
+        status: 409,
+        data: { code: 'CONFLICT', message: '1 ticket references this event.', entity: 'ticket', count: 1 },
+        config
+      })
+
+      await expect(errorInterceptor(error)).rejects.toBeInstanceOf(DependencyConflictError)
       expect(notifyError).not.toHaveBeenCalled()
     })
   })

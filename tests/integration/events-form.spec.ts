@@ -5,7 +5,7 @@ import EventForm from '@/views/events/components/EventForm.vue'
 
 import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
-import type { IEvent } from '@/mocks/db'
+import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
 /**
  * Events create/edit form, integration tested end to end (GitHub issue #27,
@@ -80,6 +80,75 @@ async function fillRequiredFields (wrapper: Awaited<ReturnType<typeof mountSigne
   await dateInputs[1]!.trigger('keydown', { key: 'Enter', code: 'Enter' })
   await dateInputs[1]!.trigger('keydown', { key: 'Enter', code: 'Enter' })
   await flushPromises()
+}
+
+/**
+ * Inserts a ticket referencing `eventId` so the mock's `DELETE /events/{id}`
+ * handler answers 409 (`checkEventConflict` in
+ * `src/mocks/handlers/events.ts`) — mirrors
+ * `src/mocks/handlers/events.spec.ts`'s own fixture for the same conflict,
+ * including inserting a throwaway category first since `beforeEach` below
+ * clears `categories` to an empty slate.
+ */
+function seedBlockingTicket (eventId: string): void {
+  const category: ICategory = {
+    id: 'events-delete-spec-category',
+    name: 'Test Category',
+    description: 'Category inserted only to satisfy the ticket fixture.',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z'
+  }
+  db.categories.insert(category)
+
+  const ticket: ITicket = {
+    id: 'events-delete-spec-ticket',
+    name: 'Blocking Ticket',
+    price: 1000,
+    currency: 'USD',
+    quantity: 10,
+    status: 'draft',
+    eventId,
+    categoryId: category.id,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z'
+  }
+  db.tickets.insert(ticket)
+}
+
+/** Opens the row-action dropdown for the row containing `rowText` and clicks the action labelled `actionLabel`. `el-dropdown` teleports its menu to `document.body` (matching `AppDataTable.spec.ts`'s own convention), so the wrapper must be `attachTo: document.body`. */
+async function invokeRowAction (
+  wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
+  rowText: string,
+  actionLabel: string
+): Promise<void> {
+  const row = wrapper.findAll('tr, .el-card').find(candidate => candidate.text().includes(rowText))
+  if (!row) {
+    throw new Error(`No row found containing text "${rowText}"`)
+  }
+
+  await row.find('button[aria-label="Row actions"]').trigger('click')
+  await flushPromises()
+
+  const item = Array.from(document.querySelectorAll('.el-dropdown-menu__item'))
+    .find(candidate => candidate.textContent?.trim() === actionLabel)
+  if (!item) {
+    throw new Error(`No dropdown item found with label "${actionLabel}"`)
+  }
+
+  item.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await flushPromises()
+}
+
+/** Clicks the named button inside the teleported `ElMessageBox` confirmation dialog. */
+function findMessageBoxButton (text: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>('.el-message-box button'))
+    .find(candidate => candidate.textContent?.trim() === text)
+
+  if (!button) {
+    throw new Error(`No message box button found with text "${text}"`)
+  }
+
+  return button
 }
 
 describe('Events form', () => {
@@ -169,6 +238,216 @@ describe('Events form', () => {
       })
 
       expect(wrapper.find('form').exists()).toBe(false)
+    })
+  })
+
+  /**
+   * Delete, integration tested end to end (GitHub issue #28, PRD-004's
+   * testing boundary: "delete with confirmation through the `ElMessageBox`
+   * in `document.body`; attempt to delete a referenced event and assert the
+   * conflict message"). Against the real MSW node server answering
+   * `DELETE /events/{id}` for real (`src/mocks/handlers/events.ts`) — no
+   * mocked `eventsService`.
+   */
+  describe('delete', () => {
+    describe('from the list, with confirmation', () => {
+      it('removes the row and shows a success notification once confirmed', async () => {
+        db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+
+        const { wrapper } = await mountSignedIn(Events, '/events')
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Rooftop Jazz Night')
+        })
+
+        await invokeRowAction(wrapper, 'Rooftop Jazz Night', 'Delete')
+
+        // The confirmation names the specific event.
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')?.textContent).toContain('Rooftop Jazz Night')
+        })
+
+        findMessageBoxButton('Delete').click()
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).not.toContain('Rooftop Jazz Night')
+        })
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-notification')?.textContent).toContain('Event deleted.')
+        })
+
+        expect(db.events.get('e1')).toBeUndefined()
+      })
+
+      it('does not delete the row when the confirmation is cancelled', async () => {
+        db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+
+        const { wrapper } = await mountSignedIn(Events, '/events')
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Rooftop Jazz Night')
+        })
+
+        await invokeRowAction(wrapper, 'Rooftop Jazz Night', 'Delete')
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')).toBeTruthy()
+        })
+
+        findMessageBoxButton('Cancel').click()
+        await flushPromises()
+
+        expect(wrapper.text()).toContain('Rooftop Jazz Night')
+        expect(db.events.get('e1')).toBeDefined()
+      })
+    })
+
+    describe('from the list, attempting to delete a referenced event', () => {
+      it('surfaces the specific blocking-ticket-count message, keeps the row, and does not navigate', async () => {
+        db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+        seedBlockingTicket('e1')
+
+        const { wrapper, router } = await mountSignedIn(Events, '/events')
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Rooftop Jazz Night')
+        })
+
+        await invokeRowAction(wrapper, 'Rooftop Jazz Night', 'Delete')
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')).toBeTruthy()
+        })
+
+        findMessageBoxButton('Delete').click()
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-notification')?.textContent).toContain('1 ticket')
+        })
+        expect(document.querySelector('.el-notification')?.textContent).toContain('reference this event')
+
+        // The row survives and the administrator has not been navigated away.
+        expect(wrapper.text()).toContain('Rooftop Jazz Night')
+        expect(db.events.get('e1')).toBeDefined()
+        expect(router.currentRoute.value.name).toBe(routeNames.events)
+
+        // The confirmation dialog stays open on failure (onConfirm re-throws,
+        // so useConfirm's beforeClose never calls done()) rather than
+        // closing silently.
+        expect(document.querySelector('.el-message-box')).toBeTruthy()
+      })
+    })
+
+    describe('deleting the last row on a page beyond the first', () => {
+      it('navigates back to the previous page instead of showing it empty', async () => {
+        // `useListQuery`'s default page size is 20 (DEFAULT_PER_PAGE) — 21
+        // events puts exactly one on page 2, deleting it is "the last row on
+        // a page beyond the first".
+        for (let index = 1; index <= 21; index++) {
+          db.events.insert(buildEvent({ id: `e${index}`, name: `Event ${String(index).padStart(2, '0')}` }))
+        }
+
+        const { wrapper, router } = await mountSignedIn(Events, '/events')
+
+        await vi.waitFor(() => {
+          expect(wrapper.find('.el-pagination__total').text()).toContain('21')
+        })
+
+        // Sorted by name ascending, zero-padded "Event 01".."Event 21" puts
+        // "Event 21" last — the sole row on page 2 — so which row lands
+        // there is deterministic rather than left to insertion-order/id
+        // tiebreaking.
+        await router.push({ query: { page: '2', sort: 'name', order: 'asc' } })
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(router.currentRoute.value.query.page).toBe('2')
+          expect(wrapper.text()).toContain('Event 21')
+        })
+
+        await invokeRowAction(wrapper, 'Event 21', 'Delete')
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')).toBeTruthy()
+        })
+
+        findMessageBoxButton('Delete').click()
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(router.currentRoute.value.query.page).toBeUndefined()
+        })
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).not.toContain('Event 21')
+        })
+      })
+    })
+
+    describe('from the edit form', () => {
+      it('deletes and navigates back to the list on success', async () => {
+        db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+
+        const { wrapper, router } = await mountSignedIn(EventForm, '/events/e1/edit')
+
+        await vi.waitFor(() => {
+          expect((wrapper.find('input[maxlength="120"]').element as HTMLInputElement).value).toBe('Rooftop Jazz Night')
+        })
+
+        const deleteButton = wrapper.findAll('button').find(button => button.text().includes('Delete event'))
+        expect(deleteButton).toBeDefined()
+        await deleteButton!.trigger('click')
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')?.textContent).toContain('Rooftop Jazz Night')
+        })
+
+        findMessageBoxButton('Delete').click()
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(router.currentRoute.value.name).toBe(routeNames.events)
+        })
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-notification')?.textContent).toContain('Event deleted.')
+        })
+
+        expect(db.events.get('e1')).toBeUndefined()
+      })
+
+      it('stays on the form and surfaces the conflict message when the event is referenced', async () => {
+        db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+        seedBlockingTicket('e1')
+
+        const { wrapper, router } = await mountSignedIn(EventForm, '/events/e1/edit')
+
+        await vi.waitFor(() => {
+          expect((wrapper.find('input[maxlength="120"]').element as HTMLInputElement).value).toBe('Rooftop Jazz Night')
+        })
+
+        const deleteButton = wrapper.findAll('button').find(button => button.text().includes('Delete event'))
+        expect(deleteButton).toBeDefined()
+        await deleteButton!.trigger('click')
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-message-box')).toBeTruthy()
+        })
+
+        findMessageBoxButton('Delete').click()
+        await flushPromises()
+
+        await vi.waitFor(() => {
+          expect(document.querySelector('.el-notification')?.textContent).toContain('1 ticket')
+        })
+
+        // Stays put — no navigation away from the edit form.
+        expect(router.currentRoute.value.name).toBe(routeNames.eventEdit)
+        expect(db.events.get('e1')).toBeDefined()
+      })
     })
   })
 })

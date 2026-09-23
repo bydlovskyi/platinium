@@ -25,6 +25,25 @@ class ValidationFieldError extends Error {
   }
 }
 
+/**
+ * Rejection reason for a 409 (`DependencyConflict`, PRD-004 "Deletion"). An
+ * `Error` subclass carrying the blocking dependent entity's type and count
+ * so a caller (e.g. an event delete) can render its own actionable message
+ * — "3 tickets reference this event…" — instead of the generic toast this
+ * status would otherwise get. Mirrors `ValidationFieldError`'s shape for the
+ * same reason: the rejection itself stays a real `Error`.
+ */
+class DependencyConflictError extends Error {
+  readonly entity: string
+  readonly count: number
+
+  constructor ({ message, entity, count }: { message: string; entity: string; count: number }) {
+    super(message)
+    this.entity = entity
+    this.count = count
+  }
+}
+
 const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please sign in again.'
 const NETWORK_ERROR_MESSAGE = 'Unable to reach the server. Check your connection and try again.'
 const TIMEOUT_MESSAGE = 'The request took too long to respond. Please try again.'
@@ -32,7 +51,8 @@ const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 
 const HTTP_STATUS = {
   badRequest: 400,
-  unauthorized: 401
+  unauthorized: 401,
+  conflict: 409
 } as const
 
 /**
@@ -91,8 +111,20 @@ const errorInterceptor = (error: AxiosError): Promise<never> => {
     return Promise.reject(new ValidationFieldError(fieldErrors))
   }
 
+  if (status === HTTP_STATUS.conflict) {
+    // Rejects with the parsed dependent entity/count so a delete call site
+    // can render its own actionable message — no global toast, same
+    // reasoning as the 400 branch above.
+    const body = errorResponseBody(error) as TDependencyConflict | undefined
+    const message = body?.message ?? GENERIC_ERROR_MESSAGE
+    const entity = body?.entity ?? ''
+    const count = body?.count ?? 0
+
+    return Promise.reject(new DependencyConflictError({ message, entity, count }))
+  }
+
   if (status !== undefined) {
-    // 404, 409, 500 (and any other status the contract returns): toast a
+    // 404, 500 (and any other status the contract returns): toast a
     // human-readable message, then reject.
     const message = errorResponseBody(error)?.message ?? GENERIC_ERROR_MESSAGE
 
@@ -119,5 +151,6 @@ export {
   responseInterceptor,
   errorInterceptor,
   SessionExpiredError,
-  ValidationFieldError
+  ValidationFieldError,
+  DependencyConflictError
 }

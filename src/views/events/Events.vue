@@ -9,15 +9,19 @@
  * one layer down, in the shared composables — see the composable's own
  * comment.
  */
+import { DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
+
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
 
 const router = useRouter()
 const route = useRoute()
+const { confirm } = useConfirm()
 
 const {
   search,
   filters: listFilters,
   sort,
+  page,
   setSearch,
   setFilter,
   setSort,
@@ -103,12 +107,54 @@ function rowKey (row: TEvent): string {
 // shared component — this issue's file scope is this view and the events
 // form only.
 const rowActions: IDataTableRowAction<TEvent>[] = [
-  { key: 'edit', label: 'Edit' }
+  { key: 'edit', label: 'Edit' },
+  { key: 'delete', label: 'Delete', danger: true }
 ]
+
+/**
+ * Deletes `event` after confirmation (GitHub issue #28, PRD-004
+ * "Deletion"). A 409 (`DependencyConflictError`, thrown by the response
+ * interceptor) means tickets still reference the event — that gets its own
+ * actionable notification here rather than the interceptor's generic toast
+ * (suppressed for 409), and `onConfirm` rejecting keeps the `ElMessageBox`
+ * open so the administrator sees it instead of the dialog closing silently.
+ * A successful delete keeps the page in place unless the deleted row was the
+ * last one on a page beyond the first — `useListResource` has no automatic
+ * page-adjustment, so that's handled explicitly here.
+ */
+async function deleteEvent (event: TEvent): Promise<void> {
+  await confirm({
+    subject: event.name,
+    onConfirm: async () => {
+      try {
+        await eventsService.delete(event.id)
+      } catch (error) {
+        if (error instanceof DependencyConflictError) {
+          notificationService.error({
+            title: 'Cannot delete event',
+            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this event and must be removed first.`
+          })
+        }
+
+        throw error
+      }
+
+      notificationService.success({ message: 'Event deleted.' })
+
+      if (data.value.length === 1 && page.value > 1) {
+        void setPage(page.value - 1)
+      } else {
+        void refetch()
+      }
+    }
+  })
+}
 
 function onRowAction ({ action, row }: { action: string; row: TEvent }): void {
   if (action === 'edit') {
     void router.push({ name: routeNames.eventEdit, params: { id: row.id }, query: { from: route.fullPath } })
+  } else if (action === 'delete') {
+    void deleteEvent(row)
   }
 }
 

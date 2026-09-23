@@ -12,7 +12,7 @@
  * column, usable at 375px" — no grid, so nothing needs to collapse at the
  * mobile breakpoint.
  */
-import { ValidationFieldError } from '@/features/platform/api/interceptors/response.interceptor'
+import { ValidationFieldError, DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
 
 interface IEventFormModel {
   name: string
@@ -71,6 +71,48 @@ const returnTo = computed<string | { name: string }>(() => (
 
 function goToList (): void {
   void router.push(returnTo.value)
+}
+
+const { confirm } = useConfirm()
+
+/**
+ * Deletes the event being edited (GitHub issue #28, PRD-004 "Delete
+ * available as a row action and from the edit form"). Mirrors
+ * `Events.vue`'s row-action delete: a 409 (`DependencyConflictError`) is
+ * rendered as its own actionable notification and re-thrown so `useConfirm`
+ * keeps the dialog open instead of navigating away or closing silently. A
+ * successful delete returns to the list the same way "Cancel"/"Save" do
+ * (`returnTo`, the `from` query param captured above).
+ */
+async function deleteEvent (): Promise<void> {
+  const id = eventId.value
+
+  if (id === undefined) {
+    return
+  }
+
+  await confirm({
+    subject: form.name,
+    onConfirm: async () => {
+      try {
+        await eventsService.delete(id)
+      } catch (error) {
+        if (error instanceof DependencyConflictError) {
+          notificationService.error({
+            title: 'Cannot delete event',
+            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this event and must be removed first.`
+          })
+        }
+
+        throw error
+      }
+
+      notificationService.success({ message: 'Event deleted.' })
+
+      markClean()
+      await router.push(returnTo.value)
+    }
+  })
 }
 
 // --- Loading the existing record (edit mode only) --------------------------
@@ -411,12 +453,18 @@ async function onSubmit (): Promise<void> {
         </el-radio-group>
       </el-form-item>
 
-      <div class="flex gap-2">
-        <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
-          {{ isEditMode ? 'Save changes' : 'Create event' }}
-        </el-button>
-        <el-button :disabled="submitting" @click="goToList">
-          Cancel
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex gap-2">
+          <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
+            {{ isEditMode ? 'Save changes' : 'Create event' }}
+          </el-button>
+          <el-button :disabled="submitting" @click="goToList">
+            Cancel
+          </el-button>
+        </div>
+
+        <el-button v-if="isEditMode" type="danger" plain :disabled="submitting" @click="deleteEvent">
+          Delete event
         </el-button>
       </div>
     </el-form>
