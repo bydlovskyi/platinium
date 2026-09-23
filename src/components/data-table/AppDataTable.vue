@@ -16,7 +16,13 @@
  * This component holds no fetching logic and no entity knowledge — it
  * consumes `data`/`meta`/`loading`/`error` exactly as `useListResource`
  * exposes them, and emits intent only (`sort-requested`, `page-requested`,
- * `row-action-invoked`, `selection-changed`).
+ * `page-size-requested`, `row-action-invoked`, `selection-changed`).
+ *
+ * Pagination (GitHub issue #24, PRD-003 "Pagination") renders the shared
+ * `PaginationMeta` envelope directly via `el-pagination`, including the
+ * total count and a page-size selector (`layout="total, sizes, prev,
+ * pager, next"`); persisting the chosen page size across sessions is
+ * `useListQuery`'s job (`useStorage`), not this component's.
  */
 import en from 'element-plus/es/locale/lang/en'
 
@@ -49,6 +55,10 @@ const props = withDefaults(defineProps<{
   selectable?: boolean
   selectedRowKeys?: string[]
   caption?: string
+  /** Choices offered by the page-size selector. Persisting the chosen value
+   *  across sessions is `useListQuery`'s job (it already does this via
+   *  `useStorage`) — this component only renders the control and emits intent. */
+  pageSizes?: number[]
 }>(), {
   meta: undefined,
   loading: false,
@@ -58,12 +68,14 @@ const props = withDefaults(defineProps<{
   rowActions: () => [],
   selectable: false,
   selectedRowKeys: () => [],
-  caption: undefined
+  caption: undefined,
+  pageSizes: () => [10, 20, 50, 100]
 })
 
 const emit = defineEmits<{
   'sort-requested': [field: string]
   'page-requested': [page: number]
+  'page-size-requested': [perPage: number]
   'row-action-invoked': [payload: { action: string; row: TRow }]
   'selection-changed': [keys: string[]]
   'create-requested': []
@@ -451,17 +463,21 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         </el-card>
       </div>
 
-      <!-- Pagination: renders the `PaginationMeta` envelope directly. -->
+      <!-- Pagination: renders the `PaginationMeta` envelope directly, total
+           count and page-size selector included. The chosen page size is
+           persisted per administrator one layer up, in `useListQuery`. -->
       <div v-if="meta && meta.total > 0 && !isSkeleton" class="flex justify-end pt-1">
         <el-pagination
           background
-          layout="total, prev, pager, next"
+          layout="total, sizes, prev, pager, next"
           :size="isMobile ? 'small' : 'default'"
           :pager-count="isMobile ? MOBILE_PAGER_COUNT : DESKTOP_PAGER_COUNT"
           :current-page="meta.page"
           :page-size="meta.perPage"
+          :page-sizes="pageSizes"
           :total="meta.total"
           @current-change="(page: number) => emit('page-requested', page)"
+          @size-change="(size: number) => emit('page-size-requested', size)"
         />
       </div>
     </template>

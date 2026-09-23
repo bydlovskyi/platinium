@@ -396,5 +396,29 @@ describe('AppDataTable', () => {
 
       expect(wrapper.emitted('page-requested')?.[0]).toEqual([2])
     })
+
+    it('emits page-size-requested with the chosen size when the page-size selector changes', async () => {
+      const wrapper = mountTable({
+        rows: buildRows(20),
+        meta: buildMeta({ total: 60, perPage: 20, totalPages: 3 })
+      })
+      await flushPromises()
+
+      const pager = wrapper.findComponent({ name: 'ElPagination' })
+      await pager.vm.$emit('size-change', 50)
+
+      expect(wrapper.emitted('page-size-requested')?.[0]).toEqual([50])
+    })
+
+    it('passes custom pageSizes through to el-pagination\'s page-size choices', async () => {
+      const wrapper = mountTable({
+        pageSizes: [5, 15],
+        meta: buildMeta({ total: 60, perPage: 5, totalPages: 12 })
+      })
+      await flushPromises()
+
+      const pager = wrapper.findComponent({ name: 'ElPagination' })
+      expect(pager.props('pageSizes')).toEqual([5, 15])
+    })
   })
 })
