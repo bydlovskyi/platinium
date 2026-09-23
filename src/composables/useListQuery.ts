@@ -224,10 +224,10 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
 
   function setSort (field: string): Promise<void> {
     return enqueueDiscrete(() => {
-      let nextSort: IListQuerySort
+      let nextSort: IListQuerySort | undefined
 
       if (sort.value?.field === field) {
-        nextSort = { field, order: sort.value.order === 'asc' ? 'desc' : 'asc' }
+        nextSort = sort.value.order === 'asc' ? { field, order: 'desc' } : undefined
       } else {
         nextSort = { field, order: 'asc' }
       }
