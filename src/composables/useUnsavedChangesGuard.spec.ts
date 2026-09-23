@@ -22,10 +22,17 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 
 let mountedWrappers: VueWrapper[] = []
 
-function buildHost (isDirty: Ref<boolean>, onMarkClean?: (markClean: () => void) => void) {
+function buildHost (
+  isDirty: Ref<boolean>,
+  onMarkClean?: (markClean: () => void) => void,
+  guardRouteLeave?: boolean
+) {
   return defineComponent({
     setup () {
-      const { markClean } = useUnsavedChangesGuard({ isDirty })
+      const { markClean } = useUnsavedChangesGuard({
+        isDirty,
+        ...(guardRouteLeave !== undefined ? { guardRouteLeave } : {})
+      })
       onMarkClean?.(markClean)
 
       return {}
@@ -45,11 +52,15 @@ function findMessageBoxButton (text: string): HTMLButtonElement {
   return button
 }
 
-async function setup (isDirty: Ref<boolean>, onMarkClean?: (markClean: () => void) => void) {
+async function setup (
+  isDirty: Ref<boolean>,
+  onMarkClean?: (markClean: () => void) => void,
+  guardRouteLeave?: boolean
+) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/form', name: 'form', component: buildHost(isDirty, onMarkClean) },
+      { path: '/form', name: 'form', component: buildHost(isDirty, onMarkClean, guardRouteLeave) },
       { path: '/list', name: 'list', component: { template: '<div>list</div>' } }
     ]
   })
@@ -151,5 +162,27 @@ describe('useUnsavedChangesGuard', () => {
 
     expect(router.currentRoute.value.name).toBe('list')
     expect(document.querySelector('.el-message-box')).toBeNull()
+  })
+
+  describe('guardRouteLeave: false (PRD-005 — a dialog-hosted form has no route change to guard)', () => {
+    it('does not prompt or block route navigation while dirty, since the leave path is the dialog, not a route change', async () => {
+      const isDirty = ref(true)
+      const { router } = await setup(isDirty, undefined, false)
+
+      await router.push('/list')
+
+      // Navigation proceeds freely — no onBeforeRouteLeave was registered to intercept it.
+      expect(router.currentRoute.value.name).toBe('list')
+      expect(document.querySelector('.el-message-box')).toBeNull()
+    })
+
+    it('still registers the beforeunload handler while dirty, since that path is unconditional', async () => {
+      const isDirty = ref(true)
+      await setup(isDirty, undefined, false)
+
+      const dirtyEvent = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(dirtyEvent)
+      expect(dirtyEvent.defaultPrevented).toBe(true)
+    })
   })
 })

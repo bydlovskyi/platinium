@@ -2,7 +2,7 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axio
 
 import { helpers } from '@/utils/helpers'
 
-import { errorInterceptor, responseInterceptor, SessionExpiredError, ValidationFieldError, DependencyConflictError } from './response.interceptor'
+import { errorInterceptor, responseInterceptor, SessionExpiredError, ValidationFieldError, DependencyConflictError, ConflictError } from './response.interceptor'
 
 const { notifySuccess, notifyError, notifyWarning, notifyInfo } = vi.hoisted(() => ({
   notifySuccess: vi.fn(),
@@ -182,17 +182,43 @@ describe('errorInterceptor', () => {
       expect(notifyError).not.toHaveBeenCalled()
     })
 
-    it('defaults entity to an empty string and count to 0 when the server omits them', async () => {
-      const error = buildError({ status: 409, data: { code: 'CONFLICT', message: 'Cannot delete.' } })
+    it('rejects with a ConflictError (not a DependencyConflictError) when the body carries no entity/count, defaulting code to CONFLICT when the body omits it too (PRD-005 "Uniqueness" fix — a 409 without entity/count is not a dependency conflict)', async () => {
+      const error = buildError({ status: 409, data: { message: 'Cannot delete.' } })
+
+      await expect(errorInterceptor(error)).rejects.toBeInstanceOf(ConflictError)
+      await expect(errorInterceptor(error)).rejects.not.toBeInstanceOf(DependencyConflictError)
 
       try {
         await errorInterceptor(error)
         expect.unreachable()
       } catch (rejected) {
-        const conflict = rejected as DependencyConflictError
-        expect(conflict.entity).toBe('')
-        expect(conflict.count).toBe(0)
+        const conflict = rejected as ConflictError
+        expect(conflict.message).toBe('Cannot delete.')
+        expect(conflict.code).toBe('CONFLICT')
       }
+
+      expect(notifyError).not.toHaveBeenCalled()
+    })
+
+    it('rejects with a ConflictError carrying the DUPLICATE_NAME code for a coded, non-dependency 409 body (PRD-005 "Uniqueness")', async () => {
+      const error = buildError({
+        status: 409,
+        data: { code: 'DUPLICATE_NAME', message: 'A category named "VIP" already exists.' }
+      })
+
+      await expect(errorInterceptor(error)).rejects.toBeInstanceOf(ConflictError)
+      await expect(errorInterceptor(error)).rejects.not.toBeInstanceOf(DependencyConflictError)
+
+      try {
+        await errorInterceptor(error)
+        expect.unreachable()
+      } catch (rejected) {
+        const conflict = rejected as ConflictError
+        expect(conflict.code).toBe('DUPLICATE_NAME')
+        expect(conflict.message).toBe('A category named "VIP" already exists.')
+      }
+
+      expect(notifyError).not.toHaveBeenCalled()
     })
 
     it('still rejects with a DependencyConflictError when showNotification: false is set (there is no toast to suppress)', async () => {

@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppDataTable: typeof import('./../../src/components/data-table/AppDataTable.vue')['default']
+    CategoryModal: typeof import('./../../src/views/categories/components/CategoryModal.vue')['default']
     Compute: typeof import('./../../src/components/Compute.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
