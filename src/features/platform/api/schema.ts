@@ -24,6 +24,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Authenticate with email and password
+         * @description Validates the given credentials against the mock backend's seeded administrator account and, on success, issues an opaque bearer token together with the authenticated user record.
+         */
+        post: operations["postAuthLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invalidate the current session
+         * @description Invalidates the bearer token presented on the request, so a subsequent request with the same token is rejected as unauthorized.
+         */
+        post: operations["postAuthLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the current session's user
+         * @description Returns the user record associated with the bearer token presented on the request.
+         */
+        get: operations["getAuthMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -80,6 +140,36 @@ export interface components {
          * @enum {string}
          */
         SortOrder: "asc" | "desc";
+        /**
+         * @description Role granted to an authenticated user. Currently seeded with a single administrator role; extended with a viewer role by PRD-007.
+         * @enum {string}
+         */
+        UserRole: "admin";
+        /** @description An authenticated administrator or viewer of the portal. */
+        User: {
+            /** @description Opaque unique identifier. */
+            id: string;
+            /** @description Display name. */
+            name: string;
+            /** @description Login email address. */
+            email: string;
+            /** @description The role granted to this user. */
+            role: components["schemas"]["UserRole"];
+        };
+        /** @description Body of `POST /auth/login`. */
+        LoginRequest: {
+            /** @description Login email address. */
+            email: string;
+            /** @description Login password. */
+            password: string;
+        };
+        /** @description Body returned by a successful `POST /auth/login`. */
+        LoginResponse: {
+            /** @description Opaque bearer token to send as `Authorization: Bearer <token>` on subsequent requests. */
+            token: string;
+            /** @description The authenticated user record. */
+            user: components["schemas"]["User"];
+        };
     };
     responses: {
         /** @description The request failed validation. */
@@ -165,6 +255,72 @@ export interface operations {
                 };
             };
             500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Credentials were valid; a session token was issued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    postAuthLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session was invalidated. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getAuthMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated user record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
 }

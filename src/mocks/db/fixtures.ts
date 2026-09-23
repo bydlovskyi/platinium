@@ -1,5 +1,5 @@
 import { createSeededId, createSeededRandom, type TSeededRandom } from './random'
-import type { ICategory, IEvent, ITicket, TCurrency, TEventStatus, TTicketStatus } from './types'
+import type { ICategory, IEvent, ITicket, IUser, TCurrency, TEventStatus, TTicketStatus } from './types'
 
 /**
  * Fixed seed for the deterministic PRNG. Never `Date.now()` or `Math.random()`
@@ -56,11 +56,12 @@ const EVENT_START_OFFSET_DAYS_MIN = -200
 const EVENT_DURATION_DAYS_RANGE = 5
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
-/** The full deterministic seed dataset: events, categories and tickets. */
+/** The full deterministic seed dataset: events, categories, tickets and users. */
 export interface ISeedDataset {
   events: IEvent[]
   categories: ICategory[]
   tickets: ITicket[]
+  users: IUser[]
 }
 
 function pick<T> (random: TSeededRandom, items: readonly T[]): T {
@@ -148,12 +149,34 @@ function createTickets (random: TSeededRandom, events: IEvent[], categories: ICa
 }
 
 /**
+ * The single seeded administrator account. Its password (`admin123`) is not
+ * part of this fixture or of {@link IUser} — it is checked directly by the
+ * login handler (`src/mocks/handlers/auth.ts`), matching the "credentials
+ * are defined in the mock auth handler" note in PRD-002. `sessionActive`
+ * starts `false`: a fresh dataset has no active session until a successful
+ * `POST /auth/login`.
+ */
+function createUsers (random: TSeededRandom): IUser[] {
+  return [
+    {
+      id: createSeededId(random),
+      name: 'Admin',
+      email: 'admin@platinium.test',
+      role: 'admin',
+      sessionActive: false,
+      createdAt: FIXED_NOW_ISO,
+      updatedAt: FIXED_NOW_ISO
+    }
+  ]
+}
+
+/**
  * Builds the deterministic seed dataset: several dozen events spanning
  * multiple countries and every {@link TEventStatus}, a handful of
- * categories, and several hundred tickets spread across events, categories,
- * every {@link TTicketStatus} and every {@link TCurrency}. Every ticket
- * references a real event id and a real category id from the same
- * generation.
+ * categories, several hundred tickets spread across events, categories,
+ * every {@link TTicketStatus} and every {@link TCurrency}, and the single
+ * seeded administrator user. Every ticket references a real event id and a
+ * real category id from the same generation.
  *
  * Seeded entirely from a fixed integer via {@link createSeededRandom} — no
  * `Date.now()`, no `Math.random()` — so two calls produce byte-for-byte
@@ -165,6 +188,7 @@ export function createSeedDataset (): ISeedDataset {
   const categories = createCategories(random)
   const events = createEvents(random)
   const tickets = createTickets(random, events, categories)
+  const users = createUsers(random)
 
-  return { events, categories, tickets }
+  return { events, categories, tickets, users }
 }

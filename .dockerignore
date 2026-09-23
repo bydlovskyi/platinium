@@ -1,0 +1,37 @@
+# Version control
+.git
+.github
+
+# Dependencies (installed fresh in the build stage)
+node_modules
+
+# Local env files — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Build output (regenerated inside the image)
+dist
+dist-ssr
+coverage
+
+# Editor / OS cruft
+.vscode
+.idea
+.DS_Store
+
+# Logs and caches
+logs
+*.log
+*.tsbuildinfo
+.eslintcache
+
+# Docs and non-runtime project files not needed to build the image
+docs
+TESTING.md
+README.md
+
+# Claude Code / ralph scratch
+.claude
+ralph
+.ralph-lock-hash
