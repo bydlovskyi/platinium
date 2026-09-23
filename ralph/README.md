@@ -73,26 +73,25 @@ docker volume rm platinum-ralph-work                                          # 
 
 ## How work is ordered
 
-The 41 slices are strictly ordered: each declares the slice it builds on.
+The 41 slices are strictly ordered: each declares the slice it builds on. The base
+branch is decided per slice:
 
-**Every slice branches off `main` and its PR targets `main`.** One slice, one branch,
-one PR, one merge. If a slice's blocker has not merged yet, the agent stops and says
-so rather than stacking — the code it needs is not there.
+- **No blocker** → cut from `main`.
+- **Blocker already merged**, or its branch deleted → cut from `main`.
+- **Blocker still open** → cut from its branch, producing a stacked PR.
 
-That means the loop runs as far as your merging does. `afk.sh 5` will implement one
-slice, then find the next one blocked on a PR you have not merged, and exit. Merge
-it and run again.
+Branching off an open blocker is what lets the loop keep going while PRs wait for
+review. Without it the loop would implement one slice, find the next one blocked, and
+stop until someone merged — so an unattended run would get through exactly one task.
 
-**For an unattended batch**, set `RALPH_ALLOW_STACK=1`. Slices may then branch off an
-unmerged blocker, producing stacked PRs that merge bottom-up:
+The cost is a stack: several PRs whose bases point at each other. **They merge
+bottom-up — deepest child first, then its parent** — and GitHub retargets each child
+to `main` as its base lands. Use merge commits, not squash: squashing a parent
+rewrites its commits and every child then conflicts against the copy already in
+`main`. Once a blocker has merged, later slices cut from `main` again and the history
+flattens on its own.
 
-```bash
-RALPH_ALLOW_STACK=1 caffeinate -i ./ralph/afk.sh 10
-```
-
-Stacking gets many slices done without review in between, at the cost of a tangled
-graph and PR bases pointing at branches that later vanish. Merging is always a
-human's job either way.
+Merging is always a human's job. The agent never runs `gh pr merge`.
 
 Each issue body carries the metadata the agent reads:
 
