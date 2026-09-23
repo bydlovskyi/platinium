@@ -33,10 +33,13 @@ not by the client.
 Deliver complete category management as a thin composition of existing parts.
 
 **A list built entirely from descriptors.** Search across name and description, sort by
-name or creation date, paginate. No filters — there is no attribute worth filtering on,
-and inventing one to fill the toolbar would be worse than leaving it out.
+name or creation date, paginate — `AppDataTable` (`el-table`, `sortable="custom"`), a
+`ListToolbar` holding only the `el-input` search, and `el-pagination`. No filters —
+there is no attribute worth filtering on, and inventing one to fill the toolbar would be
+worse than leaving it out.
 
-**A modal form rather than a route.** Two short text fields do not justify a page
+**A modal form rather than a route.** The form is an `el-form` inside an `el-dialog`.
+Two short text fields do not justify a page
 transition, and an administrator defining a set of categories is doing repetitive work
 where a dialog keeps them in context on the list. This is a considered divergence from
 PRD-004, not an inconsistency: the form pattern follows the size of the form. The
@@ -44,13 +47,14 @@ project's modal infrastructure — auto-registered `*Modal.vue` components opene
 the modals composable — already exists and has not been exercised by a real feature.
 
 **Uniqueness enforced by the contract.** The mock rejects a duplicate name with a
-conflict, and the portal attaches that message to the name field rather than showing a
-generic toast. A server-discovered error that lands on the responsible input is the
+conflict, and the portal attaches that message to the name field — `el-form-item
+:error` — rather than showing a generic toast. A server-discovered error that lands on the responsible input is the
 behaviour that separates a considered form from a naive one.
 
 **Deletion guarded like events.** A category referenced by tickets cannot be removed;
 the conflict names the count and links to those tickets. The same mechanism built in
-PRD-004, reused unchanged.
+PRD-004 — `ElMessageBox.confirm` through `useConfirm`, conflict feedback through the
+notification service — reused unchanged.
 
 ## User Stories
 
@@ -124,8 +128,9 @@ PRD-004, reused unchanged.
 ### View structure
 
 A single categories view with one route: the list. Create and edit are modal states
-layered over it, not routes. The category form is one component used for both,
-differing only in whether it receives an existing record.
+layered over it, not routes — an `el-dialog` opened through the modals registry. The
+category form is one component used for both, differing only in whether it receives an
+existing record.
 
 The categories service exposes the five CRUD operations. No store — category state is
 not shared outside this view. PRD-006 needs categories for its ticket form and obtains
@@ -136,8 +141,8 @@ them through its own lookup call, exactly as it does for events.
 PRD-004 chose a route; this PRD chooses a modal. The rule, recorded so the portal stays
 coherent rather than arbitrary: **a form with more than three fields, any cross-field
 constraint, or any field that is itself a complex control gets a route; anything
-smaller gets a dialog.** Events have seven fields and two date pickers. Categories have
-two text inputs.
+smaller gets an `el-dialog`.** Events have seven fields and two `el-date-picker`s.
+Categories have two `el-input`s.
 
 This also exercises the project's modal infrastructure with a real feature, which is
 otherwise only demonstrated by a placeholder.
@@ -151,7 +156,7 @@ purpose.
 The client does not pre-check uniqueness with a lookup request. A check-then-write is a
 race even against a mock, it doubles the request count, and the server has to enforce it
 regardless. The conflict response is the mechanism; the client's job is to render it on
-the right field.
+the right field, through the name `el-form-item`'s `:error` prop.
 
 ### Deletion
 
@@ -159,16 +164,47 @@ Identical to PRD-004: the mock returns a conflict carrying the dependent ticket 
 and the portal renders an actionable message linking to the tickets list filtered by
 that category. Cascade deletion is rejected for the same reason.
 
+### Component library
+
+Every control in this PRD is an Element Plus component, per
+[`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md). Shared portal components wrap and configure
+Element Plus; they do not replace it. No raw `<button>`, `<input>`, `<textarea>` or
+`<table>` appears in the categories view, and any Element Plus component adopted for the
+first time here has its `theme-chalk` stylesheet imported in
+`src/assets/styles/element-reset/components/index.css` (`importStyle: false`).
+
+- **List** — `AppDataTable` (`el-table` + two `el-table-column`s, `sortable="custom"` on
+  name and creation date, `el-skeleton`, `v-loading`, `el-empty` in `#empty`, `el-card`
+  rows below tablet, `el-dropdown` row actions); `ListToolbar` with only the
+  `el-input clearable` search; `el-pagination`; the shared `PageHeader` with an
+  `el-button type="primary"` create action.
+- **Modal** — `el-dialog` via the modals registry, `:fullscreen` below tablet,
+  `destroy-on-close`, `:before-close` wired to the unsaved-changes composable so Escape,
+  the close icon and a mask click on a dirty form prompt through `ElMessageBox.confirm`.
+  Focus trap and return to the trigger come from `el-dialog`.
+- **Form** — `el-form :model :rules label-position="top"` submitted on Enter;
+  name `el-input maxlength show-word-limit` with `el-form-item :error` for the 409;
+  description `el-input type="textarea" autosize maxlength show-word-limit` — the
+  `show-word-limit` counter is the live character counter; footer `el-button` cancel and
+  `el-button type="primary" :loading native-type="submit"`.
+- **Missing record** — `el-result icon="warning"` in the dialog body with a close
+  `el-button`.
+- **Delete** — `ElMessageBox.confirm` through `useConfirm`, `beforeClose` setting
+  `confirmButtonLoading` while the request runs.
+
 ### Modules
 
 No new deep modules. This PRD composes:
 
 - The list query and list resource composables (PRD-003)
-- The data table with a two-column descriptor set (PRD-003)
-- The confirmation composable (PRD-003)
-- The unsaved-changes composable (PRD-004), applied to a dialog close rather than a
-  route change — the composable's guard registration is parameterised for this
-- The modals composable and `*Modal.vue` auto-registration (existing infrastructure)
+- The data table (`AppDataTable` over `el-table`) with a two-column descriptor set
+  (PRD-003)
+- The confirmation composable (`useConfirm` over `ElMessageBox.confirm`, PRD-003)
+- The unsaved-changes composable (PRD-004), applied to `el-dialog`'s `:before-close`
+  rather than a route change — the composable's guard registration is parameterised for
+  this
+- The modals composable and `*Modal.vue` auto-registration (existing infrastructure),
+  each modal rendering an `el-dialog`
 
 **If this PRD requires a new shared module, that is a finding about PRD-003 or PRD-004,
 not about categories.** It should be fixed in the owning PRD rather than worked around
@@ -176,15 +212,20 @@ here.
 
 ### Testing boundary
 
-- Category form validation — unit tested: required name, length bounds on both fields,
-  optional description, trimming.
+Component and integration tests mount the real Element Plus components — no stubs.
+`ElMessageBox` (and `el-dialog` when `append-to-body` is set) teleports to
+`document.body`, so the unsaved-changes prompt, the delete confirmation and the dialog
+content are queried there.
+
+- Category form validation — unit tested through the `el-form` ref: required name,
+  length bounds on both fields, optional description, trimming.
 - Duplicate-name handling — integration tested against MSW: submit an existing name,
-  assert the message lands on the name field and the dialog stays open.
+  assert the message lands on the name `el-form-item`'s error and the dialog stays open.
 - Full CRUD flow — integration tested: create, verify the row appears; edit, verify the
   change; delete with confirmation; attempt to delete a referenced category and assert
   the conflict message and its link.
-- Dialog behaviour — component tested: focus on open, focus restored on close, Escape
-  closes a clean form, Escape prompts on a dirty one.
+- Dialog behaviour — component tested against the real `el-dialog`: focus on open,
+  focus restored on close, Escape closes a clean form, Escape prompts on a dirty one.
 - List behaviour — integration tested: search and sort reflected in the URL and in the
   request the mock receives.
 

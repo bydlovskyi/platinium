@@ -19,6 +19,8 @@ Blocked by: #27
 
 #4 — [`docs/prd/PRD-004-events-management.md`](../prd/PRD-004-events-management.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 Deletion guarded by the data rather than by hope.
@@ -33,16 +35,23 @@ This is the behaviour that distinguishes an admin tool that protects its data fr
 that quietly corrupts it, and it is the kind of choice an assessment reviewer looks for
 explicitly.
 
+The confirmation is `ElMessageBox.confirm` through `useConfirm`, whose `beforeClose` sets
+`confirmButtonLoading` while the request runs; the row action is an `el-dropdown-item`
+in `AppDataTable`'s row-action `el-dropdown`.
+
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
-- [ ] Delete available as a row action and from the edit form
-- [ ] Confirmation names the specific event
-- [ ] Confirm button shows progress and is disabled while in flight
+- [ ] Delete available as a row action (`el-dropdown-item divided` in the row-action `el-dropdown`) and as an `el-button type="danger"` on the edit form
+- [ ] Confirmation is `ElMessageBox.confirm` via `useConfirm` and names the specific event
+- [ ] Confirm button shows progress and is disabled while in flight — `beforeClose` sets `instance.confirmButtonLoading = true`
 - [ ] A 409 renders a specific message stating how many tickets block the deletion
-- [ ] The conflict message links to the tickets list pre-filtered to that event
+- [ ] The conflict message (notification service, `ElNotification`) links to the tickets list pre-filtered to that event via an `el-link` / `router-link`
 - [ ] A successful delete shows a success notification and refreshes the list at the current page
 - [ ] Deleting the last row of a page navigates to the previous page rather than showing an empty one
+- [ ] Built from Element Plus components; no raw `<button>` in this slice
+- [ ] Every newly adopted Element Plus component's `theme-chalk` stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Tests mount real Element Plus components (no stubs); teleported poppers and message boxes are queried in `document.body`
 - [ ] Integration test: delete with confirmation succeeds; attempting to delete a referenced event surfaces the conflict message with its count
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied

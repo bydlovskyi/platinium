@@ -32,6 +32,8 @@ modifies its authorisation behaviour. Mock handlers reject requests without a va
 token, so the 401 path built in the error-handling slice is genuinely exercised rather
 than theoretical.
 
+No UI in this slice — the login screen's Element Plus form lands in #19.
+
 **Only this slice may edit `openapi.yaml` or regenerate `schema.ts` within PRD-002.**
 
 ## Acceptance criteria

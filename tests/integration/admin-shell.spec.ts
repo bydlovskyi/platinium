@@ -120,7 +120,7 @@ describe('AdminLayout — responsive navigation presentation', () => {
     // "Dashboard" is the current route (`/`) — clicking it doesn't change
     // `route.fullPath`, so a close driven only by a route-change watcher
     // would miss this. AppSidebar must emit `navigate` on click regardless.
-    await wrapper.find('.el-drawer.open a').trigger('click')
+    await wrapper.find('.el-drawer.open li.el-menu-item').trigger('click')
 
     await vi.waitFor(() => {
       expect(wrapper.find('.el-drawer.open').exists()).toBe(false)

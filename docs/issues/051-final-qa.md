@@ -19,6 +19,8 @@ Blocked by: #50
 
 #9 — [`docs/prd/PRD-009-documentation-and-delivery.md`](../prd/PRD-009-documentation-and-delivery.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The clean-clone rehearsal of the entire reviewer journey. **This is the single
@@ -73,10 +75,16 @@ Not-found route.
 
 **Responsive and theme.** Every screen at 375px, 768px and 1440px in both themes. Mobile
 drawer opens, traps focus, closes on navigate and on Escape. Toggle theme on every screen;
-no unthemed element, no flash on reload.
+no unthemed element, no flash on reload. Open every Element Plus popper (`el-select`,
+`el-dropdown`, `el-date-picker`, `el-tooltip`), an `ElMessageBox` confirm, an `el-dialog`
+and an `ElNotification` in both themes; each is styled (its `theme-chalk` stylesheet is
+registered) and follows the tokens.
 
 **Accessibility.** Tab through login, a list and a form; focus visible throughout and
-order sensible. Enable reduced motion and confirm all animation is suppressed.
+order sensible; keyboard works inside `el-select`, `el-dropdown`, `el-date-picker` and
+`el-pagination`, and focus returns to the trigger when an `ElMessageBox`, `el-dialog` or
+`el-drawer` closes. Enable reduced motion and confirm all animation is suppressed,
+including Element Plus's own transitions.
 
 ## Acceptance criteria
 
@@ -85,6 +93,7 @@ order sensible. Enable reduced motion and confirm all animation is suppressed.
 - [ ] Executed from a clean clone in a fresh directory, not the development machine's working copy
 - [ ] Docker verified against a pruned cache
 - [ ] Every command in the README run exactly as written
+- [ ] No Element Plus component renders unstyled on any screen, in either theme
 - [ ] Any defect found is fixed and the affected section re-run
 - [ ] Sign-off recorded in the issue with the environment and date
 - [ ] `npm run lint` and `npm run type-check` clean

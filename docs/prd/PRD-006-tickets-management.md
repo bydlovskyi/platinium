@@ -42,26 +42,31 @@ Deliver complete ticket management, with money, references and cross-entity filt
 treated as first-class concerns.
 
 **Money handled once, correctly.** Prices are integer minor units throughout the
-contract, the store and the service layer. A dedicated currency input presents a
-decimal value to the administrator and converts at the boundary — the only place in the
-codebase where that conversion is allowed to exist. Display uses the locale-aware
-formatter introduced in PRD-003. A currency must be chosen explicitly; there is no
-silent default, because a wrong default is worse than a required field.
+contract, the store and the service layer. A dedicated currency input (`CurrencyInput`,
+wrapping `el-input-number`) presents a decimal value to the administrator and converts
+at the boundary — the only place in the codebase where that conversion is allowed to
+exist. Display uses the locale-aware formatter introduced in PRD-003. A currency must be
+chosen explicitly in an `el-select` with no preselected option; there is no silent
+default, because a wrong default is worse than a required field.
 
-**Reference selectors that page and search.** Event and category pickers query their
-own endpoints with a debounced search term and load further results on scroll. When
-editing an existing ticket whose event is not on the first page, the selected record is
-fetched by identifier and merged into the options, so the field never renders as a bare
-identifier or an empty box.
+**Reference selectors that page and search.** Event and category pickers
+(`RemoteSelect`, wrapping `el-select filterable remote`) query their own endpoints with
+a debounced search term and load further results on scroll. When editing an existing
+ticket whose event is not on the first page, the selected record is fetched by
+identifier and merged into the options, so the field never renders as a bare identifier
+or an empty box.
 
 **A list that answers the real question.** Search by ticket name; filter by event, by
 category, by status, by currency and by a price range; sort by name, price, quantity,
 status or creation date. The list shows the resolved event and category names, not
 identifiers — the contract returns the names alongside the references so the client
-never has to issue N additional requests to render a page.
+never has to issue N additional requests to render a page. It is the PRD-003 list:
+`el-table` inside `AppDataTable`, `el-pagination`, and a `ListToolbar` of Element Plus
+filter controls.
 
 **Quantity as stock, not as a number.** Quantity is a non-negative integer with a
-sensible upper bound. Zero is legitimate and means sold out, so the list surfaces
+sensible upper bound, entered through `el-input-number` with `step-strictly` and
+`:precision="0"`. Zero is legitimate and means sold out, so the list surfaces
 zero-quantity tickets distinctly rather than letting them look like a data entry
 mistake.
 
@@ -181,25 +186,39 @@ input component. Currency is the enum introduced in PRD-001, and it is required 
 default.
 
 **The minor-unit conversion exists in exactly one module.** A currency input component
-accepts a minor-unit value, presents a decimal to the administrator, constrains input to
-the currency's decimal precision, and emits minor units. Every other layer — service,
-contract, mock, list column, dashboard — deals only in integers. Any conversion found
-elsewhere in review is a defect, because a second conversion site is how rounding
-inconsistencies enter a codebase.
+(`CurrencyInput`) accepts a minor-unit value, presents a decimal to the administrator,
+constrains input to the currency's decimal precision, and emits minor units. It wraps
+`el-input-number` with `:precision` taken from the currency, `:min="0"` and
+`:controls="false"`, and renders the currency symbol in the `#prefix` slot; decimal
+clamping and negative rejection are `el-input-number` behaviour, configured rather than
+reimplemented. Every other layer — service, contract, mock, list column, dashboard —
+deals only in integers. Any conversion found elsewhere in review is a defect, because a
+second conversion site is how rounding inconsistencies enter a codebase.
 
+The currency itself is an `el-select` over the `Currency` enum with no default value.
 Formatting for display uses the PRD-003 money formatter, which takes minor units and a
 currency code.
 
 ### Reference selectors
 
-One generic remote-select component, parameterised by a fetch function, an option
-renderer and a value resolver. Event and category pickers are configurations of it, not
-two components. It owns debounced search, incremental loading on scroll, loading and
-empty states, and resolution of a preselected value that is absent from the loaded page.
+One generic remote-select component (`RemoteSelect`), parameterised by a fetch function,
+an option renderer and a value resolver. Event and category pickers are configurations
+of it, not two components. It owns debounced search, incremental loading on scroll,
+loading and empty states, and resolution of a preselected value that is absent from the
+loaded page.
 
-That last behaviour is the one that is routinely omitted and always noticed: without it,
-editing a ticket whose event sits on page four shows an empty selector, and saving
-silently drops the reference.
+It wraps `el-select` with `filterable`, `remote`, `:remote-method` (debounced) and
+`:loading`. Dropdown states use the `#loading` and `#empty` slots; the option renderer
+fills the `el-option` default slot, which is where the event picker's country and dates
+appear. Incremental loading hangs a scroll listener on the dropdown's `el-scrollbar`
+wrap — located through a `popper-class` — with VueUse `useInfiniteScroll`, and the
+`#footer` slot shows the "loading more" row. Keyboard navigation and clearing
+(`clearable`) are `el-select`'s own.
+
+Preselected-value resolution is the behaviour that is routinely omitted and always
+noticed: without it, editing a ticket whose event sits on page four shows an empty
+selector, and saving silently drops the reference. The resolved record is merged into
+the `options` array so `el-select` can resolve the label for the bound value.
 
 ### List denormalisation
 
@@ -226,37 +245,81 @@ quantity is not automatically sold out, because an administrator may be preparin
 Deriving it would remove control the administrator needs, and the two concepts are
 surfaced separately in the list instead.
 
+### Component library
+
+Every ticket screen is built from Element Plus under the binding policy in
+[`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md). The shared components introduced here —
+`CurrencyInput` and `RemoteSelect` — **wrap and configure** Element Plus components;
+they do not replace them. No raw `<button>`, `<input>`, `<select>` or `<table>` in this
+PRD's code. Each slice that adopts a new Element Plus component adds its
+`element-plus/theme-chalk/el-<name>.css` import to
+`src/assets/styles/element-reset/components/index.css` in the same commit, because the
+resolver runs with `importStyle: false`.
+
+- **Currency input** — `el-input-number` (`:precision` from the currency, `:min="0"`,
+  `:controls="false"`, symbol in `#prefix`).
+- **Remote select** — `el-select filterable remote :remote-method :loading` with
+  `el-option`, `#loading` / `#empty` / `#footer` slots, and incremental load on the
+  dropdown `el-scrollbar` via `popper-class` + VueUse `useInfiniteScroll`.
+- **Ticket list** — `AppDataTable` over `el-table` / `el-table-column`
+  (`sortable="custom"` + `@sort-change`), `el-skeleton` first load, `v-loading` on
+  refetch, `el-empty` in the `#empty` slot, `el-pagination`; `ListToolbar` with
+  `el-input clearable` search, `RemoteSelect` for event and category, `el-select` for
+  status and currency, two `CurrencyInput` controls (min and max) for the price range —
+  so the filter's minor-unit conversion stays in the wrapper — `el-tag closable` chips and an `el-button link` clear-all; `StatusTag`
+  (`el-tag`) for status; an `el-tag type="danger"` "Sold out" / zero marker on the
+  quantity cell; `el-dropdown` row actions; `el-card shadow="never"` mobile cards;
+  delete through `useConfirm` (`ElMessageBox.confirm`, `beforeClose` sets
+  `confirmButtonLoading`).
+- **Ticket form** — `el-form :model :rules` with `el-form-item prop` and `:error` for
+  mapped server errors; `el-input maxlength show-word-limit` for the name; `CurrencyInput`
+  and an `el-select` for currency; `el-input-number :min="0" :step="1" step-strictly
+  :precision="0"` for quantity; `el-radio-group` / `el-segmented` for status;
+  `RemoteSelect` for event and category; `el-button type="primary" :loading` submit;
+  `ElMessageBox.confirm` for unsaved changes; `el-result icon="warning"` with a back
+  `el-button` on a 404; `el-page-header` + `el-breadcrumb` for the title.
+
 ### Modules
 
-**Currency input (deep module).** The sole minor-unit boundary. Unit-testable with no
-network and no router, and the highest-value unit test in this PRD.
+**Currency input (deep module).** The sole minor-unit boundary, wrapping
+`el-input-number`. Unit-testable with no network and no router, and the highest-value
+unit test in this PRD.
 
 **Remote select (deep module).** Generic paginated, searchable selector with
-preselected-value resolution. Two configurations in this PRD, reusable by any future
-entity.
+preselected-value resolution, wrapping `el-select` in remote mode. Two configurations in
+this PRD, reusable by any future entity.
 
-**Ticket form component.** Field set, validation rules, dirty tracking, submission.
-Reuses the unsaved-changes composable from PRD-004 unchanged.
+**Ticket form component.** Field set, `el-form` validation rules, dirty tracking,
+submission. Reuses the unsaved-changes composable from PRD-004 unchanged.
 
 The list screen remains thin: column descriptors, a filter descriptor, and the PRD-003
-composables.
+composables and Element Plus-backed list components.
 
 ### Testing boundary
 
+Component and integration tests mount the real Element Plus components — no stubs —
+and drive the DOM they render. Teleported poppers (`el-select` dropdowns, `el-dropdown`
+menus, `ElMessageBox`) are queried in `document.body`, or mounted with
+`:teleported="false"`.
+
 - Currency input — unit tested exhaustively: decimal-to-minor conversion in both
   directions, precision clamping, zero, a large value, negative rejection, and a
-  currency change preserving the entered amount correctly.
+  currency change preserving the entered amount correctly; asserted through the real
+  `el-input-number` `<input>`.
 - Money formatter with each supported currency — unit tested (extends PRD-003 coverage).
-- Remote select — component tested: debounced search, incremental load, resolution of a
-  preselected value absent from the first page, empty and loading states.
+- Remote select — component tested against the real `el-select`: debounced search,
+  incremental load triggered by scrolling the dropdown `el-scrollbar`, resolution of a
+  preselected value absent from the first page, `#empty` and `#loading` states.
 - Ticket form validation — unit tested: required fields, price and quantity bounds,
   integer-only quantity, required currency.
 - Full CRUD flow — integration tested against MSW: create with a validation failure then
-  a success; edit including changing the event; delete with confirmation.
+  a success (errors asserted on the `el-form-item`); edit including changing the event
+  through the `el-select` dropdown; delete with the `ElMessageBox` confirmation found in
+  `document.body`.
 - Cross-entity filtering — integration tested: filter by event and category together,
   assert the request the mock receives and the rendered result.
 - Deep-link entry — integration tested: arriving with an event filter in the URL applies
-  it and shows it as an active chip.
+  it and shows it as an active `el-tag` chip.
 
 ## API Contract Plan
 

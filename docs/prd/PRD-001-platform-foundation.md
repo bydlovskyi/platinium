@@ -56,10 +56,11 @@ the shape it would need against a real, large backend, and makes the scalability
 in `TECHNICAL_REVIEW.md` honest rather than aspirational.
 
 **Errors handled once, centrally.** The response interceptor becomes the single place
-where an HTTP failure turns into a user-facing outcome: a toast for unexpected
-failures, a session reset and redirect on `401`, and a structured field-error object
-handed back to forms for `400`. Individual call sites opt out of the toast when they
-intend to render the error themselves.
+where an HTTP failure turns into a user-facing outcome: an `ElNotification` toast
+(raised through the notification service) for unexpected failures, a session reset and
+redirect on `401`, and a structured field-error object handed back to forms for `400`,
+ready to bind to `el-form-item :error`. Individual call sites opt out of the toast when
+they intend to render the error themselves.
 
 **A container anyone can run.** A multi-stage Dockerfile builds the app and serves the
 static bundle behind nginx configured for SPA routing. `docker compose up` produces a
@@ -115,6 +116,19 @@ working portal with seeded data and no external dependencies.
     that the runtime surface is minimal.
 
 ## Implementation Decisions
+
+### Component library
+
+Element Plus is the portal's component library, and the binding policy and component map
+live in [`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md). Shared components wrap and configure
+Element Plus rather than replace it. This PRD delivers no screen, so its only UI surface
+is feedback: toasts are `ElNotification` behind the notification service, and the
+field-error map it hands to forms is shaped for `el-form-item :error`. It also fixes the
+two platform rules every later slice inherits: the resolver runs with
+`importStyle: false`, so each adopted component's `element-plus/theme-chalk/el-<name>.css`
+is imported by hand in `src/assets/styles/element-reset/components/index.css`; and
+Element Plus is themed through `--el-*` variables mapped onto the design tokens in
+`src/assets/styles/element-reset/theme.css`, not through `.el-*` class overrides.
 
 ### Domain model
 
@@ -188,8 +202,9 @@ what keeps the mock API from becoming a pile of copy-pasted route code.
 
 **Chaos controls.** A development-only mechanism to inject latency, force a specific
 status code on the next request to a path, or make a path fail persistently. Exposed
-to tests programmatically and to the browser through a small debug surface. Without
-this, error-path stories in later PRDs cannot be demonstrated.
+to tests programmatically and to the browser through a small debug surface
+(`window.__mockChaos` in development — a console API, not a screen, so it adds no
+hand-built UI). Without this, error-path stories in later PRDs cannot be demonstrated.
 
 **Response interceptor.** Normalises a successful response to its payload, and maps a
 failure onto: a session reset plus redirect for `401`; a rejection carrying the parsed
@@ -197,10 +212,13 @@ field-error map for `400`; and a toast plus rejection for everything else, inclu
 network failures and timeouts. Honours a per-request flag that suppresses the toast.
 Aborted requests are swallowed silently — a cancelled request is not an error.
 
-**Notification service.** A thin wrapper over the Element Plus notification API,
-exposing success, error, warning and info. Everything that notifies goes through it,
-so the presentation can be changed in one place and so tests can assert on
-notifications without reaching into a UI library.
+**Notification service.** A thin wrapper over `ElNotification` (the Element Plus
+notification API), exposing success, error, warning and info. Everything that notifies
+goes through it — nothing else calls `ElNotification` directly — so the presentation can
+be changed in one place and so tests can assert on notifications without reaching into
+a UI library. Its colours come from `--el-color-success|warning|info|danger`, which
+`theme.css` points at the semantic tokens; `el-notification.css` is registered in the
+component stylesheet index.
 
 ### Docker
 
@@ -221,6 +239,8 @@ service and no network egress.
 - Seed fixtures — unit tested for determinism and referential integrity (every ticket
   points at a real event and a real category).
 - Response interceptor — unit tested against each failure class.
+- Notification service — tested against the real `ElNotification` (no stub), asserting
+  on the notification rendered into `document.body`, where Element Plus teleports it.
 - Handler factory — integration tested through the service layer for one
   representative entity, proving the query vocabulary is wired end to end.
 

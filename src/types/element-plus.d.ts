@@ -12,4 +12,6 @@ interface IElementPlus {
   NotificationOptions: import('element-plus').NotificationOptions
   LoadingOptions: import('element-plus').LoadingOptions
   LoadingInstance: import('element-plus/es/components/loading/src/loading').LoadingInstance
+
+  CheckboxValueType: import('element-plus').CheckboxValueType
 }

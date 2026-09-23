@@ -49,8 +49,8 @@ evaluating.
 - [ ] Project structure explained with the purpose of each directory
 - [ ] Architecture overview including the one-way dependency rules, linking to `architecture.md`
 - [ ] Mock API explained: in-browser, where the contract lives, how to reset the demo data, how to force an API failure
-- [ ] Technical decisions, assumptions and trade-offs sections
-- [ ] Link to the design system reference and to the AI workflow document
+- [ ] Technical decisions, assumptions and trade-offs sections; technical decisions include Element Plus as the component library — shared components wrap it rather than replace it, themed through `--el-*` variables mapped to the design tokens — linking [`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md)
+- [ ] Link to the design system reference, the Element Plus component policy and the AI workflow document
 - [ ] Every documented command executed from a clean clone and confirmed to work
 - [ ] Every structure path verified to exist
 - [ ] Docker instructions verified against a pruned Docker environment

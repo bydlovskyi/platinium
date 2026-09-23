@@ -19,6 +19,8 @@ Blocked by: #25
 
 #4 — [`docs/prd/PRD-004-events-management.md`](../prd/PRD-004-events-management.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The first entity screen, and therefore the proof that the shared list machinery
@@ -32,22 +34,27 @@ here.
 
 Search across name and venue; filter by status, country and an overlapping date range;
 sort by name, start date, end date or status. All of it in the URL, all of it computed
-by the mock.
+by the mock. The screen is `AppDataTable` (`el-table`) under `ListToolbar` (`el-input`,
+`el-select`, `el-date-picker type="daterange"`, `el-tag` chips) with `el-pagination` —
+this view only configures them.
 
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
-- [ ] Events list route renders through the shared data table with column descriptors only
+- [ ] Events list route renders through `AppDataTable` (`el-table` + `el-table-column` generated from the column descriptors) with column descriptors only
 - [ ] Columns: name, country, venue, date range, status — with responsive priorities set for the mobile card layout
-- [ ] Country rendered as a name, not a code; dates rendered readably; status rendered through the shared status tag
-- [ ] Search across name and venue, debounced, reflected in the URL
-- [ ] Filters: status, country and a date range — each reflected in the URL and shown as a removable chip
-- [ ] Sorting by name, start date, end date and status, reflected in the URL
-- [ ] Pagination with total count
-- [ ] All three async states render: nothing exists, nothing matched, load failed
-- [ ] Page header with title and a create action
-- [ ] Mobile card presentation readable at 375px
+- [ ] Country rendered as a name, not a code; dates rendered readably; status rendered through `StatusTag` (`el-tag` with a text label)
+- [ ] Search across name and venue via `ListToolbar`'s `el-input clearable` with a search `#prefix`, debounced in the composable, reflected in the URL
+- [ ] Filters: status and country as `el-select clearable filterable`, date range as `el-date-picker type="daterange" value-format="YYYY-MM-DD"` — each reflected in the URL and shown as an `el-tag closable` chip; on mobile the filters sit in an `el-drawer` opened by an `el-button` with an `el-badge` count
+- [ ] Sorting by name, start date, end date and status through `sortable="custom"` columns and `@sort-change`, reflected in the URL
+- [ ] Pagination with total count via `el-pagination` (`layout="total, sizes, prev, pager, next"`)
+- [ ] First load shows `el-skeleton`; refetch keeps rows under `v-loading`; all three async states render as `el-empty` in the table's `#empty` slot (nothing exists, nothing matched) or `el-result` + retry `el-button` (load failed)
+- [ ] Shared `PageHeader` (`el-breadcrumb` + title) with an `el-button type="primary"` create action in its `actions` slot
+- [ ] Mobile card presentation (`el-card shadow="never"` per row) readable at 375px
 - [ ] No list-state logic in this view — it composes the PRD-003 composables
+- [ ] Built from Element Plus components; no raw `<button>`/`<input>`/`<table>`/`<select>` in this slice
+- [ ] Every newly adopted Element Plus component's `theme-chalk` stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Tests mount real Element Plus components (no stubs); teleported poppers and message boxes are queried in `document.body`
 - [ ] Integration tests: search, each filter, sort toggling and pagination all reflected in the URL and in the request the mock receives
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied

@@ -19,6 +19,8 @@ Blocked by: #41
 
 #10 — [`docs/prd/PRD-010-visual-design-system-and-interface-polish.md`](../prd/PRD-010-visual-design-system-and-interface-polish.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 What makes the interface feel alive. Motion carries meaning here: a row leaving a
@@ -29,6 +31,15 @@ All short, none blocking an interaction, none lasting longer than the interactio
 accompanies. Unmotivated motion is what makes an interface feel cheap, so the list of
 animated moments is fixed rather than open.
 
+Element Plus's own transitions (`el-drawer`, `el-dialog`, `el-dropdown`,
+`ElNotification`, `el-collapse-transition`) are the motion for those components, tuned
+through `--el-transition-duration` / `--el-transition-duration-fast` mapped from the
+duration tokens — not replaced. Vue `<Transition>` covers route changes and the
+`el-skeleton`-to-content crossfade. `el-table` renders its own body, so a deleted row
+animates out through a `row-class-name` leaving class and a CSS animation before the
+refetch, not `<TransitionGroup>`. Dashboard figures count in through VueUse
+`useTransition` feeding `el-statistic :value`.
+
 **The reduced-motion rule is non-negotiable.** Motion is the main lever this PRD has for
 making the portal feel alive, which makes it exactly the place where an accessibility
 preference is most likely to be forgotten. Unconditional motion is a defect, not a
@@ -37,19 +48,21 @@ refinement.
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
-- [ ] Route transitions between pages
-- [ ] List item enter and leave transitions; a deleted row animates out so the administrator sees which record went
-- [ ] Dialogs and drawers slide from their origin rather than appearing
-- [ ] Skeleton-to-content crossfade — loading does not end in a flash
-- [ ] Notification entry and exit transitions
-- [ ] Dashboard headline figures count into place on first load
-- [ ] Buttons respond immediately on press, independent of request latency
+- [ ] Route transitions between pages via Vue `<Transition>` around the `el-main` router view
+- [ ] List item enter and leave transitions; a deleted `el-table` row animates out through a `row-class-name` leaving class and CSS animation before the refetch, so the administrator sees which record went (mobile `el-card` rows may use `<TransitionGroup>`)
+- [ ] `el-dialog` and `el-drawer` slide from their origin using their built-in transitions, timed by `--el-transition-duration*`
+- [ ] `el-skeleton`-to-content crossfade via `<Transition>` — loading does not end in a flash
+- [ ] `ElNotification` / `ElMessage` entry and exit use their built-in transitions on the token durations
+- [ ] Dashboard `el-statistic` headline figures count into place on first load via `useTransition`
+- [ ] `el-button`s respond immediately on press (active state, then `:loading`), independent of request latency
 - [ ] Interactive rows and controls have hover and focus transitions
 - [ ] Only the defined moments animate; no decorative or ambient motion
-- [ ] All motion uses the two duration and two easing tokens from the design foundation
-- [ ] Every animation suppressed when the reduced-motion preference is set
+- [ ] All motion uses the two duration and two easing tokens from the design foundation, including Element Plus's through `--el-transition-duration*`
+- [ ] Every animation suppressed when the reduced-motion preference is set: duration tokens and `--el-transition-duration*` set to `0s`, `useTransition` bypassed
 - [ ] No animation blocks input or exceeds the interaction it accompanies
-- [ ] Component test asserts animations are suppressed under the reduced-motion preference
+- [ ] No hand-rolled replacement for an Element Plus transition; no raw `<button>`/`<input>`/`<table>`/`<select>` in this slice
+- [ ] Every newly adopted Element Plus component's theme-chalk stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Component test (real Element Plus components, no stubs) asserts animations are suppressed under the reduced-motion preference
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

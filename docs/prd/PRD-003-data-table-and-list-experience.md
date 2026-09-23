@@ -50,25 +50,30 @@ has a clean address.
 
 **One table component, configured by column descriptors.** Entity screens declare
 their columns — key, label, whether it sorts, how a cell renders, and its responsive
-priority — rather than writing table markup. The component handles the sorting
-affordances, the empty state, the loading skeleton, the error-with-retry state, row
-selection and the actions column.
+priority — rather than writing table markup. `AppDataTable` wraps Element Plus
+`el-table` and generates one `el-table-column` per descriptor; Element Plus supplies the
+sorting affordances (`sortable="custom"`), the selection column (`type="selection"`), the
+empty slot and the loading directive, and the wrapper configures them — the empty state,
+the loading skeleton, the error-with-retry state, row selection and the actions column.
 
 **The responsive answer is a presentation switch, not a media query on a table.** Above
-the tablet breakpoint the descriptors render as a table. Below it, the same descriptors
-render as a stacked card list showing only the columns marked as high priority, with
-the rest available on the detail view. The data, the sorting and the pagination are
+the tablet breakpoint the descriptors render as an `el-table`. Below it, the same
+descriptors render as a stacked list of `el-card shadow="never"` cards showing only the
+columns marked as high priority, with the rest available on the detail view. The data, the sorting and the pagination are
 identical; only the presentation changes. Because this lives in one component, every
 entity screen is responsive the moment it is written.
 
-**Every async state is a first-class state.** Loading is a skeleton matching the table
-shape, not a spinner that collapses the layout. An empty result distinguishes "nothing
-exists yet" — which offers the create action — from "nothing matched your filters",
-which offers to clear them. A failure shows what went wrong and a retry button rather
-than an empty table that looks like no data.
+**Every async state is a first-class state.** First load is the `el-table` itself fed
+`el-skeleton-item` placeholder rows, matching the table shape, not a spinner that collapses the layout; a refetch with rows already on
+screen uses `v-loading` on the `el-table`, which dims the rows instead of blanking them.
+An empty result, rendered as `el-empty` in place of the table, distinguishes
+"nothing exists yet" — which offers the create action — from "nothing matched your
+filters", which offers to clear them. A failure renders `el-result` with what went wrong
+and a retry `el-button` rather than an empty table that looks like no data.
 
 **Destructive actions are confirmed once, consistently.** One confirmation composable,
-naming the specific record, used by every delete in the portal.
+`useConfirm` over `ElMessageBox.confirm`, naming the specific record, used by every
+delete in the portal.
 
 ## User Stories
 
@@ -143,6 +148,27 @@ naming the specific record, used by every delete in the portal.
 
 ## Implementation Decisions
 
+### Component library
+
+Every UI piece in this PRD is built from Element Plus, as mapped in the
+[Element Plus component policy](ELEMENT-PLUS.md) (see its *Lists* table). The shared
+components below — `AppDataTable`, `ListToolbar`, `StatusTag` and `useConfirm` — **wrap
+and configure Element Plus rather than replace it**: no raw `<table>`, `<button>`,
+`<input>` or `<select>` in any of them. Each slice that adopts a new Element Plus component
+imports its `element-plus/theme-chalk/el-<name>.css` in
+`src/assets/styles/element-reset/components/index.css` in the same commit (the resolver
+runs with `importStyle: false`). Theming goes through `--el-*` variables, not `.el-*`
+selector overrides.
+
+| Module | Element Plus components |
+|---|---|
+| `AppDataTable` (table) | `el-table`, `el-table-column` (incl. `type="selection"`), `el-dropdown` row actions, `el-skeleton`, `v-loading`, `el-empty`, `el-result`, `el-button` |
+| `AppDataTable` (mobile) | `el-card`, `el-checkbox`, `el-dropdown` |
+| Pagination | `el-pagination` |
+| `ListToolbar` | `el-input`, `el-select` / `el-option`, `el-date-picker`, `el-tag`, `el-button`, `el-drawer`, `el-badge` |
+| `StatusTag` | `el-tag` |
+| `useConfirm` | `ElMessageBox.confirm` |
+
 ### List query composable (deep module)
 
 The centrepiece. It owns the full list query — search, filters, sort field, sort
@@ -179,29 +205,61 @@ Driven entirely by column descriptors. A descriptor carries the field key, a lab
 sortable flag, an optional custom cell renderer, an alignment, and a responsive
 priority that decides whether the column appears in the mobile card layout.
 
-The component owns the table and card presentations, sorting affordances and their
-accessible state, row selection, the actions column, and the loading, empty and error
-states. It emits intent — sort requested, page requested, row action invoked,
-selection changed — and holds no fetching logic and no knowledge of any entity.
+`AppDataTable` wraps `el-table` and maps each descriptor to an `el-table-column`
+(`prop`, `label`, `align`, `min-width`, `sortable`); a custom cell renderer is forwarded
+through the column's `#default="{ row }"` slot. It emits intent — sort requested, page
+requested, row action invoked, selection changed — and holds no fetching logic and no
+knowledge of any entity. How each owned concern is built:
+
+- **Sorting.** Sortable columns use `sortable="custom"`; `@sort-change` emits
+  `sort-requested` and the table never sorts rows itself. The native `sort-orders`
+  (`['ascending', 'descending', null]`) give the three-state cycle, and `el-table` sets
+  `aria-sort` on the header cell. The URL stays the source of truth: `:default-sort`
+  seeds the state on mount, and the table ref's `sort(prop, order)` / `clearSort()`
+  mirror the URL when it changes externally (back button, shared link).
+- **Selection.** An `el-table-column type="selection"` with `row-key` and
+  `@selection-change`; `reserve-selection` is **off**, so selection is page-scoped. When
+  the parent resets `selectedRowKeys`, the wrapper calls `clearSelection()` /
+  `toggleRowSelection()` so the table matches. The header checkbox is labelled as
+  selecting "this page".
+- **Row actions.** An `el-dropdown` per row with an `el-button text circle` trigger
+  (`aria-label` naming the record) and `el-dropdown-item`s, `divided` before a
+  destructive action.
+- **Async states.** First load: the `el-table` fed placeholder rows whose cells render
+  `el-skeleton-item`, so columns and widths match by construction. Refetch with rows on screen: `v-loading` on `el-table`.
+  Empty: `el-empty`, rendered in place of the table and cards, in its no-data variant (create
+  `el-button`) or no-matches variant (clear-filters `el-button`), with the token
+  illustration in `#image`. Load failed: `el-result` with a retry `el-button`.
 
 The two presentations share one descriptor set. The mobile card layout is not a
 separate component that entity screens opt into; it is what the table renders below
-the tablet breakpoint, using the breakpoint composable introduced in PRD-002.
+the tablet breakpoint, using the breakpoint composable introduced in PRD-002 — one
+`el-card shadow="never"` per row with an `el-checkbox` for selection and the same
+`el-dropdown` row actions, showing only high-priority columns.
 
 ### Supporting pieces
 
-**Toolbar.** Search input, filter controls, active-filter chips and a slot for page
-actions. Collapses into a drawer below the tablet breakpoint.
+**Toolbar.** `ListToolbar`: search is an `el-input clearable` with a search icon in
+`#prefix` (debounced in the composable, not the input); filters are `el-select`
+(`clearable`, `filterable`) with `el-option`s and `el-date-picker type="daterange"`;
+active filters are `el-tag closable` chips; clear-all is an `el-button link`; plus a slot
+for page actions. Below the tablet breakpoint the filters move into an `el-drawer`,
+opened by an `el-button` wrapped in an `el-badge` showing the active-filter count.
 
-**Pagination.** Renders the `PaginationMeta` envelope from PRD-001 directly. Page size
-choice persists per administrator.
+**Pagination.** `el-pagination` with `layout="total, sizes, prev, pager, next"` and
+`background`, `small` with a lower `pager-count` below tablet. Renders the
+`PaginationMeta` envelope from PRD-001 directly. Page size choice persists per
+administrator.
 
-**Confirmation composable.** Wraps the Element Plus message box into one call that
-returns a resolved intent, handles the in-flight state of the confirm button, and
-accepts the record's name so the prompt is specific rather than generic.
+**Confirmation composable.** `useConfirm` wraps `ElMessageBox.confirm` into one call that
+returns a resolved intent and accepts the record's name so the prompt is specific rather
+than generic. The in-flight state is Element Plus's own: `beforeClose` sets
+`instance.confirmButtonLoading = true` while the request runs, which shows progress and
+blocks a second submit, then calls `done()` on success.
 
-**Status tag.** Maps a status enum value to a consistent colour and label across the
-whole portal, so a `draft` event and a `draft` ticket look the same.
+**Status tag.** `StatusTag` wraps `el-tag`, mapping a status enum value to a consistent
+`type` + `effect` and a text label across the whole portal, so a `draft` event and a
+`draft` ticket look the same — never colour alone.
 
 **Formatters.** Extends the existing filters module with locale-aware date and
 date-range formatting, and money formatting that takes minor units and a currency code
@@ -209,16 +267,28 @@ date-range formatting, and money formatting that takes minor units and a currenc
 
 ### Testing boundary
 
+Component tests mount the real Element Plus components — never stubs — because sorting,
+selection and the empty slot *are* Element Plus behaviour. They drive the DOM Element Plus
+renders (header cell click for sort, the selection checkbox `<input>`, `el-select` option
+click) and query teleported poppers (dropdown, select, date picker, message box) in
+`document.body`, per [ELEMENT-PLUS.md](ELEMENT-PLUS.md#testing-element-plus-components-prd-008).
+
 - List query composable — unit tested: URL round-tripping, debounce, page reset on
   filter change, defaults omitted, defensive parsing of malformed parameters.
 - List resource composable — unit tested: refetch on query change, abort of a
   superseded request, error state and recovery via retry.
-- Data table — component tested: descriptor-driven rendering, sort cycling through
-  three states, loading/empty/filtered-empty/error states, selection behaviour, and the
-  presentation switch at the tablet breakpoint.
+- Data table — component tested against real `el-table`: descriptor-driven column
+  rendering, sort cycling through three states via header clicks and `sort-change`,
+  `aria-sort` on the header, URL-driven `sort()` / `clearSort()` sync,
+  `el-skeleton`/`el-empty`/filtered-empty/`el-result` states, selection via the
+  `type="selection"` checkboxes including `clearSelection()` sync, row actions in the
+  `el-dropdown` popper, and the `el-card` presentation switch at the tablet breakpoint.
+- Toolbar and pagination — component tested: `el-input` clear, `el-tag` close removes a
+  filter, `el-drawer` + `el-badge` count on mobile, `el-pagination` page-size change.
 - Formatters and status tag — unit tested, including a zero price, a large price and
   each currency.
-- Confirmation composable — unit tested for confirm and cancel paths.
+- Confirmation composable — unit tested for confirm and cancel paths against the real
+  `ElMessageBox`, including `confirmButtonLoading` while the request is in flight.
 
 ## API Contract Plan
 

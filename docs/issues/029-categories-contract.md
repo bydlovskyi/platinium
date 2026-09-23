@@ -49,6 +49,9 @@ right surface.
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 
+No UI in this slice — contract and mock only; the UI slices that consume it follow
+[`ELEMENT-PLUS.md`](../prd/ELEMENT-PLUS.md).
+
 ## Blocked by
 
 - Blocked by #28 — *Events deletion — confirmation and dependency-conflict handling*

@@ -25,28 +25,18 @@ defineProps<{
         aria-label="Breadcrumb"
         class="mb-1"
       >
-        <ol class="flex items-center gap-1 text-caption text-text-muted">
-          <li
+        <el-breadcrumb>
+          <template #separator>
+            <Icon name="chevron-right" class="size-3.5" />
+          </template>
+          <el-breadcrumb-item
             v-for="(crumb, index) in breadcrumbs"
             :key="`${crumb.label}-${index}`"
-            class="flex items-center gap-1"
+            :to="crumb.routeName ? { name: crumb.routeName } : undefined"
           >
-            <router-link
-              v-if="crumb.routeName"
-              :to="{ name: crumb.routeName }"
-              class="hover:text-text-primary"
-            >
-              {{ crumb.label }}
-            </router-link>
-            <span v-else>{{ crumb.label }}</span>
-
-            <Icon
-              v-if="index < breadcrumbs.length - 1"
-              name="chevron-right"
-              class="size-3.5"
-            />
-          </li>
-        </ol>
+            {{ crumb.label }}
+          </el-breadcrumb-item>
+        </el-breadcrumb>
       </nav>
 
       <h1 class="text-screen-heading text-text-primary">

@@ -72,8 +72,10 @@ and the test suite. It points at the real files — the PRDs, the issue specs, t
 the hook — because the artefacts are the evidence and prose about them is not.
 
 **A repository that is ready to be read.** The final pass: architecture document
-reconciled with what was built, no dead code, no placeholder examples from the template,
-`.env.example` accurate, and a clean-clone rehearsal of the whole reviewer journey.
+reconciled with what was built — including the Element Plus-first rule — no dead code, no
+placeholder examples from the template, no hand-built control where an Element Plus
+component exists, `.env.example` accurate, and a clean-clone rehearsal of the whole
+reviewer journey.
 
 ## User Stories
 
@@ -154,12 +156,24 @@ reconciled with what was built, no dead code, no placeholder examples from the t
 
 ## Implementation Decisions
 
+### Component library
+
+This PRD builds no UI, but it documents one of the project's central decisions: Element
+Plus is the portal's component library, governed by [`ELEMENT-PLUS.md`](./ELEMENT-PLUS.md),
+and shared components (`AppDataTable`, `ListToolbar`, `StatusTag`, `CurrencyInput`,
+`RemoteSelect`, `useConfirm`) wrap and configure Element Plus rather than replace it. The
+README names it among the technical decisions, `TECHNICAL_REVIEW.md` argues it with the
+alternative rejected, the AI workflow document records how the rule was lost and
+recovered, and the final pass verifies the code honours it.
+
 ### README
 
 Ordered for a reviewer's path, not for a table of contents: overview and screenshots;
 quick start via Docker; credentials for both roles; local installation; commands grouped
 by purpose; project structure; architecture overview with the dependency rules; mock API
-explanation including how to reset data and force failures; technical decisions;
+explanation including how to reset data and force failures; technical decisions —
+including Element Plus as the component library, themed through `--el-*` variables mapped
+onto the design tokens, with links to `ELEMENT-PLUS.md` and the design system reference;
 assumptions and trade-offs; and a short pointer to the AI workflow document.
 
 Every command is executed from a fresh clone before it is written down. Every structure
@@ -177,7 +191,10 @@ PRD-001 through PRD-008 rather than reconstructed.
 **Architectural decisions** — the local OpenAPI contract as the single source of truth;
 in-browser MSW with server-side query semantics; URL-driven list state; integer minor
 units for money; the layered service/store/composable direction and why it is enforced;
-one configurable table rather than three.
+one configurable table rather than three; and Element Plus first — shared components wrap
+`el-table`, `el-form`, `el-select`, `el-pagination`, `ElMessageBox` and the rest instead of
+hand-building controls, themed through `--el-*` variables rather than class overrides,
+with the alternative (a bespoke component set, or a headless library) and its cost stated.
 
 **Two more days** — a ranked list with the reasoning for the ranking, drawn from what
 each PRD deferred. Ranking is the point; an unordered wish list demonstrates nothing.
@@ -207,7 +224,9 @@ repository's gates rather than a generic list.
 **AI in the workflow** — how it was used here and how it would be used daily on this
 project: written specifications before implementation, project-specific conventions as
 enforceable skills, path-triggered rule reminders, review passes as a gate rather than a
-formality, and the boundary of what should not be delegated. Cross-references the
+formality, and the boundary of what should not be delegated. The Element Plus retrofit is
+the worked example: library-neutral spec wording produced hand-rolled tables and buttons,
+and the fix was to put the component names into the specs. Cross-references the
 workflow document rather than duplicating it.
 
 ### AI workflow evidence
@@ -225,12 +244,23 @@ contract, which is this project's equivalent shared bottleneck file. A concrete
 adaptation demonstrates understanding; a claim of AI usage does not.
 
 It is also honest about where AI output was wrong or had to be redirected. An account
-with no corrections in it reads as an account that was not examined.
+with no corrections in it reads as an account that was not examined. The clearest case is
+the Element Plus retrofit: PRDs that said "a data table" or "a confirmation" without
+naming a component led the builder to hand-roll a `<table>`, raw `<button>` sort headers,
+skeleton and empty states, although `architecture.md` said "check Element Plus first". The
+correction was a spec change — `ELEMENT-PLUS.md` and component-named PRDs and issues —
+not a code review comment, and that is the lesson worth recording.
 
 ### Repository final pass
 
 The inherited `architecture.md` is reconciled with what was built — every rule it states
-must be true of the code, and every pattern the code relies on must appear in it.
+must be true of the code, and every pattern the code relies on must appear in it —
+including the Element Plus-first rule and its component map. An audit confirms no raw
+`<button>`, `<input>`, `<select>`, `<textarea>` or `<table>` remains in feature or shared
+code outside the standing exceptions in `ELEMENT-PLUS.md`, that every Element Plus
+component in use has its `theme-chalk` stylesheet imported in
+`src/assets/styles/element-reset/components/index.css`, and that no unexplained `.el-*`
+selector override remains.
 Template placeholder code from the original skeleton is removed. Dead code, unused
 dependencies and stale comments are removed. `.env.example` is verified against what the
 application actually reads. Screenshots are captured from a seeded build at desktop and
@@ -252,7 +282,8 @@ None. This PRD introduces no endpoint, parameter or schema component.
 - API reference documentation generated from the OpenAPI document. The specification is
   readable and is the source of truth; a generated site adds a build step for no
   reviewer benefit.
-- A component library or Storybook.
+- A bespoke component library or Storybook. Element Plus is the component library, and
+  `ELEMENT-PLUS.md` plus the design system reference document how the portal uses it.
 - Video walkthroughs and recorded demonstrations.
 - Contribution guidelines, a code of conduct and issue templates. This is an assessment
   repository, not an open-source project.

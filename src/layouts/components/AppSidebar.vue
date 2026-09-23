@@ -1,6 +1,13 @@
 <script lang="ts" setup>
 import { navEntries } from '@/layouts/config/nav-entries'
 
+/**
+ * Primary navigation, rendered from the declared entry list (PRD-002
+ * "Navigation model") through `el-menu`. `:collapse` gives the tablet icon
+ * rail (Element Plus shows the label in a tooltip), and navigation goes
+ * through `router.push({ name })` in `@select` rather than `el-menu`'s
+ * `router` mode, which navigates by path string.
+ */
 defineProps<{
   collapsed?: boolean
 }>()
@@ -10,28 +17,41 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 
-function isActive (routeName: string): boolean {
-  return route.name === routeName
+const activeRouteName = computed(() => String(route.name ?? ''))
+
+async function onSelect (routeName: string): Promise<void> {
+  emit('navigate')
+  await router.push({ name: routeName })
 }
 </script>
 
 <template>
-  <nav aria-label="Primary" class="flex h-full flex-col gap-1 p-3">
-    <router-link
-      v-for="entry in navEntries"
-      :key="entry.routeName"
-      :to="{ name: entry.routeName }"
-      :title="collapsed ? entry.label : undefined"
-      class="flex items-center gap-3 rounded-token-md px-3 py-2 text-body transition-colors"
-      :class="isActive(entry.routeName)
-        ? 'bg-accent/10 text-accent font-medium'
-        : 'text-text-muted hover:bg-surface-raised hover:text-text-primary'"
-      :aria-current="isActive(entry.routeName) ? 'page' : undefined"
-      @click="emit('navigate')"
-    >
-      <Icon :name="entry.icon" class="size-5 shrink-0" />
-      <span v-if="!collapsed" class="truncate">{{ entry.label }}</span>
-    </router-link>
+  <nav aria-label="Primary" class="h-full">
+    <el-scrollbar>
+      <el-menu
+        :default-active="activeRouteName"
+        :collapse="collapsed"
+        :collapse-transition="false"
+        class="!border-r-0 !bg-transparent"
+        @select="onSelect"
+      >
+        <el-menu-item
+          v-for="entry in navEntries"
+          :key="entry.routeName"
+          :index="entry.routeName"
+          :aria-current="activeRouteName === entry.routeName ? 'page' : undefined"
+          :aria-label="collapsed ? entry.label : undefined"
+        >
+          <el-icon>
+            <Icon :name="entry.icon" />
+          </el-icon>
+          <template #title>
+            {{ entry.label }}
+          </template>
+        </el-menu-item>
+      </el-menu>
+    </el-scrollbar>
   </nav>
 </template>

@@ -19,37 +19,45 @@ Blocked by: #23
 
 #3 — [`docs/prd/PRD-003-data-table-and-list-experience.md`](../prd/PRD-003-data-table-and-list-experience.md)
 
+Governed by [docs/prd/ELEMENT-PLUS.md](../prd/ELEMENT-PLUS.md).
+
 ## What to build
 
 The supporting pieces that complete the list experience, each shared so that
 behaviour cannot diverge between entities.
 
-The toolbar holds search, filter controls, active-filter chips and a slot for page
-actions, collapsing into a drawer below the tablet breakpoint. Pagination renders the
-shared envelope directly.
+The toolbar (`ListToolbar`) holds search (`el-input clearable`), filter controls
+(`el-select`, `el-date-picker type="daterange"`), active-filter chips (`el-tag closable`),
+a clear-all `el-button link` and a slot for page actions, collapsing into an `el-drawer`
+behind an `el-button` + `el-badge` below the tablet breakpoint. Pagination is
+`el-pagination` rendering the shared envelope directly.
 
-The confirmation composable is one call used by every delete in the portal: it names the
-specific record, handles the confirm button's in-flight state, and returns a resolved
+The confirmation composable (`useConfirm`) is one call over `ElMessageBox.confirm` used by
+every delete in the portal: it names the specific record, handles the confirm button's
+in-flight state through `beforeClose` and `confirmButtonLoading`, and returns a resolved
 intent. A generic "are you sure?" is how an administrator deletes the wrong row.
 
-The status tag maps a status enum to a consistent colour and label portal-wide, using the
-mapping defined in the design foundation — a draft event and a draft ticket must look the
-same. Formatters extend the existing filters module with locale-aware dates and money
+The status tag (`StatusTag`, wrapping `el-tag`) maps a status enum to a consistent
+`type`, `effect` and label portal-wide, using the mapping defined in the design
+foundation — a draft event and a draft ticket must look the same. Formatters extend the existing filters module with locale-aware dates and money
 that takes minor units and a currency code, matching the integer-minor-units decision.
 
 ## Acceptance criteria
 
 - [ ] Tests listed in the parent PRD's testing boundary for this slice are written and passing
-- [ ] Toolbar: search input with a clear action, filter controls, active-filter chips that are individually removable, clear-all action, slot for page actions
-- [ ] Toolbar collapses into a drawer below the tablet breakpoint
-- [ ] Pagination renders the shared `PaginationMeta` envelope with total count visible and a page-size selector
-- [ ] Confirmation composable names the record, disables and shows progress on the confirm button while in flight, and resolves to a clear intent
-- [ ] Status tag maps every event and ticket status to the colour and label defined in the design foundation; identical statuses look identical across entities
-- [ ] Status tag is distinguishable in greyscale — never colour alone
+- [ ] Built from `el-input`, `el-select` / `el-option`, `el-date-picker`, `el-tag`, `el-button`, `el-drawer`, `el-badge`, `el-pagination` and `ElMessageBox`; no raw `<button>`/`<input>`/`<table>`/`<select>` in this slice
+- [ ] Toolbar: search is an `el-input clearable` with a search icon in `#prefix` (debounce stays in the list query composable); filter controls are `el-select` (`clearable`, `filterable`) and `el-date-picker type="daterange"`; active-filter chips are `el-tag closable`, each individually removable via `@close`; clear-all is an `el-button link`; slot for page actions
+- [ ] Below the tablet breakpoint the filters collapse into an `el-drawer`, opened by an `el-button` inside an `el-badge` showing the active-filter count
+- [ ] Pagination is `el-pagination` with `layout="total, sizes, prev, pager, next"` and `background`, `small` with a lower `pager-count` below tablet, rendering the shared `PaginationMeta` envelope with total count visible and the `sizes` page-size selector
+- [ ] `useConfirm` wraps `ElMessageBox.confirm`, names the record, and in `beforeClose` sets `instance.confirmButtonLoading = true` while the request is in flight (progress shown, second submit blocked), then resolves to a clear intent
+- [ ] `StatusTag` wraps `el-tag`, mapping every event and ticket status to the `type` / `effect` and label defined in the design foundation; identical statuses look identical across entities
+- [ ] Status tag is distinguishable in greyscale — always a text label, never colour alone
+- [ ] Every newly adopted Element Plus component's theme-chalk stylesheet (`el-input`, `el-select`, `el-option`, `el-date-picker`, `el-tag`, `el-drawer`, `el-badge`, `el-pagination`, `el-message-box`, …) imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
+- [ ] Component tests mount real Element Plus (no stubs) and query teleported poppers (`el-select` dropdown, date picker, message box) in `document.body`
 - [ ] Date formatter is locale-aware; a date range renders as one readable string
 - [ ] Money formatter takes minor units plus a currency code and renders with the correct symbol and grouping
 - [ ] Unit tests for formatters including zero, a large value and each supported currency
-- [ ] Unit tests for the confirmation composable covering confirm and cancel paths
+- [ ] Unit tests for the confirmation composable covering confirm and cancel paths against the real `ElMessageBox`, including `confirmButtonLoading` while in flight
 - [ ] `npm run lint` and `npm run type-check` clean
 - [ ] Conventions in [`.claude/skills/code-conventions`](../../.claude/skills/code-conventions/SKILL.md) satisfied
 

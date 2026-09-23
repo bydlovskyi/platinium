@@ -295,6 +295,39 @@ describe('useListQuery', () => {
     })
   })
 
+  describe('sort cycling', () => {
+    it('cycles a repeatedly-clicked field through ascending, descending, then unsorted', async () => {
+      const { router, listQuery } = await setup()
+
+      await listQuery.setSort('name')
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'asc' })
+      expect(router.currentRoute.value.query.sort).toBe('name')
+
+      await listQuery.setSort('name')
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'desc' })
+      expect(router.currentRoute.value.query.sort).toBe('name')
+
+      await listQuery.setSort('name')
+      expect(listQuery.sort.value).toBeUndefined()
+      expect(router.currentRoute.value.query.sort).toBeUndefined()
+      expect(router.currentRoute.value.query.order).toBeUndefined()
+
+      await listQuery.setSort('name')
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'asc' })
+    })
+
+    it('starts a newly-clicked field at ascending regardless of another field\'s previous state', async () => {
+      const { listQuery } = await setup()
+
+      await listQuery.setSort('name')
+      await listQuery.setSort('name')
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'desc' })
+
+      await listQuery.setSort('createdAt')
+      expect(listQuery.sort.value).toEqual({ field: 'createdAt', order: 'asc' })
+    })
+  })
+
   describe('rapid successive calls', () => {
     it('nets two toggles (undefined -> asc -> desc) when setSort is called twice back-to-back without awaiting in between', async () => {
       const { router, listQuery } = await setup()
