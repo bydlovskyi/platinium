@@ -406,6 +406,171 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DependencyConflict'
+
+  /tickets:
+    get:
+      operationId: getTickets
+      summary: List tickets
+      description: >
+        Returns a page of tickets, filtered and sorted per the given query
+        parameters. Each returned ticket carries denormalised `eventName`/
+        `categoryName` alongside `eventId`/`categoryId`, resolved from the
+        referenced event/category at read time.
+      tags:
+        - Tickets
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - name: eventId
+          in: query
+          required: false
+          description: Filters to tickets belonging to this exact event id.
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          required: false
+          description: Filters to tickets belonging to this exact category id.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filters to tickets with this exact lifecycle status.
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+        - name: currency
+          in: query
+          required: false
+          description: Filters to tickets priced in this exact currency.
+          schema:
+            $ref: '#/components/schemas/Currency'
+        - name: priceMin
+          in: query
+          required: false
+          description: Lower bound (inclusive) on price, in minor currency units.
+          schema:
+            type: integer
+        - name: priceMax
+          in: query
+          required: false
+          description: Upper bound (inclusive) on price, in minor currency units.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A page of tickets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketListResponse'
+
+    post:
+      operationId: postTickets
+      summary: Create a ticket
+      description: >
+        Creates a new ticket from the given payload. Rejects an `eventId` or
+        `categoryId` that does not resolve to an existing event/category with
+        a `400` carrying a field error on the offending field.
+      tags:
+        - Tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketPayload'
+      responses:
+        '201':
+          description: The ticket was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /tickets/{id}:
+    get:
+      operationId: getTicketsId
+      summary: Fetch a ticket
+      description: Returns a single ticket by id.
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The ticket record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchTicketsId
+      summary: Partially update a ticket
+      description: >
+        Applies a partial update to an existing ticket. Rejects an `eventId`
+        or `categoryId` that does not resolve to an existing event/category
+        with a `400` carrying a field error on the offending field.
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketPayload'
+      responses:
+        '200':
+          description: The updated ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteTicketsId
+      summary: Delete a ticket
+      description: >
+        Deletes a ticket. Unlike an event or a category, a ticket is a leaf
+        of the domain model — nothing references a ticket — so, unlike their
+        delete operations, there is no dependency-conflict case here: deletion
+        always succeeds once the ticket itself is found.
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The ticket was deleted.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   schemas:
     HealthStatus:
@@ -750,6 +915,135 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Category'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    Ticket:
+      type: object
+      description: >
+        A ticket offered for a given event and category. `price` is an
+        integer in minor currency units (e.g. cents), never a float, so
+        formatting to a locale-aware string only happens at the presentation
+        boundary. `eventName`/`categoryName` are denormalised copies of the
+        referenced event's/category's `name`, resolved at read time by the
+        mock handler (`src/mocks/handlers/tickets.ts`) — not stored fields —
+        so they always reflect the current name and never need a cascading
+        update when an event or category is renamed.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name.
+        price:
+          type: integer
+          description: Price in minor currency units (e.g. cents), never a float.
+          minimum: 0
+        currency:
+          allOf:
+            - $ref: '#/components/schemas/Currency'
+          description: The currency this ticket is priced in.
+        quantity:
+          type: integer
+          description: Administrator-managed stock count, capped at 100,000.
+          minimum: 0
+          maximum: 100000
+        status:
+          allOf:
+            - $ref: '#/components/schemas/TicketStatus'
+          description: The ticket's lifecycle status.
+        eventId:
+          type: string
+          description: Id of the event this ticket belongs to.
+        eventName:
+          type: string
+          description: Denormalised name of the referenced event, resolved at read time.
+        categoryId:
+          type: string
+          description: Id of the category this ticket belongs to.
+        categoryName:
+          type: string
+          description: Denormalised name of the referenced category, resolved at read time.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - price
+        - currency
+        - quantity
+        - status
+        - eventId
+        - eventName
+        - categoryId
+        - categoryName
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    TicketPayload:
+      type: object
+      description: >
+        The writable subset of a Ticket, shared by `POST /tickets` (full
+        create) and `PATCH /tickets/{id}` (partial update). Deliberately
+        carries no `required` list, for the same reason `EventPayload`/
+        `CategoryPayload` do not: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force every field on a `PATCH`
+        too, defeating "partial". Which fields are mandatory for create
+        instead of update — and the referential checks on `eventId`/
+        `categoryId` — is enforced at runtime by the mock handler's
+        `validate` function (`src/mocks/handlers/tickets.ts`); do not add
+        `required` back to this schema.
+      properties:
+        name:
+          type: string
+          description: Display name.
+        price:
+          type: integer
+          description: Price in minor currency units (e.g. cents), never a float.
+          minimum: 0
+        currency:
+          allOf:
+            - $ref: '#/components/schemas/Currency'
+          description: The currency this ticket is priced in.
+        quantity:
+          type: integer
+          description: Administrator-managed stock count, capped at 100,000.
+          minimum: 0
+          maximum: 100000
+        status:
+          allOf:
+            - $ref: '#/components/schemas/TicketStatus'
+          description: The ticket's lifecycle status.
+        eventId:
+          type: string
+          description: Id of the event this ticket belongs to.
+        categoryId:
+          type: string
+          description: Id of the category this ticket belongs to.
+      additionalProperties: false
+
+    TicketListResponse:
+      type: object
+      description: Body returned by `GET /tickets`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
         meta:
           allOf:
             - $ref: '#/components/schemas/PaginationMeta'

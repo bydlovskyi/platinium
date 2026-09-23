@@ -188,6 +188,58 @@ export interface paths {
         patch: operations["patchCategoriesId"];
         trace?: never;
     };
+    "/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tickets
+         * @description Returns a page of tickets, filtered and sorted per the given query parameters. Each returned ticket carries denormalised `eventName`/ `categoryName` alongside `eventId`/`categoryId`, resolved from the referenced event/category at read time.
+         */
+        get: operations["getTickets"];
+        put?: never;
+        /**
+         * Create a ticket
+         * @description Creates a new ticket from the given payload. Rejects an `eventId` or `categoryId` that does not resolve to an existing event/category with a `400` carrying a field error on the offending field.
+         */
+        post: operations["postTickets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a ticket
+         * @description Returns a single ticket by id.
+         */
+        get: operations["getTicketsId"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a ticket
+         * @description Deletes a ticket. Unlike an event or a category, a ticket is a leaf of the domain model — nothing references a ticket — so, unlike their delete operations, there is no dependency-conflict case here: deletion always succeeds once the ticket itself is found.
+         */
+        delete: operations["deleteTicketsId"];
+        options?: never;
+        head?: never;
+        /**
+         * Partially update a ticket
+         * @description Applies a partial update to an existing ticket. Rejects an `eventId` or `categoryId` that does not resolve to an existing event/category with a `400` carrying a field error on the offending field.
+         */
+        patch: operations["patchTicketsId"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -363,6 +415,62 @@ export interface components {
         /** @description Body returned by `GET /categories`. */
         CategoryListResponse: {
             data: components["schemas"]["Category"][];
+            /** @description Pagination metadata for the returned page. */
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        /** @description A ticket offered for a given event and category. `price` is an integer in minor currency units (e.g. cents), never a float, so formatting to a locale-aware string only happens at the presentation boundary. `eventName`/`categoryName` are denormalised copies of the referenced event's/category's `name`, resolved at read time by the mock handler (`src/mocks/handlers/tickets.ts`) — not stored fields — so they always reflect the current name and never need a cascading update when an event or category is renamed. */
+        Ticket: {
+            /** @description Opaque unique identifier. */
+            id: string;
+            /** @description Display name. */
+            name: string;
+            /** @description Price in minor currency units (e.g. cents), never a float. */
+            price: number;
+            /** @description The currency this ticket is priced in. */
+            currency: components["schemas"]["Currency"];
+            /** @description Administrator-managed stock count, capped at 100,000. */
+            quantity: number;
+            /** @description The ticket's lifecycle status. */
+            status: components["schemas"]["TicketStatus"];
+            /** @description Id of the event this ticket belongs to. */
+            eventId: string;
+            /** @description Denormalised name of the referenced event, resolved at read time. */
+            eventName: string;
+            /** @description Id of the category this ticket belongs to. */
+            categoryId: string;
+            /** @description Denormalised name of the referenced category, resolved at read time. */
+            categoryName: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the record was last updated.
+             */
+            updatedAt: string;
+        };
+        /** @description The writable subset of a Ticket, shared by `POST /tickets` (full create) and `PATCH /tickets/{id}` (partial update). Deliberately carries no `required` list, for the same reason `EventPayload`/ `CategoryPayload` do not: OpenAPI's `required` is schema-wide, not per-operation, so a list here would force every field on a `PATCH` too, defeating "partial". Which fields are mandatory for create instead of update — and the referential checks on `eventId`/ `categoryId` — is enforced at runtime by the mock handler's `validate` function (`src/mocks/handlers/tickets.ts`); do not add `required` back to this schema. */
+        TicketPayload: {
+            /** @description Display name. */
+            name?: string;
+            /** @description Price in minor currency units (e.g. cents), never a float. */
+            price?: number;
+            /** @description The currency this ticket is priced in. */
+            currency?: components["schemas"]["Currency"];
+            /** @description Administrator-managed stock count, capped at 100,000. */
+            quantity?: number;
+            /** @description The ticket's lifecycle status. */
+            status?: components["schemas"]["TicketStatus"];
+            /** @description Id of the event this ticket belongs to. */
+            eventId?: string;
+            /** @description Id of the category this ticket belongs to. */
+            categoryId?: string;
+        };
+        /** @description Body returned by `GET /tickets`. */
+        TicketListResponse: {
+            data: components["schemas"]["Ticket"][];
             /** @description Pagination metadata for the returned page. */
             meta: components["schemas"]["PaginationMeta"];
         };
@@ -824,6 +932,146 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+        };
+    };
+    getTickets: {
+        parameters: {
+            query?: {
+                /** @description Free-text search applied across an endpoint's declared searchable fields. */
+                search?: components["parameters"]["search"];
+                /** @description Field name to sort by. Valid values are declared by the owning endpoint. */
+                sort?: components["parameters"]["sort"];
+                /** @description Sort direction, paired with `sort`. */
+                order?: components["parameters"]["order"];
+                /** @description 1-indexed page number. */
+                page?: components["parameters"]["page"];
+                /** @description Number of items per page. */
+                perPage?: components["parameters"]["perPage"];
+                /** @description Filters to tickets belonging to this exact event id. */
+                eventId?: string;
+                /** @description Filters to tickets belonging to this exact category id. */
+                categoryId?: string;
+                /** @description Filters to tickets with this exact lifecycle status. */
+                status?: components["schemas"]["TicketStatus"];
+                /** @description Filters to tickets priced in this exact currency. */
+                currency?: components["schemas"]["Currency"];
+                /** @description Lower bound (inclusive) on price, in minor currency units. */
+                priceMin?: number;
+                /** @description Upper bound (inclusive) on price, in minor currency units. */
+                priceMax?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of tickets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListResponse"];
+                };
+            };
+        };
+    };
+    postTickets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketPayload"];
+            };
+        };
+        responses: {
+            /** @description The ticket was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getTicketsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ticket record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTicketsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ticket was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchTicketsId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketPayload"];
+            };
+        };
+        responses: {
+            /** @description The updated ticket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

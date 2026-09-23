@@ -56,3 +56,12 @@ type TCategoryPayload = TApiComponents['schemas']['CategoryPayload']
 
 /** Body returned by `GET /categories`. */
 type TCategoryListResponse = TApiComponents['schemas']['CategoryListResponse']
+
+/** A ticket offered for a given event and category. */
+type TTicket = TApiComponents['schemas']['Ticket']
+
+/** The writable subset of a Ticket, shared by create and update. */
+type TTicketPayload = TApiComponents['schemas']['TicketPayload']
+
+/** Body returned by `GET /tickets`. */
+type TTicketListResponse = TApiComponents['schemas']['TicketListResponse']

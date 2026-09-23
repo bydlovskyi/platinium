@@ -4,6 +4,7 @@ import { authHandlers } from './auth'
 import { categoryHandlers } from './categories'
 import { eventHandlers } from './events'
 import { healthHandlers } from './health'
+import { ticketHandlers } from './tickets'
 
 /**
  * The production handler list: every route the mock backend actually
@@ -11,18 +12,15 @@ import { healthHandlers } from './health'
  * and the Node server (`src/mocks/server.ts`) so both environments answer
  * requests identically.
  *
- * `/health`, the `/auth/*` paths, `/events` and `/categories` are
- * registered here today. The remaining entity paths (`/tickets`) are
- * declared by their own dedicated contract slice (#31), which calls
- * `createEntityHandlers` from `src/mocks/handlers/factory.ts` and appends
- * its handlers to this array the same way `eventHandlers`/`categoryHandlers`
- * do.
+ * `/health`, the `/auth/*` paths, `/events`, `/categories` and `/tickets`
+ * are registered here.
  */
 export const handlers: HttpHandler[] = [
   ...healthHandlers,
   ...authHandlers,
   ...eventHandlers,
-  ...categoryHandlers
+  ...categoryHandlers,
+  ...ticketHandlers
 ]
 
 export { createEntityHandlers } from './factory'
