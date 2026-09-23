@@ -161,7 +161,7 @@ describe('createDatabase', () => {
       const db = createDatabase()
       const setItem = vi.spyOn(Storage.prototype, 'setItem')
 
-      db.reset({ events: [anEvent('after-reset')], categories: [], tickets: [] })
+      db.reset({ events: [anEvent('after-reset')], categories: [], tickets: [], users: [] })
 
       expect(setItem).toHaveBeenCalledTimes(1)
       expect(loadPersistedDataset()?.events.map(event => event.id)).toEqual(['after-reset'])

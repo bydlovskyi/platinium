@@ -110,12 +110,13 @@ export function createDatabase (dataset?: ISeedDataset): IMockDatabase {
   const users = wrapWithPersistence(rawUsers, flush)
 
   // Replaces through the unwrapped collections and flushes once, rather than
-  // serializing the whole dataset to `localStorage` three times over.
+  // serializing the whole dataset to `localStorage` once per collection.
   function reset (overrideDataset: ISeedDataset = createSeedDataset()): void {
-    events.replace(overrideDataset.events)
-    categories.replace(overrideDataset.categories)
-    tickets.replace(overrideDataset.tickets)
-    users.replace(overrideDataset.users)
+    rawEvents.replace(overrideDataset.events)
+    rawCategories.replace(overrideDataset.categories)
+    rawTickets.replace(overrideDataset.tickets)
+    rawUsers.replace(overrideDataset.users)
+    flush()
   }
 
   return { events, categories, tickets, users, reset }
