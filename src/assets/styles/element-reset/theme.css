@@ -116,6 +116,44 @@
   --el-border-radius-small: var(--radius-token-sm);
   --el-border-radius-round: var(--radius-token-lg);
   --el-border-radius-circle: 100%;
+
+  /* MOTION (issue #42, PRD-010 "Motion") — the two duration and two easing
+     tokens from theme.css, mapped onto Element Plus's own transition
+     variables so `el-dialog`/`el-drawer`/`el-notification`/`el-dropdown`/
+     `el-message-box`'s *built-in* transitions (dialog-fade, el-drawer-fade,
+     el-notification-fade, el-zoom-in-*, el-fade-in, …) run on this design
+     system's timing instead of theme-chalk's own 0.3s/0.2s defaults. This is
+     duration/easing, not colour, so — unlike the five hues above — a single
+     `:root` mapping covers both themes; see the `prefers-reduced-motion`
+     override at the bottom of this file for the one place it does split. */
+  --el-transition-duration: var(--duration-base);
+  --el-transition-duration-fast: var(--duration-fast);
+  --el-transition-function-ease-in-out-bezier: var(--ease-in-out-token);
+  --el-transition-function-fast-bezier: var(--ease-out-token);
+}
+
+/*
+  Reduced motion (PRD-010 "Motion" — non-negotiable): the duration tokens
+  themselves resolve to `0s` under the preference, not just a `!important`
+  transition-duration override — this is what lets a component test assert
+  `getComputedStyle(el).getPropertyValue('--el-transition-duration')` (or the
+  `--duration-*` tokens directly) reads `0s`, per PRD-010's testing boundary.
+  base.css's global `@media (prefers-reduced-motion: reduce)` block already
+  forces every *actual* `transition-duration`/`animation-duration` near-zero
+  via `!important`, which covers CSS-driven transitions unconditionally; this
+  block covers the token values Element Plus's own transitions and any
+  future `var(--duration-*)` consumer read their duration from, and is also
+  what `useDashboardHeadlineFigures`/`usePreferredReducedMotion` in
+  Dashboard.vue checks to bypass the JS-driven `useTransition` count-up,
+  since a CSS override alone cannot stop a JS animation loop.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0s;
+    --duration-base: 0s;
+    --el-transition-duration: 0s;
+    --el-transition-duration-fast: 0s;
+  }
 }
 
 /*

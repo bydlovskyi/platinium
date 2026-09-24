@@ -37,12 +37,12 @@ cp .env.example .env
 ## Demo credentials
 
 The backend is fully mocked (MSW) — there is no real server and no real user database.
-Sign in with the single seeded administrator account:
+Sign in with one of the two seeded accounts:
 
-| Field | Value |
-|---|---|
-| Email | `admin@platinium.test` |
-| Password | `admin123` |
+| Role | Email | Password | Access |
+|---|---|---|---|
+| Administrator | `admin@platinium.test` | `admin123` | Full — read and write |
+| Viewer | `viewer@platinium.test` | `viewer123` | Read-only — every write endpoint rejects this account with `403` |
 
 The credentials are checked directly by the mock login handler
 (`src/mocks/handlers/auth.ts`), not stored on the seeded user record.

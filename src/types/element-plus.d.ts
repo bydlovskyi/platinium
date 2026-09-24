@@ -6,6 +6,7 @@ interface IElementPlus {
   FormInstance: import('element-plus').FormInstance
   FormItemRule: import('element-plus').FormItemRule
   FormRules: import('element-plus').FormRules
+  InputInstance: import('element-plus').InputInstance
 
   ElMessageBoxOptions: import('element-plus').ElMessageBoxOptions
   MessageOptions: import('element-plus').MessageOptions
