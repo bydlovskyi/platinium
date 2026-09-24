@@ -3,6 +3,10 @@ import { mount, flushPromises } from '@vue/test-utils'
 import AppDataTable from './AppDataTable.vue'
 import type { IDataTableColumn, IDataTableRowAction } from './data-table.types'
 
+import EmptyNoDataIllustration from '../illustrations/EmptyNoDataIllustration.vue'
+import EmptyNoMatchesIllustration from '../illustrations/EmptyNoMatchesIllustration.vue'
+import LoadFailedIllustration from '../illustrations/LoadFailedIllustration.vue'
+
 import { setViewportToBreakpoint } from '../../../tests/support'
 
 /**
@@ -181,11 +185,15 @@ describe('AppDataTable', () => {
       expect(wrapper.find('.el-loading-mask').exists()).toBe(true)
     })
 
-    it('shows a create action when nothing exists yet', async () => {
+    it('shows a create action when nothing exists yet, with the no-data illustration and no other', async () => {
       const wrapper = mountTable({ rows: [], emptyReason: 'no-data' })
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nothing here yet')
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+
       const createButton = wrapper.findAll('button').find(button => button.text().includes('Create'))
       expect(createButton).toBeDefined()
 
@@ -193,11 +201,15 @@ describe('AppDataTable', () => {
       expect(wrapper.emitted('create-requested')).toHaveLength(1)
     })
 
-    it('shows a clear-filters action when nothing matched the filters', async () => {
+    it('shows a clear-filters action when nothing matched the filters, with the no-matches illustration and no other', async () => {
       const wrapper = mountTable({ rows: [], emptyReason: 'no-matches' })
       await flushPromises()
 
       expect(wrapper.text()).toContain('No results match your filters')
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+
       const clearButton = wrapper.findAll('button').find(button => button.text().includes('Clear filters'))
       expect(clearButton).toBeDefined()
 
@@ -205,13 +217,16 @@ describe('AppDataTable', () => {
       expect(wrapper.emitted('clear-filters-requested')).toHaveLength(1)
     })
 
-    it('shows a retry action when the load failed, distinct from the empty states', async () => {
+    it('shows a retry action when the load failed, with the load-failed illustration, distinct from the empty states', async () => {
       const wrapper = mountTable({ rows: [], error: new Error('network down') })
       await flushPromises()
 
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('Nothing here yet')
       expect(wrapper.text()).not.toContain('No results match your filters')
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
 
       const retryButton = wrapper.findAll('button').find(button => button.text().includes('Retry'))
       expect(retryButton).toBeDefined()
@@ -339,6 +354,49 @@ describe('AppDataTable', () => {
       expect(wrapper.emitted('row-action-invoked')?.[0]).toEqual([{ action: 'edit', row: buildRows()[0] }])
 
       wrapper.unmount()
+    })
+  })
+
+  describe('row-leave animation (GitHub issue #42, PRD-010 "Motion")', () => {
+    it('applies the leaving class to the table row matching a leavingRowKeys entry, and not to any other row', async () => {
+      const wrapper = mountTable({ leavingRowKeys: ['row-2'] })
+      await flushPromises()
+
+      const rows = wrapper.findAll('tbody tr')
+      const leavingRow = rows.find(row => row.text().includes('Row 2'))
+      const otherRow = rows.find(row => row.text().includes('Row 1'))
+
+      expect(leavingRow!.classes()).toContain('app-table-row-leaving')
+      expect(otherRow!.classes()).not.toContain('app-table-row-leaving')
+    })
+
+    it('applies no leaving class when leavingRowKeys is empty (the default)', async () => {
+      const wrapper = mountTable({})
+      await flushPromises()
+
+      const rows = wrapper.findAll('tbody tr')
+      expect(rows.some(row => row.classes().includes('app-table-row-leaving'))).toBe(false)
+    })
+
+    it('configures the mobile card list\'s TransitionGroup with the same leaving class the table presentation uses', async () => {
+      // `@vue/test-utils` stubs `<TransitionGroup>` (as `<transition-group-stub>`)
+      // rather than running Vue's real leave-transition timing, so the
+      // outgoing element is removed immediately with no leave-active-class
+      // ever attached to it in this environment — a real browser is what
+      // actually plays the leave animation (covered by the live/manual
+      // verification pass, not a jsdom component test). What IS honestly
+      // assertable here is that the `<TransitionGroup>` is wired with the
+      // correct `leave-active-class`, i.e. it WOULD play
+      // `.app-table-row-leaving` (the same class/keyframe the table
+      // presentation applies via `row-class-name`) once Vue's real leave
+      // logic runs it.
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({ leavingRowKeys: ['row-1'] })
+      await flushPromises()
+
+      const transitionGroup = wrapper.find('transition-group-stub')
+      expect(transitionGroup.exists()).toBe(true)
+      expect(transitionGroup.attributes('leaveactiveclass')).toBe('app-table-row-leaving')
     })
   })
 

@@ -22,7 +22,8 @@ export const ticketsRoutes: RouteRecordRaw[] = [
     meta: {
       label: 'Create ticket',
       requiresAuth: true,
-      layout: 'admin'
+      layout: 'admin',
+      requiredCapability: { entity: 'tickets', operation: 'create' }
     }
   },
   {
@@ -32,7 +33,8 @@ export const ticketsRoutes: RouteRecordRaw[] = [
     meta: {
       label: 'Edit ticket',
       requiresAuth: true,
-      layout: 'admin'
+      layout: 'admin',
+      requiredCapability: { entity: 'tickets', operation: 'update' }
     }
   }
 ]

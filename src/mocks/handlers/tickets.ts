@@ -1,8 +1,10 @@
 import type { HttpHandler } from 'msw'
 
 import { db } from '../db/singleton'
-import { createEntityHandlers } from './factory'
-import type { IValidateContext } from './factory'
+import { requireWriteAccess } from './auth'
+import { formatMoneyMinorUnits } from './csv'
+import { createBulkHandler, createEntityHandlers } from './factory'
+import type { TBulkApplier, IBulkFailureReason, IValidateContext } from './factory'
 import type { IEntityCollection, IListQuery, IListResult, ITicket } from '../db'
 
 /**
@@ -267,7 +269,32 @@ function bumpUpdatedAt (input: Partial<TTicketWithNames>): Partial<TTicketWithNa
   return { ...input, updatedAt: new Date().toISOString() }
 }
 
-export const ticketHandlers: HttpHandler[] = createEntityHandlers<TTicketWithNames>({
+/** The status a bulk `archive` moves a ticket to — the ticket's terminal, closed-out lifecycle state. */
+const TICKET_ARCHIVE_STATUS: ITicket['status'] = 'archived'
+
+const NOT_FOUND_FAILURE: IBulkFailureReason = {
+  code: 'NOT_FOUND',
+  reason: 'No ticket exists with this identifier.'
+}
+
+/**
+ * Deletes one ticket within a bulk request. A ticket is a leaf of the domain
+ * model — nothing references it — so there is no dependency-conflict case
+ * (mirroring the single-ticket delete, which has no `conflictCheck`); the only
+ * per-identifier failure is a `NOT_FOUND`.
+ */
+const deleteOne: TBulkApplier = (id) => {
+  return db.tickets.remove(id) ? undefined : NOT_FOUND_FAILURE
+}
+
+/** Archives one ticket within a bulk request by moving it to {@link TICKET_ARCHIVE_STATUS}. */
+const archiveOne: TBulkApplier = (id) => {
+  const updated = db.tickets.update(id, { status: TICKET_ARCHIVE_STATUS, updatedAt: new Date().toISOString() })
+
+  return updated === undefined ? NOT_FOUND_FAILURE : undefined
+}
+
+const entityHandlers: HttpHandler[] = createEntityHandlers<TTicketWithNames>({
   path: '/tickets',
   collection: withDenormalisedNames(db.tickets),
   fields: {
@@ -285,5 +312,30 @@ export const ticketHandlers: HttpHandler[] = createEntityHandlers<TTicketWithNam
   },
   validate: validateTicket,
   createRecord: stampTimestamps,
-  buildUpdatePatch: bumpUpdatedAt
+  buildUpdatePatch: bumpUpdatedAt,
+  authorize: requireWriteAccess,
+  csv: {
+    entity: 'tickets',
+    columns: [
+      { header: 'Name', value: ticket => ticket.name },
+      // Money as a decimal, with currency in its own column so a spreadsheet
+      // can sum it — never concatenated into one value (PRD-007).
+      { header: 'Price', value: ticket => formatMoneyMinorUnits(ticket.price) },
+      { header: 'Currency', value: ticket => ticket.currency },
+      { header: 'Quantity', value: ticket => ticket.quantity },
+      { header: 'Status', value: ticket => ticket.status },
+      // References by name, not raw id (PRD-007).
+      { header: 'Event', value: ticket => ticket.eventName },
+      { header: 'Category', value: ticket => ticket.categoryName },
+      { header: 'Created At', value: ticket => ticket.createdAt }
+    ]
+  }
 })
+
+const bulkHandler: HttpHandler = createBulkHandler({
+  path: '/tickets/bulk',
+  appliers: { delete: deleteOne, archive: archiveOne },
+  authorize: requireWriteAccess
+})
+
+export const ticketHandlers: HttpHandler[] = [...entityHandlers, bulkHandler]
