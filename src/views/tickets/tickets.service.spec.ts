@@ -170,4 +170,53 @@ describe('ticketsService', () => {
       await expect(ticketsService.delete('does-not-exist')).rejects.toBeDefined()
     })
   })
+
+  describe('exportCsv', () => {
+    it('sends a GET request to /tickets with format=csv plus every given filter param, and resolves a Blob', async () => {
+      db.tickets.insert(buildTicket({ id: 'ticket-42', name: 'VIP Pass' }))
+      const requests = captureRequests()
+
+      const blob = await ticketsService.exportCsv({
+        search: 'vip',
+        eventId: 'event-1',
+        categoryId: 'category-1',
+        status: 'on_sale',
+        currency: 'USD',
+        priceMin: 1000,
+        priceMax: 9999,
+        sort: 'price',
+        order: 'asc'
+      })
+
+      expect(requests).toHaveLength(1)
+      expect(requests[0]!.method).toBe('GET')
+      expect(requests[0]!.pathname).toBe('/tickets')
+
+      const params = new URLSearchParams(requests[0]!.search)
+      expect(params.get('format')).toBe('csv')
+      expect(params.get('eventId')).toBe('event-1')
+      expect(params.get('categoryId')).toBe('category-1')
+      expect(params.get('priceMin')).toBe('1000')
+      expect(params.get('priceMax')).toBe('9999')
+
+      // Not `expect(blob).toBeInstanceOf(Blob)` — see
+      // `eventsService.exportCsv`'s spec comment for why: axios's fetch
+      // adapter resolves its `Blob` through Node/undici's realm, a different
+      // constructor identity than jsdom's global `Blob`.
+      expect(typeof blob.size).toBe('number')
+      expect(blob.type).toContain('text/csv')
+      const text = await blob.text()
+      expect(text).toContain('VIP Pass')
+    })
+
+    it('never sends page/perPage — the export always covers the full filtered result', async () => {
+      const requests = captureRequests()
+
+      await ticketsService.exportCsv({ search: 'vip' })
+
+      const params = new URLSearchParams(requests[0]!.search)
+      expect(params.has('page')).toBe(false)
+      expect(params.has('perPage')).toBe(false)
+    })
+  })
 })

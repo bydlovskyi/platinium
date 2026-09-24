@@ -6,7 +6,10 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const CSV_EXPORT_WARNING_THRESHOLD: typeof import('../../src/composables/useCsvExport').CSV_EXPORT_WARNING_THRESHOLD
   const EffectScope: typeof import('vue').EffectScope
+  const STATUS_PRESENTATION: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION
+  const STATUS_PRESENTATION_TYPE_COLOR: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION_TYPE_COLOR
   const THEME_STORAGE_KEY: typeof import('../../src/composables/useTheme').THEME_STORAGE_KEY
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const apiClient: typeof import('../../src/features/platform/api/client').apiClient
@@ -34,6 +37,7 @@ declare global {
   const createTemplatePromise: typeof import('@vueuse/core').createTemplatePromise
   const createUnrefFn: typeof import('@vueuse/core').createUnrefFn
   const customRef: typeof import('vue').customRef
+  const dashboardService: typeof import('../../src/views/dashboard/dashboard.service').dashboardService
   const debouncedRef: typeof import('@vueuse/core').debouncedRef
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
@@ -51,7 +55,6 @@ declare global {
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const h: typeof import('vue').h
   const helpers: typeof import('../../src/utils/helpers').helpers
-  const homeService: typeof import('../../src/views/home/home.service').homeService
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
@@ -165,6 +168,7 @@ declare global {
   const useBreakpoints: typeof import('@vueuse/core').useBreakpoints
   const useBroadcastChannel: typeof import('@vueuse/core').useBroadcastChannel
   const useBrowserLocation: typeof import('@vueuse/core').useBrowserLocation
+  const useBulkOperations: typeof import('../../src/composables/useBulkOperations').useBulkOperations
   const useCached: typeof import('@vueuse/core').useCached
   const useCapability: typeof import('../../src/composables/useCapability').useCapability
   const useCategoriesList: typeof import('../../src/views/categories/composables/useCategoriesList').useCategoriesList
@@ -174,14 +178,17 @@ declare global {
   const useColorMode: typeof import('@vueuse/core').useColorMode
   const useConfirm: typeof import('../../src/composables/useConfirm').useConfirm
   const useConfirmDialog: typeof import('@vueuse/core').useConfirmDialog
+  const useCountUp: typeof import('../../src/composables/useCountUp').useCountUp
   const useCountdown: typeof import('@vueuse/core').useCountdown
   const useCounter: typeof import('@vueuse/core').useCounter
   const useCssModule: typeof import('vue').useCssModule
   const useCssVar: typeof import('@vueuse/core').useCssVar
   const useCssVars: typeof import('vue').useCssVars
+  const useCsvExport: typeof import('../../src/composables/useCsvExport').useCsvExport
   const useCurrentElement: typeof import('@vueuse/core').useCurrentElement
   const useCycleList: typeof import('@vueuse/core').useCycleList
   const useDark: typeof import('@vueuse/core').useDark
+  const useDashboardStats: typeof import('../../src/views/dashboard/composables/useDashboardStats').useDashboardStats
   const useDateFormat: typeof import('@vueuse/core').useDateFormat
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
@@ -221,7 +228,6 @@ declare global {
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
   const useGlobalProperties: typeof import('../../src/composables/useGlobalProperties').useGlobalProperties
   const useHead: typeof import('@vueuse/head').useHead
-  const useHomeStore: typeof import('../../src/views/home/home.store').useHomeStore
   const useId: typeof import('vue').useId
   const useIdle: typeof import('@vueuse/core').useIdle
   const useImage: typeof import('@vueuse/core').useImage
@@ -277,6 +283,7 @@ declare global {
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
+  const useRowLeaveAnimation: typeof import('../../src/composables/useRowLeaveAnimation').useRowLeaveAnimation
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
   const useScreenOrientation: typeof import('@vueuse/core').useScreenOrientation
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
@@ -358,6 +365,9 @@ declare global {
   export type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
   import('vue-router')
   // @ts-ignore
+  export type { TStatus, TStatusPresentationType, IStatusPresentation } from '../../src/utils/status-presentation'
+  import('../../src/utils/status-presentation')
+  // @ts-ignore
   export type { TCapabilityEntity, TCapabilityOperation, ICapability } from '../../src/composables/useCapability'
   import('../../src/composables/useCapability')
   // @ts-ignore
@@ -376,7 +386,10 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly CSV_EXPORT_WARNING_THRESHOLD: UnwrapRef<typeof import('../../src/composables/useCsvExport')['CSV_EXPORT_WARNING_THRESHOLD']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly STATUS_PRESENTATION: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION']>
+    readonly STATUS_PRESENTATION_TYPE_COLOR: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION_TYPE_COLOR']>
     readonly THEME_STORAGE_KEY: UnwrapRef<typeof import('../../src/composables/useTheme')['THEME_STORAGE_KEY']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly apiClient: UnwrapRef<typeof import('../../src/features/platform/api/client')['apiClient']>
@@ -404,6 +417,7 @@ declare module 'vue' {
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
+    readonly dashboardService: UnwrapRef<typeof import('../../src/views/dashboard/dashboard.service')['dashboardService']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
@@ -421,7 +435,6 @@ declare module 'vue' {
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly helpers: UnwrapRef<typeof import('../../src/utils/helpers')['helpers']>
-    readonly homeService: UnwrapRef<typeof import('../../src/views/home/home.service')['homeService']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
@@ -535,6 +548,7 @@ declare module 'vue' {
     readonly useBreakpoints: UnwrapRef<typeof import('@vueuse/core')['useBreakpoints']>
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
+    readonly useBulkOperations: UnwrapRef<typeof import('../../src/composables/useBulkOperations')['useBulkOperations']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
     readonly useCapability: UnwrapRef<typeof import('../../src/composables/useCapability')['useCapability']>
     readonly useCategoriesList: UnwrapRef<typeof import('../../src/views/categories/composables/useCategoriesList')['useCategoriesList']>
@@ -544,14 +558,17 @@ declare module 'vue' {
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
     readonly useConfirm: UnwrapRef<typeof import('../../src/composables/useConfirm')['useConfirm']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
+    readonly useCountUp: UnwrapRef<typeof import('../../src/composables/useCountUp')['useCountUp']>
     readonly useCountdown: UnwrapRef<typeof import('@vueuse/core')['useCountdown']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVar: UnwrapRef<typeof import('@vueuse/core')['useCssVar']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
+    readonly useCsvExport: UnwrapRef<typeof import('../../src/composables/useCsvExport')['useCsvExport']>
     readonly useCurrentElement: UnwrapRef<typeof import('@vueuse/core')['useCurrentElement']>
     readonly useCycleList: UnwrapRef<typeof import('@vueuse/core')['useCycleList']>
     readonly useDark: UnwrapRef<typeof import('@vueuse/core')['useDark']>
+    readonly useDashboardStats: UnwrapRef<typeof import('../../src/views/dashboard/composables/useDashboardStats')['useDashboardStats']>
     readonly useDateFormat: UnwrapRef<typeof import('@vueuse/core')['useDateFormat']>
     readonly useDebounce: UnwrapRef<typeof import('@vueuse/core')['useDebounce']>
     readonly useDebounceFn: UnwrapRef<typeof import('@vueuse/core')['useDebounceFn']>
@@ -591,7 +608,6 @@ declare module 'vue' {
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
     readonly useGlobalProperties: UnwrapRef<typeof import('../../src/composables/useGlobalProperties')['useGlobalProperties']>
     readonly useHead: UnwrapRef<typeof import('@vueuse/head')['useHead']>
-    readonly useHomeStore: UnwrapRef<typeof import('../../src/views/home/home.store')['useHomeStore']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
@@ -647,6 +663,7 @@ declare module 'vue' {
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
+    readonly useRowLeaveAnimation: UnwrapRef<typeof import('../../src/composables/useRowLeaveAnimation')['useRowLeaveAnimation']>
     readonly useSSRWidth: UnwrapRef<typeof import('@vueuse/core')['useSSRWidth']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>

@@ -20,6 +20,15 @@ const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()
 const { canDo } = useCapability()
+const {
+  selectedIds,
+  isRunning: bulkRunning,
+  lastResult: bulkResult,
+  clearSelection,
+  runBulkOperation
+} = useBulkOperations()
+const { loading: csvExportLoading, exportCsv } = useCsvExport()
+const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
@@ -266,13 +275,64 @@ const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
   return actions
 })
 
+// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
+const canBulkDelete = computed(() => canDo('tickets', 'delete'))
+const canBulkArchive = computed(() => canDo('tickets', 'update'))
+
+function selectionSubject (): string {
+  const count = selectedIds.value.length
+  return `${count} ticket${count === 1 ? '' : 's'}`
+}
+
+/**
+ * Mirrors `deleteTicket`'s own page-back check below, generalized to "every
+ * row currently on this page was deleted" rather than "the one row was the
+ * last one on the page" — a bulk delete can wipe out the whole page at once,
+ * not just its final row (GitHub issue #39 follow-up fix).
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
+ * every succeeded row before either step-back or refetch runs.
+ */
+async function onBulkDeleteComplete (): Promise<void> {
+  const succeededIds = bulkResult.value?.succeeded ?? []
+  const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(ticket => succeededIds.includes(ticket.id))
+
+  await playLeave(succeededIds)
+
+  if (allVisibleRowsDeleted && page.value > 1) {
+    void setPage(page.value - 1)
+  } else {
+    void refetch()
+  }
+}
+
+async function bulkDeleteTickets (): Promise<void> {
+  await runBulkOperation('delete', {
+    confirmSubject: selectionSubject(),
+    bulk: body => ticketsService.bulk(body),
+    onComplete: onBulkDeleteComplete
+  })
+}
+
+async function bulkArchiveTickets (): Promise<void> {
+  await runBulkOperation('archive', {
+    confirmSubject: selectionSubject(),
+    confirmMessage: `Archive ${selectionSubject()}? This sets their status to archived.`,
+    confirmButtonText: 'Archive',
+    danger: false,
+    bulk: body => ticketsService.bulk(body),
+    onComplete: refetch
+  })
+}
+
 /**
  * Deletes `ticket` after confirmation. Unlike `Events.vue`'s/`Categories.vue`'s
  * delete, there is no `DependencyConflictError` handling here — PRD-006
  * "Tickets are leaves: nothing references them, so deletion has no
  * dependency check" — `ticketsService.delete` never rejects with one.
  * Page-adjustment on deleting the last row of a page beyond the first
- * mirrors `Events.vue`'s `deleteEvent` exactly.
+ * mirrors `Events.vue`'s `deleteEvent` exactly, including the row-leave
+ * animation (GitHub issue #42, PRD-010 "Motion") played before it.
  */
 async function deleteTicket (ticket: TTicket): Promise<void> {
   await confirm({
@@ -281,6 +341,8 @@ async function deleteTicket (ticket: TTicket): Promise<void> {
       await ticketsService.delete(ticket.id)
 
       notificationService.success({ message: 'Ticket deleted.' })
+
+      await playLeave([ticket.id])
 
       if (data.value.length === 1 && page.value > 1) {
         void setPage(page.value - 1)
@@ -302,6 +364,50 @@ function onRowAction ({ action, row }: { action: string; row: TTicket }): void {
 function onCreateClicked (): void {
   void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
+
+/**
+ * The export always covers the full filtered/sorted result, never one page
+ * (GitHub issue #40, PRD-007) — the same `search`/`eventId`/`categoryId`/
+ * `status`/`currency`/price-range/`sort` the on-screen list is currently
+ * using, just without `page`/`perPage`. `priceMin`/`priceMax` are already in
+ * integer minor units on `listFilters`, matching what `ticketsService.exportCsv`
+ * expects (same as `useTicketsList`'s own request `query`).
+ */
+function onExportCsvClicked (): void {
+  // The response interceptor already toasts a failure (see
+  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
+  // to stop the rejection reaching here unhandled, not to add a second
+  // notification.
+  exportCsv({
+    entity: 'tickets',
+    exportFn: (params, signal) => ticketsService.exportCsv(params, signal),
+    params: {
+      search: search.value || undefined,
+      eventId: listFilters.eventId || undefined,
+      categoryId: listFilters.categoryId || undefined,
+      status: listFilters.status === 'all' ? undefined : listFilters.status,
+      currency: listFilters.currency === 'all' ? undefined : listFilters.currency,
+      priceMin: listFilters.priceMin,
+      priceMax: listFilters.priceMax,
+      sort: sort.value?.field,
+      order: sort.value?.order
+    },
+    total: meta.value?.total ?? 0
+  }).catch(() => undefined)
+}
+
+function onSelectionChanged (keys: string[]): void {
+  selectedIds.value = keys
+}
+
+const bulkResultVisible = computed({
+  get: () => bulkResult.value !== undefined,
+  set: (value: boolean) => {
+    if (!value) {
+      bulkResult.value = undefined
+    }
+  }
+})
 </script>
 
 <template>
@@ -411,6 +517,10 @@ function onCreateClicked (): void {
           />
         </el-select>
 
+        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+          Export CSV
+        </el-button>
+
         <el-button v-if="canDo('tickets', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
@@ -430,6 +540,9 @@ function onCreateClicked (): void {
       :empty-reason="emptyReason"
       :sort="dataTableSort"
       :row-actions="rowActions"
+      selectable
+      :selected-row-keys="selectedIds"
+      :leaving-row-keys="leavingRowKeys"
       caption="Tickets"
       @sort-requested="setSort"
       @page-requested="setPage"
@@ -437,6 +550,7 @@ function onCreateClicked (): void {
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
       @row-action-invoked="onRowAction"
+      @selection-changed="onSelectionChanged"
     >
       <template #cell-price="{ row }">
         <span class="tabular-nums">{{ filters.formatMoney((row as TTicket).price, (row as TTicket).currency) }}</span>
@@ -458,5 +572,36 @@ function onCreateClicked (): void {
         <StatusTag :status="(row as TTicket).status" />
       </template>
     </AppDataTable>
+
+    <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
+      <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">
+        <el-tag size="large">
+          {{ selectedIds.length }} selected on this page
+        </el-tag>
+
+        <el-button
+          v-if="canBulkDelete"
+          type="danger"
+          :loading="bulkRunning"
+          @click="bulkDeleteTickets"
+        >
+          Delete
+        </el-button>
+
+        <el-button
+          v-if="canBulkArchive"
+          :loading="bulkRunning"
+          @click="bulkArchiveTickets"
+        >
+          Archive
+        </el-button>
+
+        <el-button link @click="clearSelection">
+          Clear selection
+        </el-button>
+      </el-card>
+    </el-affix>
+
+    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="ticket" />
   </div>
 </template>
