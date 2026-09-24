@@ -59,6 +59,7 @@ function cloneModel (model: ITicketFormModel): ITicketFormModel {
 
 const route = useRoute()
 const router = useRouter()
+const { canDo } = useCapability()
 
 /** Present only on the edit route (`/tickets/:id/edit`); its absence is what distinguishes create from edit mode. */
 const ticketId = computed<string | undefined>(() => (
@@ -274,118 +275,130 @@ async function onSubmit (): Promise<void> {
   <div class="flex flex-col gap-4">
     <PageHeader :title="isEditMode ? 'Edit ticket' : 'Create ticket'" />
 
-    <el-skeleton v-if="loadingRecord" :rows="6" animated />
+    <!-- Skeleton-to-content crossfade (GitHub issue #42, PRD-010 "Motion")
+         — mirrors `EventForm.vue`'s identical loading/error/form tri-state
+         `<Transition>` wrap. -->
+    <Transition name="skeleton-fade" mode="out-in">
+      <el-skeleton v-if="loadingRecord" key="skeleton" :rows="6" animated />
 
-    <div v-else-if="loadError" class="rounded-token-md border border-border">
-      <el-result
-        icon="warning"
-        title="Ticket not found"
-        sub-title="This ticket may have been deleted or the link is incorrect."
-      >
-        <template #extra>
-          <el-button type="primary" @click="goToList">
-            Back to list
-          </el-button>
-        </template>
-      </el-result>
-    </div>
-
-    <el-form
-      v-else
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-position="top"
-      class="max-w-lg"
-      @submit.prevent="onSubmit"
-    >
-      <el-form-item label="Name" prop="name" :error="fieldError('name')">
-        <el-input
-          v-model="form.name"
-          placeholder="General Admission"
-          @input="clearServerError('name')"
-        />
-      </el-form-item>
-
-      <el-form-item label="Currency" prop="currency" :error="fieldError('currency')">
-        <el-select
-          v-model="form.currency"
-          placeholder="Select a currency"
-          class="w-full"
-          @change="clearServerError('currency')"
+      <div v-else-if="loadError" key="error" class="rounded-token-md border border-border">
+        <el-result
+          icon="warning"
+          title="Ticket not found"
+          sub-title="This ticket may have been deleted or the link is incorrect."
         >
-          <el-option label="USD" value="USD" />
-          <el-option label="EUR" value="EUR" />
-          <el-option label="GBP" value="GBP" />
-        </el-select>
-      </el-form-item>
+          <template #extra>
+            <el-button type="primary" @click="goToList">
+              Back to list
+            </el-button>
+          </template>
+        </el-result>
+      </div>
 
-      <el-form-item label="Price" prop="price" :error="fieldError('price')">
-        <!-- `CurrencyInput` requires a non-empty `currency` prop and has no
+      <el-form
+        v-else
+        key="form"
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        class="max-w-lg"
+        @submit.prevent="onSubmit"
+      >
+        <el-form-item label="Name" prop="name" :error="fieldError('name')">
+          <el-input
+            v-model="form.name"
+            placeholder="General Admission"
+            @input="clearServerError('name')"
+          />
+        </el-form-item>
+
+        <el-form-item label="Currency" prop="currency" :error="fieldError('currency')">
+          <el-select
+            v-model="form.currency"
+            placeholder="Select a currency"
+            class="w-full"
+            @change="clearServerError('currency')"
+          >
+            <el-option label="USD" value="USD" />
+            <el-option label="EUR" value="EUR" />
+            <el-option label="GBP" value="GBP" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Price" prop="price" :error="fieldError('price')">
+          <!-- `CurrencyInput` requires a non-empty `currency` prop and has no
              "no currency selected" state (PRD-006 "Money") — it is not
              mounted until `form.currency` is truthy, so a currency must be
              chosen first. -->
-        <CurrencyInput
-          v-if="form.currency"
-          v-model="form.price"
-          :currency="form.currency"
-          @update:model-value="clearServerError('price')"
-        />
-        <el-input v-else disabled placeholder="Select a currency first" />
-      </el-form-item>
+          <CurrencyInput
+            v-if="form.currency"
+            v-model="form.price"
+            :currency="form.currency"
+            @update:model-value="clearServerError('price')"
+          />
+          <el-input v-else disabled placeholder="Select a currency first" />
+        </el-form-item>
 
-      <el-form-item label="Quantity" prop="quantity" :error="fieldError('quantity')">
-        <el-input-number
-          v-model="form.quantity"
-          :min="0"
-          :step="1"
-          step-strictly
-          :precision="0"
-          class="w-full"
-          @change="clearServerError('quantity')"
-        />
-      </el-form-item>
+        <el-form-item label="Quantity" prop="quantity" :error="fieldError('quantity')">
+          <el-input-number
+            v-model="form.quantity"
+            :min="0"
+            :step="1"
+            step-strictly
+            :precision="0"
+            class="w-full"
+            @change="clearServerError('quantity')"
+          />
+        </el-form-item>
 
-      <el-form-item label="Status" prop="status" :error="fieldError('status')">
-        <el-radio-group v-model="form.status" @change="clearServerError('status')">
-          <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </el-radio>
-        </el-radio-group>
-      </el-form-item>
+        <el-form-item label="Status" prop="status" :error="fieldError('status')">
+          <el-radio-group v-model="form.status" @change="clearServerError('status')">
+            <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
 
-      <el-form-item label="Event" prop="eventId" :error="fieldError('eventId')">
-        <RemoteSelect
-          v-model="form.eventId"
-          :fetch-options="fetchEventOptions"
-          :resolve-option="resolveEventOption"
-          :option-value="(event: TEvent) => event.id"
-          :option-label="(event: TEvent) => event.name"
-          placeholder="Search for an event…"
-          @update:model-value="clearServerError('eventId')"
-        />
-      </el-form-item>
+        <el-form-item label="Event" prop="eventId" :error="fieldError('eventId')">
+          <RemoteSelect
+            v-model="form.eventId"
+            :fetch-options="fetchEventOptions"
+            :resolve-option="resolveEventOption"
+            :option-value="(event: TEvent) => event.id"
+            :option-label="(event: TEvent) => event.name"
+            placeholder="Search for an event…"
+            @update:model-value="clearServerError('eventId')"
+          />
+        </el-form-item>
 
-      <el-form-item label="Category" prop="categoryId" :error="fieldError('categoryId')">
-        <RemoteSelect
-          v-model="form.categoryId"
-          :fetch-options="fetchCategoryOptions"
-          :resolve-option="resolveCategoryOption"
-          :option-value="(category: TCategory) => category.id"
-          :option-label="(category: TCategory) => category.name"
-          placeholder="Search for a category…"
-          @update:model-value="clearServerError('categoryId')"
-        />
-      </el-form-item>
+        <el-form-item label="Category" prop="categoryId" :error="fieldError('categoryId')">
+          <RemoteSelect
+            v-model="form.categoryId"
+            :fetch-options="fetchCategoryOptions"
+            :resolve-option="resolveCategoryOption"
+            :option-value="(category: TCategory) => category.id"
+            :option-label="(category: TCategory) => category.name"
+            placeholder="Search for a category…"
+            @update:model-value="clearServerError('categoryId')"
+          />
+        </el-form-item>
 
-      <div class="flex gap-2">
-        <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
-          {{ isEditMode ? 'Save changes' : 'Create ticket' }}
-        </el-button>
-        <el-button :disabled="submitting" @click="goToList">
-          Cancel
-        </el-button>
-      </div>
-    </el-form>
+        <div class="flex gap-2">
+          <el-button
+            v-if="canDo('tickets', isEditMode ? 'update' : 'create')"
+            type="primary"
+            native-type="submit"
+            :loading="submitting"
+            :disabled="submitting"
+          >
+            {{ isEditMode ? 'Save changes' : 'Create ticket' }}
+          </el-button>
+          <el-button :disabled="submitting" @click="goToList">
+            Cancel
+          </el-button>
+        </div>
+      </el-form>
+    </Transition>
   </div>
 </template>
