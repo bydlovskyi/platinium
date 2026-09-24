@@ -2,7 +2,7 @@ export const THEME_STORAGE_KEY = 'vueuse-color-scheme'
 
 export function useTheme () {
   const mode = useColorMode({
-    initialValue: 'light',
+    initialValue: 'auto',
     storageKey: THEME_STORAGE_KEY
   })
 
