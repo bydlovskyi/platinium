@@ -81,6 +81,7 @@ src/
         ├── composables/
         └── components/       
 ├── layouts/                     # Layout components
+├── mocks/                       # OpenAPI contract, MSW handlers, in-memory DB, fixtures
 ├── plugins/                     # Vue plugins
 ├── router/                      # Routes, guards, route-names
 ├── services/                    # Global services
@@ -103,13 +104,20 @@ Before creating from scratch, ALWAYS check existing libraries:
 - **Composables** → Check VueUse first (state, browser APIs, sensors, animations, utilities)
 - **UI Components** → Check Element Plus first (buttons, forms, tables, dialogs, etc.)
 
+Element Plus is this portal's component library, not an optional extra: every interactive
+control and standard UI pattern is built from an Element Plus component, shared portal
+components (`AppDataTable`, `ListToolbar`, `CurrencyInput`, `RemoteSelect`, `StatusTag`, …)
+wrap and configure it rather than replace it, and a hand-built control needs a written
+reason. The full rule, the component-by-need map and the standing exceptions live in
+[`docs/prd/ELEMENT-PLUS.md`](docs/prd/ELEMENT-PLUS.md).
+
 ## Auto-Imports
 
 The logic behind auto-imports is to reduce imports noise inside files followed by Nuxt.js paradigm. You still need to import custom .ts or .json files outside of rules described below. You can disable auto-imports of script files on your project if you want but we still strictly recommend to auto-import components.
 
 Everything in these paths is auto-imported (no manual imports needed):
 - `src/composables/`, `src/views/**/composables/`, `src/features/**/composables/`
-- `src/utils/` (filters.ts, helpers.ts)
+- `src/utils/` (every exported member of every file in the directory, e.g. `filters.ts`, `helpers.ts`, `countries.ts`, `status-presentation.ts`)
 - `src/services/`, `src/views/**/*.service.ts`, `src/features/**/*.service.ts`
 - `src/store/modules/`, `src/views/**/*.store.ts`, `src/features/**/*.store.ts`
 - `src/components/**/*.vue`, `src/views/**/components/**/*.vue`, `src/features/**/components/**/*.vue`
