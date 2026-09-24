@@ -88,4 +88,47 @@ describe('eventsService', () => {
       await expect(eventsService.delete('does-not-exist')).rejects.toBeDefined()
     })
   })
+
+  describe('exportCsv', () => {
+    it('sends a GET request to /events with format=csv plus the given filter params, and resolves a Blob', async () => {
+      db.events.insert(buildEvent({ id: 'event-42', name: 'Rooftop Jazz Night' }))
+      const requests = captureRequests()
+
+      const blob = await eventsService.exportCsv({ search: 'jazz', status: 'draft', sort: 'name', order: 'asc' })
+
+      expect(requests).toHaveLength(1)
+      expect(requests[0]!.method).toBe('GET')
+      expect(requests[0]!.pathname).toBe('/events')
+
+      // Not `expect(blob).toBeInstanceOf(Blob)`: axios's fetch adapter (see
+      // `eventsService.exportCsv`'s own comment on why it's forced) resolves
+      // its `Blob` through Node/undici's realm, which is a different
+      // constructor identity than jsdom's global `Blob` this test file sees
+      // — duck-typing the shape instead proves the same contract (a real,
+      // readable blob) without depending on which realm produced it.
+      expect(typeof blob.size).toBe('number')
+      expect(blob.type).toContain('text/csv')
+      const text = await blob.text()
+      expect(text.split('\r\n')[0]).toContain('Name')
+      expect(text).toContain('Rooftop Jazz Night')
+    })
+
+    it('never sends page/perPage — the export always covers the full filtered result', async () => {
+      const requests: string[] = []
+
+      function onRequestStart ({ request }: { request: Request }): void {
+        requests.push(new URL(request.url).search)
+      }
+
+      server.events.on('request:start', onRequestStart)
+      capturedListeners.push(onRequestStart)
+
+      await eventsService.exportCsv({ search: 'jazz' })
+
+      const params = new URLSearchParams(requests[0])
+      expect(params.get('format')).toBe('csv')
+      expect(params.has('page')).toBe(false)
+      expect(params.has('perPage')).toBe(false)
+    })
+  })
 })

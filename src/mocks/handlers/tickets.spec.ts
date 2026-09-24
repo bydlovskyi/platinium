@@ -17,16 +17,38 @@ import type { ICategory, IEvent, ITicket } from '../db'
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
-  data?: unknown
+  data?: unknown,
+  options: { token?: string } = {}
 ): Promise<{ status: number; body: unknown }> {
   const response = await axios.request({
     method,
     url: path,
     data,
+    headers: options.token === undefined ? {} : { Authorization: `Bearer ${options.token}` },
     validateStatus: () => true
   })
 
   return { status: response.status, body: response.data }
+}
+
+/** Logs in as the seeded account for the given role, returning its bearer token — used by the viewer-403 tests below. */
+async function loginAs (email: string, password: string): Promise<string> {
+  const { data } = await axios.request({
+    method: 'post',
+    url: '/auth/login',
+    data: { email, password },
+    validateStatus: () => true
+  })
+
+  return (data as TLoginResponse).token
+}
+
+async function loginAsAdmin (): Promise<string> {
+  return loginAs('admin@platinium.test', 'admin123')
+}
+
+async function loginAsViewer (): Promise<string> {
+  return loginAs('viewer@platinium.test', 'viewer123')
 }
 
 type TTicketWithNames = ITicket & { eventName: string; categoryName: string }
@@ -557,6 +579,177 @@ describe('tickets handlers', () => {
 
       expect(status).toBe(404)
       expect(body).toEqual({ code: 'NOT_FOUND', message: expect.any(String) })
+    })
+  })
+
+  describe('GET /tickets?format=csv', () => {
+    it('returns a CSV document with the expected headers and content type', async () => {
+      const { status, body } = await requestFor('get', '/tickets?format=csv')
+
+      expect(status).toBe(200)
+      expect(typeof body).toBe('string')
+      expect((body as string).split('\r\n')[0]).toBe('Name,Price,Currency,Quantity,Status,Event,Category,Created At')
+    })
+
+    it('formats money as a decimal with currency in its own column, and references by name not id', async () => {
+      const event = seededEvent()
+      const category = seededCategory()
+      const created = (await requestFor('post', '/tickets', validTicketPayload({
+        name: 'CSV Export Probe Ticket',
+        price: 1234,
+        currency: 'GBP',
+        eventId: event.id,
+        categoryId: category.id
+      }))).body as TTicketWithNames
+
+      const { body } = await requestFor('get', '/tickets?format=csv&perPage=1')
+      const rows = (body as string).split('\r\n')
+      const row = rows.find(candidate => candidate.startsWith(`${created.name},`))
+
+      expect(row).toBe(`CSV Export Probe Ticket,12.34,GBP,${created.quantity},draft,${event.name},${category.name},${created.createdAt}`)
+    })
+
+    it('serialises every filtered record, not just the current page', async () => {
+      const created = (await requestFor('post', '/tickets', validTicketPayload({ name: 'CSV Export Pagination Probe' }))).body as TTicketWithNames
+
+      const { body } = await requestFor('get', '/tickets?format=csv&perPage=1')
+      const rows = (body as string).split('\r\n')
+
+      expect(rows.length).toBeGreaterThan(2)
+      expect(rows.some(row => row.startsWith(`${created.name},`))).toBe(true)
+    })
+  })
+
+  describe('POST /tickets/bulk', () => {
+    async function createTicket (name: string): Promise<TTicketWithNames> {
+      return (await requestFor('post', '/tickets', validTicketPayload({ name }))).body as TTicketWithNames
+    }
+
+    it('total success: archives every identifier and reports an empty failed array', async () => {
+      const a = await createTicket('Bulk Archive Success Ticket A')
+      const b = await createTicket('Bulk Archive Success Ticket B')
+
+      const { status, body } = await requestFor('post', '/tickets/bulk', { ids: [a.id, b.id], operation: 'archive' })
+
+      expect(status).toBe(200)
+      expect(body).toEqual({ succeeded: expect.arrayContaining([a.id, b.id]), failed: [] })
+      expect(db.tickets.get(a.id)?.status).toBe('archived')
+      expect(db.tickets.get(b.id)?.status).toBe('archived')
+    })
+
+    it('total failure: every identifier fails and succeeded is empty', async () => {
+      const { status, body } = await requestFor('post', '/tickets/bulk', {
+        ids: ['unknown-1', 'unknown-2'],
+        operation: 'delete'
+      })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([])
+      expect(result.failed).toHaveLength(2)
+      expect(result.failed.every(failure => typeof failure.reason === 'string' && failure.reason.length > 0)).toBe(true)
+    })
+
+    it('partial success: splits valid and invalid identifiers correctly', async () => {
+      const valid = await createTicket('Bulk Partial Success Ticket')
+
+      const { status, body } = await requestFor('post', '/tickets/bulk', {
+        ids: [valid.id, 'unknown-id'],
+        operation: 'delete'
+      })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([valid.id])
+      expect(result.failed).toHaveLength(1)
+      expect(result.failed[0]?.id).toBe('unknown-id')
+    })
+
+    it('a ticket is a leaf of the domain model, so bulk delete has no dependency-conflict case: it always succeeds for an existing id', async () => {
+      const ticket = await createTicket('Bulk Delete No Conflict Ticket')
+
+      const { status, body } = await requestFor('post', '/tickets/bulk', { ids: [ticket.id], operation: 'delete' })
+
+      expect(status).toBe(200)
+      expect(body).toEqual({ succeeded: [ticket.id], failed: [] })
+      expect(db.tickets.get(ticket.id)).toBeUndefined()
+    })
+
+    it('returns 400 for a malformed request (ids not an array)', async () => {
+      const { status, body } = await requestFor('post', '/tickets/bulk', { ids: 'not-an-array', operation: 'delete' })
+
+      expect(status).toBe(400)
+      expect(body).toEqual({ code: 'VALIDATION_ERROR', message: expect.any(String) })
+    })
+  })
+
+  describe('viewer permissions (PRD-007)', () => {
+    it('rejects POST /tickets for a viewer with 403', async () => {
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('post', '/tickets', validTicketPayload(), { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+    })
+
+    it('rejects PATCH /tickets/{id} for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/tickets', validTicketPayload())).body as TTicketWithNames
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('patch', `/tickets/${created.id}`, { quantity: 5 }, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+    })
+
+    it('rejects DELETE /tickets/{id} for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/tickets', validTicketPayload())).body as TTicketWithNames
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('delete', `/tickets/${created.id}`, undefined, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+      expect(db.tickets.get(created.id)).toBeDefined()
+    })
+
+    it('rejects POST /tickets/bulk for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/tickets', validTicketPayload())).body as TTicketWithNames
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('post', '/tickets/bulk', { ids: [created.id], operation: 'delete' }, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+      expect(db.tickets.get(created.id)).toBeDefined()
+    })
+
+    it('regression: an admin can still create/update/delete after this slice', async () => {
+      const token = await loginAsAdmin()
+
+      const created = (await requestFor('post', '/tickets', validTicketPayload({ name: 'Admin Regression Ticket' }), { token })).body as TTicketWithNames
+
+      expect(created.id).toEqual(expect.any(String))
+
+      const updated = await requestFor('patch', `/tickets/${created.id}`, { quantity: 42 }, { token })
+
+      expect(updated.status).toBe(200)
+
+      const deleted = await requestFor('delete', `/tickets/${created.id}`, undefined, { token })
+
+      expect(deleted.status).toBe(204)
+    })
+
+    it('leaves the tokenless case unchanged: a write with no Authorization header still proceeds (requireWriteAccess only rejects a resolved viewer)', async () => {
+      const { status, body } = await requestFor('post', '/tickets', validTicketPayload({ name: 'Tokenless Write Still Works Ticket' }))
+
+      expect(status).toBe(201)
+      expect((body as TTicketWithNames).name).toBe('Tokenless Write Still Works Ticket')
     })
   })
 })
