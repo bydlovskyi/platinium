@@ -1,8 +1,9 @@
 import type { HttpHandler } from 'msw'
 
 import { db } from '../db/singleton'
-import { createEntityHandlers } from './factory'
-import type { ICodedConflict, IStructuredConflict, IValidateContext } from './factory'
+import { requireWriteAccess } from './auth'
+import { createBulkHandler, createEntityHandlers } from './factory'
+import type { TBulkApplier, IBulkFailureReason, ICodedConflict, IStructuredConflict, IValidateContext } from './factory'
 import type { ICategory } from '../db'
 
 /**
@@ -162,7 +163,47 @@ function checkCategoryConflict (record: ICategory, action: 'create' | 'update' |
   return checkDuplicateName(record, action) ?? checkDependencyConflict(record, action)
 }
 
-export const categoryHandlers: HttpHandler[] = createEntityHandlers<ICategory>({
+const NOT_FOUND_FAILURE: IBulkFailureReason = {
+  code: 'NOT_FOUND',
+  reason: 'No category exists with this identifier.'
+}
+
+/**
+ * Deletes one category within a bulk request, reusing the *same*
+ * `checkDependencyConflict` a single delete runs — a category still referenced
+ * by tickets is reported as a per-identifier failure carrying its blocking
+ * count, not a top-level `409` (PRD-007).
+ */
+const deleteOne: TBulkApplier = (id) => {
+  const existing = db.categories.get(id)
+
+  if (existing === undefined) {
+    return NOT_FOUND_FAILURE
+  }
+
+  const conflict = checkDependencyConflict(existing, 'delete')
+
+  if (conflict !== undefined) {
+    return { code: 'CONFLICT', reason: conflict.message, count: conflict.count }
+  }
+
+  db.categories.remove(id)
+
+  return undefined
+}
+
+/**
+ * Categories have no lifecycle status, so a bulk `archive` cannot be applied —
+ * every identifier is reported as failed with an explanatory reason rather
+ * than silently doing nothing (PRD-007's "worse than no bulk operation" rule).
+ */
+const archiveOne: TBulkApplier = (id) => {
+  return db.categories.get(id) === undefined
+    ? NOT_FOUND_FAILURE
+    : { code: 'UNSUPPORTED_OPERATION', reason: 'Categories have no status to archive.' }
+}
+
+const entityHandlers: HttpHandler[] = createEntityHandlers<ICategory>({
   path: '/categories',
   collection: db.categories,
   fields: {
@@ -172,5 +213,22 @@ export const categoryHandlers: HttpHandler[] = createEntityHandlers<ICategory>({
   validate: validateCategory,
   createRecord: stampTimestamps,
   buildUpdatePatch: bumpUpdatedAt,
-  conflictCheck: checkCategoryConflict
+  conflictCheck: checkCategoryConflict,
+  authorize: requireWriteAccess,
+  csv: {
+    entity: 'categories',
+    columns: [
+      { header: 'Name', value: category => category.name },
+      { header: 'Description', value: category => category.description },
+      { header: 'Created At', value: category => category.createdAt }
+    ]
+  }
 })
+
+const bulkHandler: HttpHandler = createBulkHandler({
+  path: '/categories/bulk',
+  appliers: { delete: deleteOne, archive: archiveOne },
+  authorize: requireWriteAccess
+})
+
+export const categoryHandlers: HttpHandler[] = [...entityHandlers, bulkHandler]

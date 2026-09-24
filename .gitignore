@@ -40,6 +40,9 @@ coverage
 # Vitest
 __screenshots__/
 
+# Playwright MCP session artifacts (browser check, §6.4)
+.playwright-mcp/
+
 # Claude Code local overrides
 .claude/settings.local.json
 
