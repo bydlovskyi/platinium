@@ -50,6 +50,7 @@ function cloneModel (model: IEventFormModel): IEventFormModel {
 
 const route = useRoute()
 const router = useRouter()
+const { canDo } = useCapability()
 
 /** Present only on the edit route (`/events/:id/edit`); its absence is what distinguishes create from edit mode. */
 const eventId = computed<string | undefined>(() => (
@@ -455,7 +456,13 @@ async function onSubmit (): Promise<void> {
 
       <div class="flex items-center justify-between gap-2">
         <div class="flex gap-2">
-          <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
+          <el-button
+            v-if="canDo('events', isEditMode ? 'update' : 'create')"
+            type="primary"
+            native-type="submit"
+            :loading="submitting"
+            :disabled="submitting"
+          >
             {{ isEditMode ? 'Save changes' : 'Create event' }}
           </el-button>
           <el-button :disabled="submitting" @click="goToList">
@@ -463,7 +470,13 @@ async function onSubmit (): Promise<void> {
           </el-button>
         </div>
 
-        <el-button v-if="isEditMode" type="danger" plain :disabled="submitting" @click="deleteEvent">
+        <el-button
+          v-if="isEditMode && canDo('events', 'delete')"
+          type="danger"
+          plain
+          :disabled="submitting"
+          @click="deleteEvent"
+        >
           Delete event
         </el-button>
       </div>

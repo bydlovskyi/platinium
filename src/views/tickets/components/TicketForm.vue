@@ -59,6 +59,7 @@ function cloneModel (model: ITicketFormModel): ITicketFormModel {
 
 const route = useRoute()
 const router = useRouter()
+const { canDo } = useCapability()
 
 /** Present only on the edit route (`/tickets/:id/edit`); its absence is what distinguishes create from edit mode. */
 const ticketId = computed<string | undefined>(() => (
@@ -379,7 +380,13 @@ async function onSubmit (): Promise<void> {
       </el-form-item>
 
       <div class="flex gap-2">
-        <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
+        <el-button
+          v-if="canDo('tickets', isEditMode ? 'update' : 'create')"
+          type="primary"
+          native-type="submit"
+          :loading="submitting"
+          :disabled="submitting"
+        >
           {{ isEditMode ? 'Save changes' : 'Create ticket' }}
         </el-button>
         <el-button :disabled="submitting" @click="goToList">

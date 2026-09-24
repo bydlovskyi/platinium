@@ -16,6 +16,7 @@ import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-ta
 const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
+const { canDo } = useCapability()
 
 const {
   search,
@@ -106,10 +107,25 @@ function rowKey (row: TEvent): string {
 // vocabulary (GitHub issue #23) rather than adding anything new to that
 // shared component — this issue's file scope is this view and the events
 // form only.
-const rowActions: IDataTableRowAction<TEvent>[] = [
-  { key: 'edit', label: 'Edit' },
-  { key: 'delete', label: 'Delete', danger: true }
-]
+//
+// `rowActions` is a `computed` (GitHub issue #37, PRD-007) rather than a
+// static array so a viewer never has "edit"/"delete" in the dropdown at
+// all — `AppDataTable` only ever renders `hasActions`/`rowActions` as
+// given, so filtering here is what keeps the control out of the DOM
+// instead of merely disabling it.
+const rowActions = computed<IDataTableRowAction<TEvent>[]>(() => {
+  const actions: IDataTableRowAction<TEvent>[] = []
+
+  if (canDo('events', 'update')) {
+    actions.push({ key: 'edit', label: 'Edit' })
+  }
+
+  if (canDo('events', 'delete')) {
+    actions.push({ key: 'delete', label: 'Delete', danger: true })
+  }
+
+  return actions
+})
 
 /**
  * Deletes `event` after confirmation (GitHub issue #28, PRD-004
@@ -224,7 +240,7 @@ function onCreateClicked (): void {
       </template>
 
       <template #actions>
-        <el-button type="primary" @click="onCreateClicked">
+        <el-button v-if="canDo('events', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>

@@ -166,6 +166,7 @@ declare global {
   const useBroadcastChannel: typeof import('@vueuse/core').useBroadcastChannel
   const useBrowserLocation: typeof import('@vueuse/core').useBrowserLocation
   const useCached: typeof import('@vueuse/core').useCached
+  const useCapability: typeof import('../../src/composables/useCapability').useCapability
   const useCategoriesList: typeof import('../../src/views/categories/composables/useCategoriesList').useCategoriesList
   const useClipboard: typeof import('@vueuse/core').useClipboard
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
@@ -357,6 +358,9 @@ declare global {
   export type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
   import('vue-router')
   // @ts-ignore
+  export type { TCapabilityEntity, TCapabilityOperation, ICapability } from '../../src/composables/useCapability'
+  import('../../src/composables/useCapability')
+  // @ts-ignore
   export type { TConfirmIntent } from '../../src/composables/useConfirm'
   import('../../src/composables/useConfirm')
   // @ts-ignore
@@ -532,6 +536,7 @@ declare module 'vue' {
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useCapability: UnwrapRef<typeof import('../../src/composables/useCapability')['useCapability']>
     readonly useCategoriesList: UnwrapRef<typeof import('../../src/views/categories/composables/useCategoriesList')['useCategoriesList']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>

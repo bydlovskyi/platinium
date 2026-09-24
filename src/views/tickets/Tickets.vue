@@ -19,6 +19,7 @@ import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-ta
 const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()
+const { canDo } = useCapability()
 
 const {
   search,
@@ -248,10 +249,22 @@ function rowKey (row: TTicket): string {
   return row.id
 }
 
-const rowActions: IDataTableRowAction<TTicket>[] = [
-  { key: 'edit', label: 'Edit' },
-  { key: 'delete', label: 'Delete', danger: true }
-]
+// `computed` rather than a static array (GitHub issue #37, PRD-007) so a
+// viewer never has "edit"/"delete" in the dropdown at all — mirrors
+// `Events.vue`'s `rowActions`.
+const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
+  const actions: IDataTableRowAction<TTicket>[] = []
+
+  if (canDo('tickets', 'update')) {
+    actions.push({ key: 'edit', label: 'Edit' })
+  }
+
+  if (canDo('tickets', 'delete')) {
+    actions.push({ key: 'delete', label: 'Delete', danger: true })
+  }
+
+  return actions
+})
 
 /**
  * Deletes `ticket` after confirmation. Unlike `Events.vue`'s/`Categories.vue`'s
@@ -398,7 +411,7 @@ function onCreateClicked (): void {
           />
         </el-select>
 
-        <el-button type="primary" @click="onCreateClicked">
+        <el-button v-if="canDo('tickets', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>

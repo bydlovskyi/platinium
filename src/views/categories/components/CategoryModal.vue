@@ -60,6 +60,7 @@ const props = defineProps<{
 }>()
 
 const { isOpen, closeModal } = useModals()
+const { canDo } = useCapability()
 
 const isDialogOpen = computed(() => isOpen.value.CategoryModal === true)
 const isEditMode = computed(() => props.category !== undefined)
@@ -370,7 +371,13 @@ function onOpened (): void {
       <el-button :disabled="submitting" @click="onCancelClicked">
         Cancel
       </el-button>
-      <el-button type="primary" :loading="submitting" :disabled="submitting" @click="onSubmit">
+      <el-button
+        v-if="canDo('categories', isEditMode ? 'update' : 'create')"
+        type="primary"
+        :loading="submitting"
+        :disabled="submitting"
+        @click="onSubmit"
+      >
         {{ isEditMode ? 'Save changes' : 'Create category' }}
       </el-button>
     </template>

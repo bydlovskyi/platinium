@@ -59,6 +59,17 @@ const props = withDefaults(defineProps<{
    *  across sessions is `useListQuery`'s job (it already does this via
    *  `useStorage`) — this component only renders the control and emits intent. */
   pageSizes?: number[]
+  /**
+   * Whether the no-data empty state's own "Create" button renders (GitHub
+   * issue #37, PRD-007 — a viewer must not see a create affordance even in
+   * the empty state). This component knows nothing about roles or
+   * capabilities itself (see the file-level comment); the caller resolves
+   * that and passes a plain boolean, the same way `rowActions` is
+   * pre-filtered by the caller rather than by this component. Defaults to
+   * `true` so callers that never gate creation (or don't wire
+   * `create-requested` at all) are unaffected.
+   */
+  canCreate?: boolean
 }>(), {
   meta: undefined,
   loading: false,
@@ -69,7 +80,8 @@ const props = withDefaults(defineProps<{
   selectable: false,
   selectedRowKeys: () => [],
   caption: undefined,
-  pageSizes: () => [10, 20, 50, 100]
+  pageSizes: () => [10, 20, 50, 100],
+  canCreate: true
 })
 
 const emit = defineEmits<{
@@ -291,7 +303,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         <template #image>
           <Icon name="inbox" class="size-16 text-text-muted" />
         </template>
-        <el-button type="primary" @click="emit('create-requested')">
+        <el-button v-if="canCreate" type="primary" @click="emit('create-requested')">
           <template #icon>
             <Icon name="plus" />
           </template>

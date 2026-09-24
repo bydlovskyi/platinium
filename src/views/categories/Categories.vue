@@ -36,6 +36,7 @@ const {
 
 const { openModal } = useModals()
 const { confirm } = useConfirm()
+const { canDo } = useCapability()
 
 const columns: IDataTableColumn<TCategory>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
@@ -107,10 +108,22 @@ function rowKey (row: TCategory): string {
   return row.id
 }
 
-const rowActions: IDataTableRowAction<TCategory>[] = [
-  { key: 'edit', label: 'Edit' },
-  { key: 'delete', label: 'Delete', danger: true }
-]
+// `computed` rather than a static array (GitHub issue #37, PRD-007) so a
+// viewer never has "edit"/"delete" in the dropdown at all — mirrors
+// `Events.vue`'s `rowActions`.
+const rowActions = computed<IDataTableRowAction<TCategory>[]>(() => {
+  const actions: IDataTableRowAction<TCategory>[] = []
+
+  if (canDo('categories', 'update')) {
+    actions.push({ key: 'edit', label: 'Edit' })
+  }
+
+  if (canDo('categories', 'delete')) {
+    actions.push({ key: 'delete', label: 'Delete', danger: true })
+  }
+
+  return actions
+})
 
 /**
  * Deletes `category` after confirmation (PRD-005 "Deletion" — identical to
@@ -177,7 +190,7 @@ function onCreateClicked (): void {
   <div class="flex flex-col gap-4">
     <PageHeader title="Categories">
       <template #actions>
-        <el-button type="primary" @click="onCreateClicked">
+        <el-button v-if="canDo('categories', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>
@@ -221,6 +234,7 @@ function onCreateClicked (): void {
       :empty-reason="emptyReason"
       :sort="dataTableSort"
       :row-actions="rowActions"
+      :can-create="canDo('categories', 'create')"
       caption="Categories"
       @sort-requested="setSort"
       @page-requested="setPage"

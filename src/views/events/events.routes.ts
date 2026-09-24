@@ -16,7 +16,8 @@ export const eventsRoutes: RouteRecordRaw[] = [
     meta: {
       label: 'Create event',
       requiresAuth: true,
-      layout: 'admin'
+      layout: 'admin',
+      requiredCapability: { entity: 'events', operation: 'create' }
     }
   },
   {
@@ -26,7 +27,8 @@ export const eventsRoutes: RouteRecordRaw[] = [
     meta: {
       label: 'Edit event',
       requiresAuth: true,
-      layout: 'admin'
+      layout: 'admin',
+      requiredCapability: { entity: 'events', operation: 'update' }
     }
   }
 ]
