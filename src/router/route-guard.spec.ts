@@ -45,11 +45,11 @@ describe('routeGuard', () => {
     } as RouteLocationNormalized
   }
 
-  function signIn (): void {
+  function signIn (role: TUserRole = 'admin'): void {
     const authStore = useAuthStore()
 
     authStore.token = 'mock-token-under-test'
-    authStore.user = { id: 'u1', name: 'Admin', email: 'admin@platinium.test', role: 'admin' }
+    authStore.user = { id: 'u1', name: role === 'admin' ? 'Admin' : 'Viewer', email: `${role}@platinium.test`, role }
   }
 
   it('calls next() with no args when the route has no auth-related meta', () => {
@@ -105,6 +105,58 @@ describe('routeGuard', () => {
 
     it('calls next() with no args when unauthenticated', () => {
       const to = routeStub({ path: '/login', fullPath: '/login', meta: { requiresAnonymous: true } })
+      const next = createNextMock()
+
+      routeGuard(to, routeStub(), next)
+
+      expect(next).toHaveBeenCalledOnce()
+      expect(next).toHaveBeenCalledWith()
+    })
+  })
+
+  /**
+   * `requiredCapability` (GitHub issue #37, PRD-007): the guard's third
+   * branch, run only once `requiresAuth` has already confirmed a signed-in
+   * user exists to ask `useCapability` about. Mirrors the `requiresAuth`/
+   * `requiresAnonymous` `describe` blocks above exactly.
+   */
+  describe('requiredCapability', () => {
+    it('redirects a viewer to the forbidden route when the required capability is missing', () => {
+      signIn('viewer')
+
+      const to = routeStub({
+        path: '/events/new',
+        fullPath: '/events/new',
+        meta: { requiresAuth: true, requiredCapability: { entity: 'events', operation: 'create' } }
+      })
+      const next = createNextMock()
+
+      routeGuard(to, routeStub(), next)
+
+      expect(next).toHaveBeenCalledOnce()
+      expect(next).toHaveBeenCalledWith({ name: routeNames.forbidden })
+    })
+
+    it('calls next() with no args for an admin who holds the required capability', () => {
+      signIn('admin')
+
+      const to = routeStub({
+        path: '/events/new',
+        fullPath: '/events/new',
+        meta: { requiresAuth: true, requiredCapability: { entity: 'events', operation: 'create' } }
+      })
+      const next = createNextMock()
+
+      routeGuard(to, routeStub(), next)
+
+      expect(next).toHaveBeenCalledOnce()
+      expect(next).toHaveBeenCalledWith()
+    })
+
+    it('calls next() with no args when the route carries no requiredCapability at all', () => {
+      signIn('viewer')
+
+      const to = routeStub({ path: '/events', fullPath: '/events', meta: { requiresAuth: true } })
       const next = createNextMock()
 
       routeGuard(to, routeStub(), next)

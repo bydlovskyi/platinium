@@ -16,16 +16,38 @@ import type { ICategory, ITicket } from '../db'
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
-  data?: unknown
+  data?: unknown,
+  options: { token?: string } = {}
 ): Promise<{ status: number; body: unknown }> {
   const response = await axios.request({
     method,
     url: path,
     data,
+    headers: options.token === undefined ? {} : { Authorization: `Bearer ${options.token}` },
     validateStatus: () => true
   })
 
   return { status: response.status, body: response.data }
+}
+
+/** Logs in as the seeded account for the given role, returning its bearer token — used by the viewer-403 tests below. */
+async function loginAs (email: string, password: string): Promise<string> {
+  const { data } = await axios.request({
+    method: 'post',
+    url: '/auth/login',
+    data: { email, password },
+    validateStatus: () => true
+  })
+
+  return (data as TLoginResponse).token
+}
+
+async function loginAsAdmin (): Promise<string> {
+  return loginAs('admin@platinium.test', 'admin123')
+}
+
+async function loginAsViewer (): Promise<string> {
+  return loginAs('viewer@platinium.test', 'viewer123')
 }
 
 interface IListResponse {
@@ -430,6 +452,197 @@ describe('categories handlers', () => {
 
       expect(status).toBe(404)
       expect(body).toEqual({ code: 'NOT_FOUND', message: expect.any(String) })
+    })
+  })
+
+  describe('GET /categories?format=csv', () => {
+    it('returns a CSV document with the expected headers and content type', async () => {
+      const { status, body } = await requestFor('get', '/categories?format=csv')
+
+      expect(status).toBe(200)
+      expect(typeof body).toBe('string')
+      expect((body as string).split('\r\n')[0]).toBe('Name,Description,Created At')
+    })
+
+    it('serialises every filtered record, not just the current page', async () => {
+      await requestFor('post', '/categories', validCategoryPayload({ name: 'CSV Export Probe' }))
+
+      const { body } = await requestFor('get', '/categories?format=csv&perPage=1')
+      const rows = (body as string).split('\r\n')
+
+      // perPage=1 would cap a JSON list at a single record; the CSV export
+      // must ignore pagination and include the full filtered result.
+      expect(rows.length).toBeGreaterThan(2)
+      expect(rows.some(row => row.startsWith('CSV Export Probe,'))).toBe(true)
+    })
+  })
+
+  describe('POST /categories/bulk', () => {
+    async function createCategory (name: string): Promise<ICategory> {
+      return (await requestFor('post', '/categories', validCategoryPayload({ name }))).body as ICategory
+    }
+
+    it('total success: deletes every identifier and reports an empty failed array', async () => {
+      const a = await createCategory('Bulk Delete Success A')
+      const b = await createCategory('Bulk Delete Success B')
+
+      const { status, body } = await requestFor('post', '/categories/bulk', { ids: [a.id, b.id], operation: 'delete' })
+
+      expect(status).toBe(200)
+      expect(body).toEqual({ succeeded: expect.arrayContaining([a.id, b.id]), failed: [] })
+      expect(db.categories.get(a.id)).toBeUndefined()
+      expect(db.categories.get(b.id)).toBeUndefined()
+    })
+
+    it('total failure: every identifier fails and succeeded is empty', async () => {
+      const { status, body } = await requestFor('post', '/categories/bulk', {
+        ids: ['unknown-1', 'unknown-2'],
+        operation: 'delete'
+      })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([])
+      expect(result.failed).toHaveLength(2)
+      expect(result.failed.every(failure => typeof failure.reason === 'string' && failure.reason.length > 0)).toBe(true)
+    })
+
+    it('partial success: splits valid and invalid identifiers correctly', async () => {
+      const valid = await createCategory('Bulk Partial Success')
+
+      const { status, body } = await requestFor('post', '/categories/bulk', {
+        ids: [valid.id, 'unknown-id'],
+        operation: 'delete'
+      })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([valid.id])
+      expect(result.failed).toHaveLength(1)
+      expect(result.failed[0]?.id).toBe('unknown-id')
+    })
+
+    it('dependency-blocked bulk delete: reports a per-identifier failure carrying the blocking count, not a top-level 409', async () => {
+      const category = await createCategory('Bulk Delete Blocked')
+      const anyEvent = db.events.list({ perPage: 1 }).data[0]
+
+      if (anyEvent === undefined) {
+        throw new Error('expected at least one seeded event')
+      }
+
+      db.tickets.insert({
+        id: 'categories-bulk-spec-ticket',
+        name: 'Categories Bulk Spec Test Ticket',
+        price: 1000,
+        currency: 'USD',
+        quantity: 10,
+        status: 'draft',
+        eventId: anyEvent.id,
+        categoryId: category.id,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+      })
+
+      const { status, body } = await requestFor('post', '/categories/bulk', { ids: [category.id], operation: 'delete' })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([])
+      expect(result.failed).toEqual([{ id: category.id, code: 'CONFLICT', reason: expect.any(String), count: 1 }])
+      expect(db.categories.get(category.id)).toBeDefined()
+    })
+
+    it('reports every identifier as failed for an unsupported archive operation, rather than silently no-op-ing', async () => {
+      const category = await createCategory('Bulk Archive Unsupported')
+
+      const { status, body } = await requestFor('post', '/categories/bulk', { ids: [category.id], operation: 'archive' })
+
+      expect(status).toBe(200)
+
+      const result = body as TBulkResult
+
+      expect(result.succeeded).toEqual([])
+      expect(result.failed).toEqual([{ id: category.id, code: expect.any(String), reason: expect.any(String) }])
+      expect(db.categories.get(category.id)).toBeDefined()
+    })
+
+    it('returns 400 for a malformed request (empty ids array)', async () => {
+      const { status, body } = await requestFor('post', '/categories/bulk', { ids: [], operation: 'delete' })
+
+      expect(status).toBe(400)
+      expect(body).toEqual({ code: 'VALIDATION_ERROR', message: expect.any(String) })
+    })
+  })
+
+  describe('viewer permissions (PRD-007)', () => {
+    it('rejects POST /categories for a viewer with 403', async () => {
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('post', '/categories', validCategoryPayload(), { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+    })
+
+    it('rejects PATCH /categories/{id} for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('patch', `/categories/${created.id}`, { name: 'Renamed' }, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+    })
+
+    it('rejects DELETE /categories/{id} for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('delete', `/categories/${created.id}`, undefined, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+      expect(db.categories.get(created.id)).toBeDefined()
+    })
+
+    it('rejects POST /categories/bulk for a viewer with 403', async () => {
+      const created = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
+      const token = await loginAsViewer()
+
+      const { status, body } = await requestFor('post', '/categories/bulk', { ids: [created.id], operation: 'delete' }, { token })
+
+      expect(status).toBe(403)
+      expect(body).toEqual({ code: 'FORBIDDEN', message: expect.any(String) })
+      expect(db.categories.get(created.id)).toBeDefined()
+    })
+
+    it('regression: an admin can still create/update/delete after this slice', async () => {
+      const token = await loginAsAdmin()
+
+      const created = (await requestFor('post', '/categories', validCategoryPayload({ name: 'Admin Regression' }), { token })).body as ICategory
+
+      expect(created.id).toEqual(expect.any(String))
+
+      const updated = await requestFor('patch', `/categories/${created.id}`, { description: 'Updated' }, { token })
+
+      expect(updated.status).toBe(200)
+
+      const deleted = await requestFor('delete', `/categories/${created.id}`, undefined, { token })
+
+      expect(deleted.status).toBe(204)
+    })
+
+    it('leaves the tokenless case unchanged: a write with no Authorization header still proceeds (requireWriteAccess only rejects a resolved viewer)', async () => {
+      const { status, body } = await requestFor('post', '/categories', validCategoryPayload({ name: 'Tokenless Write Still Works' }))
+
+      expect(status).toBe(201)
+      expect((body as ICategory).name).toBe('Tokenless Write Still Works')
     })
   })
 })

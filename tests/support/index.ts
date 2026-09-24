@@ -6,4 +6,4 @@ export type { TBreakpoint } from './viewport'
 
 export { resetDatabase, seedSession } from './seams'
 
-export { setPreferredColorScheme } from './match-media'
+export { setPreferredColorScheme, setPreferredReducedMotion } from './match-media'

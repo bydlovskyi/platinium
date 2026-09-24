@@ -2,6 +2,7 @@ import type { HttpHandler } from 'msw'
 
 import { authHandlers } from './auth'
 import { categoryHandlers } from './categories'
+import { dashboardHandlers } from './dashboard'
 import { eventHandlers } from './events'
 import { healthHandlers } from './health'
 import { ticketHandlers } from './tickets'
@@ -12,19 +13,24 @@ import { ticketHandlers } from './tickets'
  * and the Node server (`src/mocks/server.ts`) so both environments answer
  * requests identically.
  *
- * `/health`, the `/auth/*` paths, `/events`, `/categories` and `/tickets`
- * are registered here.
+ * `/health`, the `/auth/*` paths, `/dashboard/stats`, `/events`,
+ * `/categories` and `/tickets` (including their `/bulk` endpoints) are
+ * registered here.
  */
 export const handlers: HttpHandler[] = [
   ...healthHandlers,
   ...authHandlers,
+  ...dashboardHandlers,
   ...eventHandlers,
   ...categoryHandlers,
   ...ticketHandlers
 ]
 
-export { createEntityHandlers } from './factory'
+export { createBulkHandler, createEntityHandlers } from './factory'
 export type {
+  TBulkApplier,
+  IBulkFailureReason,
+  IBulkHandlerOptions,
   ICodedConflict,
   IEntityFieldDeclaration,
   IEntityHandlerOptions,
@@ -33,4 +39,6 @@ export type {
   TConflictCheck
 } from './factory'
 
-export { requireAuth } from './auth'
+export { NEARLY_SOLD_OUT_MAX_QUANTITY } from './dashboard'
+
+export { requireAuth, requireWriteAccess } from './auth'

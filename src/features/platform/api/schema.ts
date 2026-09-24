@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aggregate dashboard statistics
+         * @description Returns the complete dashboard payload in one request — headline counts, gross inventory value broken down per currency (never summed across currencies), ticket-status and event-status breakdowns, the next upcoming events and the nearly-sold-out tickets. Computed by the mock handler (`src/mocks/handlers/dashboard.ts`) from the in-memory db, the only version that survives a realistic dataset (PRD-007).
+         */
+        get: operations["getDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -102,6 +122,26 @@ export interface paths {
          * @description Creates a new event from the given payload.
          */
         post: operations["postEvents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a bulk operation to several events
+         * @description Applies one operation (`delete` or `archive`) to each of the given event identifiers, per-identifier, and reports a `BulkResult`: the identifiers that succeeded and, separately, those that failed each with a reason. Bulk `delete` reuses the same dependency-conflict rule as a single delete — a referenced event is reported as a per-identifier failure carrying the blocking count, not a top-level `409` (PRD-007). Rejected for a viewer with `403`.
+         */
+        post: operations["postEventsBulk"];
         delete?: never;
         options?: never;
         head?: never;
@@ -160,6 +200,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a bulk operation to several categories
+         * @description Applies one operation to each of the given category identifiers, per-identifier, and reports a `BulkResult`. Bulk `delete` reuses the same dependency-conflict rule as a single delete — a category still referenced by tickets is reported as a per-identifier failure carrying the blocking count, not a top-level `409` (PRD-007). Categories have no lifecycle status, so `archive` is a no-op that reports each identifier as failed with an explanatory reason. Rejected for a viewer with `403`.
+         */
+        post: operations["postCategoriesBulk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/categories/{id}": {
         parameters: {
             query?: never;
@@ -206,6 +266,26 @@ export interface paths {
          * @description Creates a new ticket from the given payload. Rejects an `eventId` or `categoryId` that does not resolve to an existing event/category with a `400` carrying a field error on the offending field.
          */
         post: operations["postTickets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a bulk operation to several tickets
+         * @description Applies one operation (`delete` or `archive`) to each of the given ticket identifiers, per-identifier, and reports a `BulkResult`. A ticket is a leaf of the domain model — nothing references it — so bulk `delete` has no dependency-conflict case; the only per-identifier failure is a `NOT_FOUND`. `archive` sets each ticket's status to `archived`. Rejected for a viewer with `403`.
+         */
+        post: operations["postTicketsBulk"];
         delete?: never;
         options?: never;
         head?: never;
@@ -297,10 +377,15 @@ export interface components {
          */
         SortOrder: "asc" | "desc";
         /**
-         * @description Role granted to an authenticated user. Currently seeded with a single administrator role; extended with a viewer role by PRD-007.
+         * @description Response format for a list endpoint. `json` (the default) returns the paginated envelope; `csv` returns the full filtered result as `text/csv` (PRD-007).
          * @enum {string}
          */
-        UserRole: "admin";
+        ListFormat: "json" | "csv";
+        /**
+         * @description Role granted to an authenticated user. `admin` may perform every operation; `viewer` may only read — every write endpoint rejects a viewer's token with `403` (PRD-007). Seeded with one account of each role (`src/mocks/db/fixtures.ts`).
+         * @enum {string}
+         */
+        UserRole: "admin" | "viewer";
         /** @description An authenticated administrator or viewer of the portal. */
         User: {
             /** @description Opaque unique identifier. */
@@ -481,6 +566,71 @@ export interface components {
             /** @description The number of dependent records blocking the operation. */
             count: number;
         };
+        /** @description A monetary total for a single currency, in minor units (e.g. cents). The dashboard's gross inventory value is an array of these — one entry per currency present in the catalogue — and is NEVER summed across currencies into one figure. A single total mixing euros and pounds is not a number; it is a bug with a friendly face (PRD-007). The presentation layer formats each entry with its own currency. */
+        CurrencyTotal: {
+            /** @description The currency this total is denominated in. */
+            currency: components["schemas"]["Currency"];
+            /** @description The total value in this currency, in minor units (e.g. cents), never a float — mirrors `Ticket.price`. */
+            totalMinorUnits: number;
+        };
+        /** @description The number of records carrying a given lifecycle status. Used for both the ticket-status and event-status breakdowns on the dashboard. `status` is a bare string rather than a specific status enum because the same shape serves both Event and Ticket statuses; the owning breakdown array constrains which values appear. */
+        StatusBreakdown: {
+            /** @description The lifecycle status value, e.g. `draft` or `on_sale`. */
+            status: string;
+            /** @description The number of records carrying this status. */
+            count: number;
+        };
+        /** @description The complete aggregate payload for `GET /dashboard/stats`, computed in one request by the mock handler (`src/mocks/handlers/dashboard.ts`) rather than by reducing lists in the browser — the only version that survives a realistic dataset (PRD-007). Gross inventory value is broken down per currency and never summed across currencies. */
+        DashboardStats: {
+            /** @description Total number of events in the catalogue. */
+            totalEvents: number;
+            /** @description Number of events currently running — those whose lifecycle status is `published`. */
+            runningEvents: number;
+            /** @description Total number of tickets in the catalogue. */
+            totalTickets: number;
+            /** @description Sum of every ticket's stock quantity across the catalogue. */
+            totalAvailableQuantity: number;
+            /** @description Gross inventory value (price × quantity) broken down per currency. Never a single cross-currency total — see `CurrencyTotal`. */
+            grossInventoryValue: components["schemas"]["CurrencyTotal"][];
+            /** @description Ticket count per `TicketStatus`. */
+            ticketStatusBreakdown: components["schemas"]["StatusBreakdown"][];
+            /** @description Event count per `EventStatus`. */
+            eventStatusBreakdown: components["schemas"]["StatusBreakdown"][];
+            /** @description The next events starting, soonest first — events whose start date is today or later, capped at a handler-defined limit. */
+            upcomingEvents: components["schemas"]["Event"][];
+            /** @description Tickets whose stock is nearly exhausted — quantity at or below the handler's documented `NEARLY_SOLD_OUT_MAX_QUANTITY` threshold, and not already `sold_out`/`archived` — lowest stock first, capped at a handler-defined limit. */
+            nearlySoldOutTickets: components["schemas"]["Ticket"][];
+        };
+        /**
+         * @description The operation a bulk request applies to each of its identifiers. `delete` removes each record (subject to the same dependency-conflict rules as a single delete); `archive` sets each record's status to its archived/completed terminal state.
+         * @enum {string}
+         */
+        BulkOperation: "delete" | "archive";
+        /** @description Body of a bulk endpoint (`POST /events/bulk`, `POST /categories/bulk`, `POST /tickets/bulk`): a list of record identifiers and the single operation to apply to each. A server-side loop rather than N client round trips, so partial failure can be reported coherently (PRD-007). */
+        BulkRequest: {
+            /** @description The identifiers to apply the operation to. At most 100 per request. */
+            ids: string[];
+            /** @description The operation applied to each identifier. */
+            operation: components["schemas"]["BulkOperation"];
+        };
+        /** @description One failed identifier within a `BulkResult`, carrying why it failed. A dependency-conflict failure (a referenced event/category, same rule as a single delete) additionally carries the blocking dependent count, so the UI can report it per record rather than as a top-level `409`. */
+        BulkFailure: {
+            /** @description The identifier that failed. */
+            id: string;
+            /** @description Machine-readable failure code, e.g. `NOT_FOUND` or `CONFLICT` (a dependency conflict) — mirrors `ErrorResponse.code`. */
+            code: string;
+            /** @description Human-readable explanation of the failure. */
+            reason: string;
+            /** @description For a dependency conflict only: the number of dependent records blocking the operation on this identifier. Absent otherwise. */
+            count?: number;
+        };
+        /** @description Body returned by a bulk endpoint: the identifiers that succeeded and, separately, the identifiers that failed each with a reason. Partial success is the expected case, not an edge case (PRD-007), so both arrays are always present (either may be empty). */
+        BulkResult: {
+            /** @description Identifiers the operation was applied to successfully. */
+            succeeded: string[];
+            /** @description Identifiers the operation could not be applied to, each with a reason. */
+            failed: components["schemas"]["BulkFailure"][];
+        };
     };
     responses: {
         /** @description The request failed validation. */
@@ -494,6 +644,15 @@ export interface components {
         };
         /** @description The session is absent or invalid. */
         Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The session is valid but the authenticated user lacks permission for this operation — a viewer attempting a write (PRD-007). Distinct from `401`: the caller is authenticated, so this is a permission failure, not a session failure, and the response interceptor notifies without signing the user out. */
+        Forbidden: {
             headers: {
                 [name: string]: unknown;
             };
@@ -528,6 +687,17 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description The full filtered and sorted result as CSV (`format=csv`) — every matching record, not just the current page. A `Content-Disposition` header carries a filename combining the entity and the export date (e.g. `attachment; filename="tickets-2026-09-23.csv"`). Money is a decimal with its currency in a separate column, dates are ISO-8601, and references appear by name; comma/quote/newline field values are escaped RFC-4180 style. */
+        CsvExport: {
+            headers: {
+                /** @description Carries the download filename combining the entity and export date. */
+                "Content-Disposition"?: string;
+                [name: string]: unknown;
+            };
+            content: {
+                "text/csv": string;
+            };
+        };
     };
     parameters: {
         /** @description Free-text search applied across an endpoint's declared searchable fields. */
@@ -540,6 +710,8 @@ export interface components {
         page: number;
         /** @description Number of items per page. */
         perPage: number;
+        /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
+        format: components["schemas"]["ListFormat"];
     };
     requestBodies: never;
     headers: never;
@@ -634,6 +806,27 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    getDashboardStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The aggregate dashboard statistics. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStats"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     getEvents: {
         parameters: {
             query?: {
@@ -655,6 +848,8 @@ export interface operations {
                 startDateFrom?: string;
                 /** @description Upper bound of the requested date window, inclusive. Matched by overlap against each event's own `[startDate, endDate]` range, not containment. */
                 startDateTo?: string;
+                /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
+                format?: components["parameters"]["format"];
             };
             header?: never;
             path?: never;
@@ -662,15 +857,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of events. */
+            /** @description A page of events (default), or — when `format=csv` — the full filtered result as `text/csv` (see `x-csv-export`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["EventListResponse"];
+                    "text/csv": string;
                 };
             };
+            "x-csv-export": components["responses"]["CsvExport"];
         };
     };
     postEvents: {
@@ -696,6 +893,33 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postEventsBulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRequest"];
+            };
+        };
+        responses: {
+            /** @description The per-identifier outcome of the bulk operation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getEventsId: {
@@ -739,6 +963,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The event cannot be deleted because another entity (e.g. a ticket) still references it. */
             409: {
@@ -776,6 +1001,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -792,6 +1018,8 @@ export interface operations {
                 page?: components["parameters"]["page"];
                 /** @description Number of items per page. */
                 perPage?: components["parameters"]["perPage"];
+                /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
+                format?: components["parameters"]["format"];
             };
             header?: never;
             path?: never;
@@ -799,15 +1027,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of categories. */
+            /** @description A page of categories (default), or — when `format=csv` — the full filtered result as `text/csv` (see `x-csv-export`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryListResponse"];
+                    "text/csv": string;
                 };
             };
+            "x-csv-export": components["responses"]["CsvExport"];
         };
     };
     postCategories: {
@@ -833,6 +1063,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             /** @description A category with this name already exists. */
             409: {
                 headers: {
@@ -842,6 +1073,32 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+        };
+    };
+    postCategoriesBulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRequest"];
+            };
+        };
+        responses: {
+            /** @description The per-identifier outcome of the bulk operation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getCategoriesId: {
@@ -885,6 +1142,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The category cannot be deleted because one or more tickets still reference it. */
             409: {
@@ -922,6 +1180,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Another category already has this name. */
             409: {
@@ -959,6 +1218,8 @@ export interface operations {
                 priceMin?: number;
                 /** @description Upper bound (inclusive) on price, in minor currency units. */
                 priceMax?: number;
+                /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
+                format?: components["parameters"]["format"];
             };
             header?: never;
             path?: never;
@@ -966,15 +1227,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of tickets. */
+            /** @description A page of tickets (default), or — when `format=csv` — the full filtered result as `text/csv` (see `x-csv-export`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["TicketListResponse"];
+                    "text/csv": string;
                 };
             };
+            "x-csv-export": components["responses"]["CsvExport"];
         };
     };
     postTickets: {
@@ -1000,6 +1263,33 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postTicketsBulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRequest"];
+            };
+        };
+        responses: {
+            /** @description The per-identifier outcome of the bulk operation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTicketsId: {
@@ -1043,6 +1333,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1071,6 +1362,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
