@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { IStatusDistributionEntry } from './components/status-distribution-bar.types'
+
 /**
  * Dashboard screen (GitHub issue #38, PRD-007 "Dashboard") — the post-login
  * landing route (`routeNames.home`, `/`). Replaces the scaffold example
@@ -28,11 +30,20 @@
  * way `Events.vue`/`Tickets.vue` gate their row actions — a viewer sees the
  * record name as plain text instead of a link that would 403.
  *
- * `el-progress`'s `:color` reuses `STATUS_PRESENTATION`/
- * `STATUS_PRESENTATION_TYPE_COLOR` from `src/utils/status-presentation.ts` —
- * the exact same status->semantic-type mapping `StatusTag` renders as an
+ * Status breakdowns render through `StatusDistributionBar`
+ * (`components/StatusDistributionBar.vue`, GitHub issue #43, PRD-010
+ * "Dashboard presentation") — a single stacked proportional bar per
+ * breakdown rather than a separate `el-progress` per status, so the
+ * distribution reads in one glance. It reuses the same `STATUS_PRESENTATION`/
+ * `STATUS_PRESENTATION_TYPE_COLOR` mapping `StatusTag` renders as an
  * `el-tag` elsewhere in the portal, so a status never gets a different
  * colour here than anywhere else.
+ *
+ * Cards (`el-card shadow="never"`) are kept only where PRD-010 calls them
+ * meaningful — the headline stat tiles and the per-currency inventory block
+ * — everything else below uses spacing and a `text-section-heading` rather
+ * than a bordered box, per PRD-010's "administrative interfaces fail when
+ * every section is a box".
  */
 const router = useRouter()
 const { canDo } = useCapability()
@@ -43,28 +54,36 @@ const { data, loading, error, retry } = useDashboardStats()
 /** Column count for the "Gross inventory value" `el-descriptions` — 1 below the tablet breakpoint (`useBreakpoint`, PRD-002) so a third seeded currency (e.g. GBP alongside EUR/USD) stacks into its own row instead of overflowing the card at narrow viewports, and the existing 3-column layout at tablet/desktop widths and up. */
 const grossInventoryValueColumns = computed(() => isMobile.value ? 1 : 3)
 
-/** Label for a status breakdown entry, via the same `STATUS_PRESENTATION` map `StatusTag` renders from. Falls back to the raw value for a status this map hasn't been taught yet, mirroring `StatusTag`'s own defensive handling. */
-function statusLabel (status: string): string {
-  return STATUS_PRESENTATION[status as TStatus]?.label ?? status
-}
-
-/** `el-progress`'s `:color` for a status breakdown entry — the same semantic type `StatusTag` maps the status to, resolved to its underlying `--el-color-*` variable. */
-function progressColor (status: string): string {
-  const type = STATUS_PRESENTATION[status as TStatus]?.type
-
-  return type ? STATUS_PRESENTATION_TYPE_COLOR[type] : STATUS_PRESENTATION_TYPE_COLOR.info
-}
-
-/** `count`/`total` as an `el-progress` `:percentage` — 0 when the breakdown's total is 0, so an empty dataset never divides by zero. */
-function breakdownPercentage (count: number, total: number): number {
-  return total === 0 ? 0 : Math.round((count / total) * 100)
-}
-
-const eventsTotal = computed(() => data.value?.eventStatusBreakdown.reduce((sum, entry) => sum + entry.count, 0) ?? 0)
-const ticketsTotal = computed(() => data.value?.ticketStatusBreakdown.reduce((sum, entry) => sum + entry.count, 0) ?? 0)
-
 /** Draft-event count for the headline tile — `TDashboardStats` has no dedicated field, only the status breakdown array, so this reads the `draft` entry out of it rather than summing lists client-side. */
 const draftEvents = computed(() => data.value?.eventStatusBreakdown.find(entry => entry.status === 'draft')?.count ?? 0)
+
+/** Secondary supporting figures for the "Currently running"/"Draft events" headline tiles (GitHub issue #43, PRD-010 "Dashboard presentation") — each is a subset of `totalEvents`, so a share-of-total reads as a meaningful second figure. 0 when there are no events at all, so an empty dataset never divides by zero. */
+const runningEventsPercentage = computed(() => {
+  const totalEvents = data.value?.totalEvents ?? 0
+
+  return totalEvents === 0 ? 0 : Math.round(((data.value?.runningEvents ?? 0) / totalEvents) * 100)
+})
+const draftEventsPercentage = computed(() => {
+  const totalEvents = data.value?.totalEvents ?? 0
+
+  return totalEvents === 0 ? 0 : Math.round((draftEvents.value / totalEvents) * 100)
+})
+
+/** Entries for the events/tickets `StatusDistributionBar` (GitHub issue #43) — the same breakdown arrays the removed per-status `el-progress` rows read, reshaped with the filtered-list link each segment/legend row navigates to. Link shape is unchanged from before this slice (`routeNames.events`/`routeNames.tickets` with `query: { status }`). */
+const eventsDistributionEntries = computed<IStatusDistributionEntry[]>(() => (
+  data.value?.eventStatusBreakdown ?? []
+).map(entry => ({
+  status: entry.status,
+  count: entry.count,
+  to: { name: routeNames.events, query: { status: entry.status } }
+})))
+const ticketsDistributionEntries = computed<IStatusDistributionEntry[]>(() => (
+  data.value?.ticketStatusBreakdown ?? []
+).map(entry => ({
+  status: entry.status,
+  count: entry.count,
+  to: { name: routeNames.tickets, query: { status: entry.status } }
+})))
 
 // --- Headline figures counting into place (GitHub issue #42, PRD-010
 // "Motion") — one `useCountUp` per headline `el-statistic`, each fed a plain
@@ -129,27 +148,19 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
             </el-card>
           </el-col>
           <el-col :xs="24" :md="6" class="mb-4">
-            <el-card shadow="never">
-              <el-skeleton animated :rows="4" />
-            </el-card>
+            <el-skeleton animated :rows="4" />
           </el-col>
           <el-col :xs="24" :md="6" class="mb-4">
-            <el-card shadow="never">
-              <el-skeleton animated :rows="4" />
-            </el-card>
+            <el-skeleton animated :rows="4" />
           </el-col>
         </el-row>
 
         <el-row :gutter="16">
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <el-skeleton animated :rows="5" />
-            </el-card>
+            <el-skeleton animated :rows="5" />
           </el-col>
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <el-skeleton animated :rows="5" />
-            </el-card>
+            <el-skeleton animated :rows="5" />
           </el-col>
         </el-row>
       </div>
@@ -175,7 +186,11 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
           <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
             <el-card shadow="never">
               <router-link :to="{ name: routeNames.events }" class="block hover:text-accent">
-                <el-statistic title="Total events" :value="totalEventsDisplay" />
+                <el-statistic
+                  title="Total events"
+                  :value="totalEventsDisplay"
+                  class="headline-statistic tabular-nums"
+                />
               </router-link>
             </el-card>
           </el-col>
@@ -186,7 +201,15 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 :to="{ name: routeNames.events, query: { status: 'published' } }"
                 class="block hover:text-accent"
               >
-                <el-statistic title="Currently running" :value="runningEventsDisplay" />
+                <el-statistic
+                  title="Currently running"
+                  :value="runningEventsDisplay"
+                  class="headline-statistic tabular-nums"
+                >
+                  <template #suffix>
+                    <span class="text-caption text-text-muted align-middle">({{ runningEventsPercentage }}%)</span>
+                  </template>
+                </el-statistic>
               </router-link>
             </el-card>
           </el-col>
@@ -197,7 +220,11 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 :to="{ name: routeNames.events, query: { status: 'draft' } }"
                 class="block hover:text-accent"
               >
-                <el-statistic title="Draft events" :value="draftEventsDisplay" />
+                <el-statistic title="Draft events" :value="draftEventsDisplay" class="headline-statistic tabular-nums">
+                  <template #suffix>
+                    <span class="text-caption text-text-muted align-middle">({{ draftEventsPercentage }}%)</span>
+                  </template>
+                </el-statistic>
               </router-link>
             </el-card>
           </el-col>
@@ -205,7 +232,11 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
           <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
             <el-card shadow="never">
               <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-                <el-statistic title="Total tickets" :value="totalTicketsDisplay" />
+                <el-statistic
+                  title="Total tickets"
+                  :value="totalTicketsDisplay"
+                  class="headline-statistic tabular-nums"
+                />
               </router-link>
             </el-card>
           </el-col>
@@ -213,7 +244,11 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
           <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
             <el-card shadow="never">
               <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-                <el-statistic title="Total available quantity" :value="totalAvailableQuantityDisplay" />
+                <el-statistic
+                  title="Total available quantity"
+                  :value="totalAvailableQuantityDisplay"
+                  class="headline-statistic tabular-nums"
+                />
               </router-link>
             </el-card>
           </el-col>
@@ -229,7 +264,9 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                   :key="currencyTotal.currency"
                   :label="currencyTotal.currency"
                 >
-                  {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
+                  <span class="tabular-nums">
+                    {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
+                  </span>
                 </el-descriptions-item>
 
                 <el-descriptions-item v-if="data.grossInventoryValue.length === 0" label="No inventory">
@@ -240,52 +277,22 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
           </el-col>
         </el-row>
 
-        <!-- Status breakdowns -->
+        <!-- Status breakdowns — a single stacked proportional bar per
+           breakdown (GitHub issue #43), not a bordered card: hierarchy comes
+           from the section heading and spacing. -->
         <el-row :gutter="16">
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <h2 class="text-section-heading text-text-primary mb-3">Events by status</h2>
-              <div class="flex flex-col gap-3">
-                <router-link
-                  v-for="entry in data.eventStatusBreakdown"
-                  :key="entry.status"
-                  :to="{ name: routeNames.events, query: { status: entry.status } }"
-                  class="block"
-                >
-                  <div class="flex items-center justify-between text-body text-text-muted mb-1">
-                    <span>{{ statusLabel(entry.status) }}</span>
-                  </div>
-                  <el-progress
-                    :percentage="breakdownPercentage(entry.count, eventsTotal)"
-                    :color="progressColor(entry.status)"
-                    :format="() => String(entry.count)"
-                  />
-                </router-link>
-              </div>
-            </el-card>
+            <section aria-labelledby="events-status-heading">
+              <h2 id="events-status-heading" class="text-section-heading text-text-primary mb-3">Events by status</h2>
+              <StatusDistributionBar :entries="eventsDistributionEntries" />
+            </section>
           </el-col>
 
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <h2 class="text-section-heading text-text-primary mb-3">Tickets by status</h2>
-              <div class="flex flex-col gap-3">
-                <router-link
-                  v-for="entry in data.ticketStatusBreakdown"
-                  :key="entry.status"
-                  :to="{ name: routeNames.tickets, query: { status: entry.status } }"
-                  class="block"
-                >
-                  <div class="flex items-center justify-between text-body text-text-muted mb-1">
-                    <span>{{ statusLabel(entry.status) }}</span>
-                  </div>
-                  <el-progress
-                    :percentage="breakdownPercentage(entry.count, ticketsTotal)"
-                    :color="progressColor(entry.status)"
-                    :format="() => String(entry.count)"
-                  />
-                </router-link>
-              </div>
-            </el-card>
+            <section aria-labelledby="tickets-status-heading">
+              <h2 id="tickets-status-heading" class="text-section-heading text-text-primary mb-3">Tickets by status</h2>
+              <StatusDistributionBar :entries="ticketsDistributionEntries" />
+            </section>
           </el-col>
         </el-row>
 
@@ -300,8 +307,10 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
            `onNearlySoldOutTicketRowClick`). -->
         <el-row :gutter="16">
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <h2 class="text-section-heading text-text-primary mb-3">Next events starting</h2>
+            <section aria-labelledby="upcoming-events-heading">
+              <h2 id="upcoming-events-heading" class="text-section-heading text-text-primary mb-3">
+                Next events starting
+              </h2>
               <el-table :data="data.upcomingEvents" size="small" @row-click="onUpcomingEventRowClick">
                 <el-table-column label="Name">
                   <template #default="{ row }">
@@ -329,12 +338,14 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                   No upcoming events.
                 </template>
               </el-table>
-            </el-card>
+            </section>
           </el-col>
 
           <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <h2 class="text-section-heading text-text-primary mb-3">Tickets nearly sold out</h2>
+            <section aria-labelledby="nearly-sold-out-heading">
+              <h2 id="nearly-sold-out-heading" class="text-section-heading text-text-primary mb-3">
+                Tickets nearly sold out
+              </h2>
               <el-table :data="data.nearlySoldOutTickets" size="small" @row-click="onNearlySoldOutTicketRowClick">
                 <el-table-column label="Name">
                   <template #default="{ row }">
@@ -358,10 +369,34 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                   No tickets are running low.
                 </template>
               </el-table>
-            </el-card>
+            </section>
           </el-col>
         </el-row>
       </div>
     </Transition>
   </div>
 </template>
+
+<style scoped>
+/* Headline figures at the largest type step, dominating the layout (GitHub
+   issue #43, PRD-010 "Dashboard presentation") — `el-statistic` defaults to
+   Element Plus's own `extra-large` step, not this project's `screen-heading`
+   token, so the value/title sizes are overridden directly on its rendered
+   parts via `:deep()`. The title already inherits the right muted colour
+   from the theme bridge (`--el-text-color-regular`, mapped from this
+   project's own `--color-text-muted`) — only size/weight need setting here. */
+.headline-statistic :deep(.el-statistic__content) {
+  font-size: var(--text-screen-heading);
+  line-height: var(--text-screen-heading--line-height);
+}
+
+.headline-statistic :deep(.el-statistic__number) {
+  font-weight: var(--text-screen-heading--font-weight);
+}
+
+.headline-statistic :deep(.el-statistic__head) {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: var(--text-caption--font-weight);
+}
+</style>
