@@ -232,7 +232,7 @@ describe('useListQuery', () => {
       expect(listQuery.search.value).toBe('hello')
     })
 
-    it('keeps in-progress search text when filters are reset before the debounce settles', async () => {
+    it('clears in-progress search text (not just filters) when resetFilters is called', async () => {
       const { router, listQuery } = await setup()
 
       await listQuery.setFilter('status', 'active')
@@ -241,13 +241,30 @@ describe('useListQuery', () => {
       await listQuery.resetFilters()
 
       expect(router.currentRoute.value.query.status).toBeUndefined()
-      expect(router.currentRoute.value.query.search).toBe('hello')
-      expect(listQuery.search.value).toBe('hello')
+      expect(router.currentRoute.value.query.search).toBeUndefined()
+      expect(listQuery.search.value).toBe('')
 
       await vi.advanceTimersByTimeAsync(300)
 
-      expect(router.currentRoute.value.query.search).toBe('hello')
-      expect(listQuery.search.value).toBe('hello')
+      expect(router.currentRoute.value.query.search).toBeUndefined()
+      expect(listQuery.search.value).toBe('')
+    })
+  })
+
+  describe('resetFilters', () => {
+    it('clears a search-only query back to the full, unfiltered list (GitHub issue #26)', async () => {
+      // Mirrors the "Clear filters" / "Clear all" repro: navigating straight
+      // to a URL where `search` is the *only* active query param (no other
+      // filters were ever set) must still be fully cleared by resetFilters.
+      const { router, listQuery } = await setup('/list?search=zzzznomatch')
+
+      expect(listQuery.search.value).toBe('zzzznomatch')
+
+      await listQuery.resetFilters()
+
+      expect(router.currentRoute.value.query.search).toBeUndefined()
+      expect(listQuery.search.value).toBe('')
+      expect(Object.keys(router.currentRoute.value.query)).toHaveLength(0)
     })
   })
 

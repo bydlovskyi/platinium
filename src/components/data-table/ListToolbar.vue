@@ -44,9 +44,11 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useBreakpoint()
+const slots = useSlots()
 
 const isFilterDrawerOpen = ref(false)
 
+const hasFilterControls = computed(() => slots.filters !== undefined)
 const activeFilterCount = computed(() => props.activeFilters.length)
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
@@ -78,8 +80,11 @@ function onSearchInput (value: string): void {
 
       <!-- Mobile: filter controls move behind a drawer, opened by a badge
            showing how many are active so collapsing them never hides that
-           a filter is in effect. -->
-      <template v-else>
+           a filter is in effect. Only rendered when the entity screen
+           actually supplies filter controls — an entity with none (e.g.
+           categories, PRD-005 "No filters") would otherwise show a button
+           that opens an empty drawer. -->
+      <template v-else-if="hasFilterControls">
         <el-badge :value="activeFilterCount" :hidden="!hasActiveFilters" type="primary">
           <el-button aria-label="Open filters" @click="isFilterDrawerOpen = true">
             <template #icon>

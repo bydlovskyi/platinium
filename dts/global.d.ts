@@ -3,6 +3,7 @@
 import 'vue-router'
 
 import type { chaos } from '@/mocks/chaos'
+import type { ICapability } from '@/composables/useCapability'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -17,6 +18,15 @@ declare module 'vue-router' {
      * Defaults to `'admin'` when omitted (see `App.vue`).
      */
     layout?: 'auth' | 'admin'
+    /**
+     * Entity-and-operation pair (`src/composables/useCapability.ts`) an
+     * authenticated visitor must be able to perform to view this route —
+     * e.g. `{ entity: 'events', operation: 'create' }` on `eventCreate`. A
+     * signed-in user who fails this check is redirected to
+     * `routeNames.forbidden` by `src/router/route-guard.ts`. Omitted on
+     * every read-only list/detail route.
+     */
+    requiredCapability?: ICapability
   }
 }
 

@@ -22,7 +22,7 @@ export type TCurrency = 'USD' | 'EUR' | 'GBP'
 export type TSortOrder = 'asc' | 'desc'
 
 /** Role granted to an authenticated user. Mirrors `UserRole` in `openapi.yaml`. */
-export type TUserRole = 'admin'
+export type TUserRole = 'admin' | 'viewer'
 
 /** An opaque, UUID-shaped identifier. Never assumed sequential or sortable. */
 export type TEntityId = string

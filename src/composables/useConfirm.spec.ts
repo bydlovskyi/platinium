@@ -105,6 +105,81 @@ describe('useConfirm', () => {
     })
   })
 
+  describe('when the invoking component unmounts while the dialog is open', () => {
+    it('force-closes the dialog instead of leaving it stuck (unmount while onConfirm is still pending)', async () => {
+      // Reproduces GitHub issue #28's finding against `useConfirm` (issue
+      // #24): `ElMessageBox` is a route-independent singleton teleported to
+      // `document.body`, so navigating away from the view that opened it
+      // (simulated here by unmounting the host) does not tear the dialog
+      // down on its own. Without the fix the overlay stays in the DOM
+      // forever, blocking pointer events on whatever screen the admin has
+      // since navigated to — even once the in-flight `onConfirm` eventually
+      // settles, since `beforeClose`'s `.catch()` deliberately never calls
+      // `done()`.
+      let resolveOnConfirm!: () => void
+      const onConfirm = vi.fn(() => new Promise<void>((resolve) => {
+        resolveOnConfirm = resolve
+      }))
+      const { wrapper } = buildHost(onConfirm)
+
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+
+      findMessageBoxButton('Delete').click()
+      await flushPromises()
+
+      expect(document.querySelector<HTMLElement>('.el-overlay.is-message-box')?.style.display)
+        .not.toBe('none')
+
+      wrapper.unmount()
+      await flushPromises()
+
+      await vi.waitFor(() => {
+        expect(document.querySelector<HTMLElement>('.el-overlay.is-message-box')?.style.display)
+          .toBe('none')
+      })
+
+      // The delayed response landing afterwards (e.g. a 409 conflict) must
+      // not resurrect the dialog or throw against the now-detached instance.
+      resolveOnConfirm()
+      await flushPromises()
+
+      expect(document.querySelector<HTMLElement>('.el-overlay.is-message-box')?.style.display)
+        .toBe('none')
+    })
+
+    it('force-closes the dialog left stuck open by a failed onConfirm after the host has unmounted', async () => {
+      // The other half of the same bug: `onConfirm` rejects (e.g. the 409
+      // path) instead of resolving. Normally that intentionally leaves the
+      // dialog open so the admin can see the failure and retry — but only
+      // while the invoking view is still mounted. Once it isn't, there is no
+      // one left to retry, so the dialog must still be force-closed rather
+      // than staying stuck forever.
+      let rejectOnConfirm!: (reason: unknown) => void
+      const onConfirm = vi.fn(() => new Promise<void>((_resolve, reject) => {
+        rejectOnConfirm = reject
+      }))
+      const { wrapper } = buildHost(onConfirm)
+
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+
+      findMessageBoxButton('Delete').click()
+      await flushPromises()
+
+      wrapper.unmount()
+      await flushPromises()
+
+      rejectOnConfirm(new Error('conflict'))
+      await flushPromises()
+
+      await vi.waitFor(() => {
+        expect(document.querySelector<HTMLElement>('.el-overlay.is-message-box')?.style.display)
+          .toBe('none')
+      })
+    })
+  })
+
   describe('in-flight state', () => {
     it('shows the confirm button as loading and disabled while onConfirm is pending, then clears it', async () => {
       let resolveOnConfirm!: () => void

@@ -84,4 +84,14 @@ describe('StatusTag', () => {
     // colour still gets "Sold out".
     expect(wrapper.text().trim()).toBe('Sold out')
   })
+
+  it('renders nothing rather than throwing for a status outside the known set (GitHub issue #26)', () => {
+    // Defensive handling for an unrecognised/undefined status value (e.g. a
+    // backend value this component hasn't been taught yet) — `StatusTag`
+    // must tolerate it instead of crashing the render.
+    const wrapper = mount(StatusTag, { props: { status: 'unknown-status' as TEventStatus } })
+
+    expect(wrapper.find('.el-tag').exists()).toBe(false)
+    expect(wrapper.text()).toBe('')
+  })
 })

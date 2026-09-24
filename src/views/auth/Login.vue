@@ -79,10 +79,10 @@ async function onSubmit (): Promise<void> {
 
 <template>
   <div>
-    <h1 class="text-screen-heading text-text-primary mb-1">
+    <h1 class="text-screen-heading text-text-primary mb-1 text-center">
       Sign in
     </h1>
-    <p class="text-body text-text-muted mb-6">
+    <p class="text-body text-text-muted mb-8 text-center">
       Ticket Management Admin Portal
     </p>
 

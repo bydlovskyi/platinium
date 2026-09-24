@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 
 import { chaos } from '../chaos'
+import { csvContentDisposition, serialiseCsv, type ICsvColumn } from './csv'
 import type { IEntityCollection, IIdentifiable, IListQuery, IOverlapFilter, IRangeFilter, TSortOrder } from '../db'
 
 /**
@@ -77,15 +78,34 @@ export interface IStructuredConflict {
 }
 
 /**
- * A hook a caller (an entity slice) can register to reject a mutation
- * before it reaches the collection — e.g. a referential-integrity check
- * before delete. Returning a plain string fails the request with
- * `409 Conflict` and that message; returning an {@link IStructuredConflict}
- * fails it with the richer `DependencyConflict` body instead (message plus
- * the blocking entity's type and count); returning `undefined` lets the
- * request proceed.
+ * A coded, non-dependency conflict a {@link TConflictCheck} may return —
+ * e.g. a uniqueness violation. Distinct from {@link IStructuredConflict}:
+ * it carries no `entity`/`count` (there is no blocking dependent record,
+ * just a clash with another record of the same collection), but its `code`
+ * overrides the plain string form's hardcoded `'CONFLICT'`, so a client can
+ * tell a duplicate-name rejection apart from a referential-integrity one.
  */
-export type TConflictCheck<T> = (record: T, action: 'update' | 'delete') => string | IStructuredConflict | undefined
+export interface ICodedConflict {
+  code: string
+  message: string
+}
+
+/**
+ * A hook a caller (an entity slice) can register to reject a mutation
+ * before it reaches the collection — e.g. a uniqueness check before create,
+ * or a referential-integrity check before delete. Returning a plain string
+ * fails the request with `409 Conflict` and that message; returning an
+ * {@link ICodedConflict} fails it with that distinct `code` instead;
+ * returning an {@link IStructuredConflict} fails it with the richer
+ * `DependencyConflict` body instead (message plus the blocking entity's type
+ * and count); returning `undefined` lets the request proceed. On `create`,
+ * `record` is the input payload cast to `T` — the record does not exist yet,
+ * so only fields present on the payload should be inspected.
+ */
+export type TConflictCheck<T> = (
+  record: T,
+  action: 'create' | 'update' | 'delete'
+) => string | ICodedConflict | IStructuredConflict | undefined
 
 /** Context passed to a `validate` callback alongside the input payload. See {@link IEntityHandlerOptions.validate}. */
 export interface IValidateContext<T> {
@@ -121,17 +141,83 @@ export interface IEntityHandlerOptions<T extends IIdentifiable> {
   buildUpdatePatch?: (input: Partial<T>) => Partial<T>
   /** Consulted before `update`/`delete` mutate a record. See {@link TConflictCheck}. */
   conflictCheck?: TConflictCheck<T>
+  /**
+   * Runs before every write handler (create/update/delete) mutates anything,
+   * so a viewer's token is rejected with `403` at the mock layer (PRD-007) —
+   * a UI-only permission is a suggestion, not a control. Pass
+   * `requireWriteAccess` from `./auth`; it returns the `403 Response` to send
+   * verbatim when the caller is a viewer, or `undefined` to let the write
+   * proceed. Omit to leave a path unguarded (the read handlers are never
+   * guarded).
+   */
+  authorize?: (request: Request) => Response | undefined
+  /**
+   * Enables `format=csv` on the list handler (PRD-007). When present and the
+   * request carries `?format=csv`, the list handler serialises the FULL
+   * filtered and sorted result — every matching record, not just the current
+   * page — to `text/csv` with a `Content-Disposition` filename, using the
+   * exact same parsed query the JSON list uses, so file and screen never
+   * disagree. Omit to leave an endpoint JSON-only.
+   */
+  csv?: {
+    /** Entity name used in the download filename, e.g. `events`. */
+    entity: string
+    /** The columns, in order, that make up each CSV row. */
+    columns: ICsvColumn<T>[]
+  }
+}
+
+/**
+ * The per-identifier outcome an {@link TBulkApplier} reports back to
+ * {@link createBulkHandler}: `undefined` means the operation succeeded for
+ * this id, an {@link IBulkFailureReason} means it did not (and why). Applying
+ * one identifier at a time — rather than all-or-nothing — is what lets a bulk
+ * response report partial success coherently (PRD-007).
+ */
+export interface IBulkFailureReason {
+  code: string
+  reason: string
+  /** For a dependency conflict only: the number of dependent records blocking this id. */
+  count?: number
+}
+
+/**
+ * Applies one bulk operation to a single identifier, returning `undefined` on
+ * success or an {@link IBulkFailureReason} on failure. The entity slice
+ * supplies this so the bulk endpoint reuses the *existing* single-record
+ * dependency-conflict check (e.g. `checkEventConflict`) rather than
+ * duplicating its logic.
+ */
+export type TBulkApplier = (id: string) => IBulkFailureReason | undefined
+
+/** Options accepted by {@link createBulkHandler}. */
+export interface IBulkHandlerOptions {
+  /** Full path the bulk handler is registered under, e.g. `/events/bulk`. */
+  path: string
+  /** Maps each supported {@link TBulkOperation} to the applier that carries it out for one id. */
+  appliers: Partial<Record<TBulkOperation, TBulkApplier>>
+  /** Guards the write, exactly as {@link IEntityHandlerOptions.authorize} does — pass `requireWriteAccess`. */
+  authorize?: (request: Request) => Response | undefined
 }
 
 function errorBody (code: string, message: string, errors?: Record<string, string>): TErrorResponse {
   return errors === undefined ? { code, message } : { code, message, errors }
 }
 
-/** Builds the `409` response body for a {@link TConflictCheck} result, plain-string or structured alike. */
-function conflictBody (conflict: string | IStructuredConflict): TErrorResponse | TDependencyConflict {
-  return typeof conflict === 'string'
-    ? errorBody('CONFLICT', conflict)
-    : { code: 'CONFLICT', message: conflict.message, entity: conflict.entity, count: conflict.count }
+/** Narrows a {@link TConflictCheck} result to the structured, `DependencyConflict`-shaped case. */
+function isStructuredConflict (conflict: ICodedConflict | IStructuredConflict): conflict is IStructuredConflict {
+  return 'entity' in conflict && 'count' in conflict
+}
+
+/** Builds the `409` response body for a {@link TConflictCheck} result — plain string, coded or structured alike. */
+function conflictBody (conflict: string | ICodedConflict | IStructuredConflict): TErrorResponse | TDependencyConflict {
+  if (typeof conflict === 'string') {
+    return errorBody('CONFLICT', conflict)
+  }
+
+  return isStructuredConflict(conflict)
+    ? { code: 'CONFLICT', message: conflict.message, entity: conflict.entity, count: conflict.count }
+    : errorBody(conflict.code, conflict.message)
 }
 
 const HTTP_STATUS = {
@@ -324,7 +410,13 @@ function withGeneratedId<T extends IIdentifiable> (record: T): T {
  */
 export function createEntityHandlers<T extends IIdentifiable> (options: IEntityHandlerOptions<T>): HttpHandler[] {
   const { path, collection, fields = {}, validate, createRecord, buildUpdatePatch, conflictCheck } = options
+  const { authorize, csv } = options
   const itemPath = `${path}/:id`
+
+  /** Returns the `403 Response` to send back when the caller may not write, or `undefined` to proceed. */
+  function authorizeWrite (request: Request): Response | undefined {
+    return authorize?.(request)
+  }
 
   function findOrNotFound (id: string): T | Response {
     const record = collection.get(id)
@@ -335,12 +427,35 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
   const list = http.get(path, ({ request }) => withChaos(path, () => {
     const url = new URL(request.url)
     const query = parseListQuery(url, fields)
+
+    if (csv !== undefined && url.searchParams.get('format') === 'csv') {
+      // Serialise the FULL filtered+sorted result, not just the current page:
+      // reuse the parsed query but override pagination to fetch everything, so
+      // the export reflects exactly the filters/sort the list is showing.
+      const all = collection.list({ ...query, page: 1, perPage: Number.MAX_SAFE_INTEGER })
+      const body = serialiseCsv(all.data, csv.columns)
+
+      return new HttpResponse(body, {
+        status: HTTP_STATUS.ok,
+        headers: {
+          'Content-Type': 'text/csv;charset=utf-8',
+          'Content-Disposition': csvContentDisposition(csv.entity)
+        }
+      })
+    }
+
     const result = collection.list(query)
 
     return HttpResponse.json({ data: result.data, meta: result.meta }, { status: HTTP_STATUS.ok })
   }))
 
   const create = http.post(path, ({ request }) => withChaos(path, async () => {
+    const denied = authorizeWrite(request)
+
+    if (denied !== undefined) {
+      return denied
+    }
+
     const input = await readJsonBody(request) as Partial<T>
     const validationErrors = validate?.(input, { action: 'create' })
 
@@ -349,6 +464,12 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
         errorBody('VALIDATION_ERROR', VALIDATION_MESSAGE, validationErrors),
         { status: HTTP_STATUS.badRequest }
       )
+    }
+
+    const conflict = conflictCheck?.(input as T, 'create')
+
+    if (conflict !== undefined) {
+      return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
     }
 
     const record = createRecord ? createRecord(input) : (input as T)
@@ -364,6 +485,12 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
   }))
 
   const update = http.patch(itemPath, ({ request, params }) => withChaos(itemPath, async () => {
+    const denied = authorizeWrite(request)
+
+    if (denied !== undefined) {
+      return denied
+    }
+
     const id = String(params.id)
     const existing = findOrNotFound(id)
 
@@ -381,7 +508,11 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       )
     }
 
-    const conflict = conflictCheck?.(existing, 'update')
+    // The *effective* post-patch record — existing fields overlaid with the
+    // given patch — not the pre-patch `existing` alone, so a conflictCheck
+    // that inspects a field the patch changes (e.g. a uniqueness check on
+    // `name`) sees the value the update would actually produce.
+    const conflict = conflictCheck?.({ ...existing, ...input }, 'update')
 
     if (conflict !== undefined) {
       return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
@@ -395,7 +526,13 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       : HttpResponse.json(updated, { status: HTTP_STATUS.ok })
   }))
 
-  const remove = http.delete(itemPath, ({ params }) => withChaos(itemPath, () => {
+  const remove = http.delete(itemPath, ({ request, params }) => withChaos(itemPath, () => {
+    const denied = authorizeWrite(request)
+
+    if (denied !== undefined) {
+      return denied
+    }
+
     const id = String(params.id)
     const existing = findOrNotFound(id)
 
@@ -415,4 +552,113 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
   }))
 
   return [list, create, read, update, remove]
+}
+
+const BULK_VALIDATION_MESSAGE = 'A bulk request needs a non-empty `ids` array and a supported `operation`.'
+
+/**
+ * Upper bound on `ids` per bulk request. Mirrors the `maxItems: 100` constraint
+ * on `BulkRequest.ids` in `openapi.yaml` — `maxItems` is type-level metadata the
+ * generated `schema.ts` does not enforce at runtime, so the ceiling is enforced
+ * here to guard against an unbounded server-side loop (DoS). Keep the two in
+ * sync if the schema bound changes.
+ */
+const BULK_MAX_IDS = 100
+
+const BULK_TOO_MANY_IDS_MESSAGE =
+  `A bulk request may target at most ${BULK_MAX_IDS} identifiers per call.`
+
+/**
+ * The outcome of parsing a bulk request body: either a well-formed
+ * {@link TBulkRequest}, or a rejection carrying the validation message to send
+ * back with a `400`.
+ */
+type TBulkParseResult =
+  | { ok: true; request: TBulkRequest } |
+  { ok: false; message: string }
+
+/** Narrows a raw request body to a well-formed {@link TBulkRequest} whose `operation` an applier exists for. */
+function parseBulkRequest (
+  body: Partial<Record<string, unknown>>,
+  appliers: Partial<Record<TBulkOperation, TBulkApplier>>
+): TBulkParseResult {
+  const { ids, operation } = body
+
+  const idsValid = Array.isArray(ids) && ids.length > 0 && ids.every(id => typeof id === 'string')
+  const operationValid = typeof operation === 'string' && appliers[operation as TBulkOperation] !== undefined
+
+  if (!idsValid || !operationValid) {
+    return { ok: false, message: BULK_VALIDATION_MESSAGE }
+  }
+
+  // Runtime enforcement of the schema's `maxItems` cap (see BULK_MAX_IDS).
+  if (ids.length > BULK_MAX_IDS) {
+    return { ok: false, message: BULK_TOO_MANY_IDS_MESSAGE }
+  }
+
+  return { ok: true, request: { ids, operation: operation as TBulkOperation } }
+}
+
+/**
+ * Produces a single `POST <path>` handler for one entity's bulk operations
+ * (`/events/bulk`, `/categories/bulk`, `/tickets/bulk`). Guards the write like
+ * every other mutation, then applies the chosen operation to each identifier
+ * one at a time via `options.appliers`, collecting the ids that succeeded and
+ * the ids that failed (each with a reason) into a {@link TBulkResult}. Partial
+ * success is the expected case, not an edge case (PRD-007), so a mix of
+ * successes and failures still returns `200` with both arrays populated —
+ * never a top-level `409`; a dependency conflict is a per-identifier failure.
+ *
+ * The appliers reuse each entity's existing single-record conflict check
+ * rather than duplicating it, so bulk delete refuses a referenced record with
+ * the same blocking count a single delete would report.
+ */
+export function createBulkHandler (options: IBulkHandlerOptions): HttpHandler {
+  const { path, appliers, authorize } = options
+
+  return http.post(path, ({ request }) => withChaos(path, async () => {
+    const denied = authorize?.(request)
+
+    if (denied !== undefined) {
+      return denied
+    }
+
+    const body = await readJsonBody(request)
+    const parsed = parseBulkRequest(body, appliers)
+
+    if (!parsed.ok) {
+      return HttpResponse.json(
+        errorBody('VALIDATION_ERROR', parsed.message),
+        { status: HTTP_STATUS.badRequest }
+      )
+    }
+
+    const apply = appliers[parsed.request.operation]
+
+    if (apply === undefined) {
+      return HttpResponse.json(
+        errorBody('VALIDATION_ERROR', BULK_VALIDATION_MESSAGE),
+        { status: HTTP_STATUS.badRequest }
+      )
+    }
+
+    const succeeded: string[] = []
+    const failed: TBulkFailure[] = []
+
+    for (const id of parsed.request.ids) {
+      const failure = apply(id)
+
+      if (failure === undefined) {
+        succeeded.push(id)
+      } else {
+        failed.push(
+          failure.count === undefined
+            ? { id, code: failure.code, reason: failure.reason }
+            : { id, code: failure.code, reason: failure.reason, count: failure.count }
+        )
+      }
+    }
+
+    return HttpResponse.json({ succeeded, failed } satisfies TBulkResult, { status: HTTP_STATUS.ok })
+  }))
 }

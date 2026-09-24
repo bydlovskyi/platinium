@@ -22,33 +22,27 @@
  *
  * Colour is never the only signal: the mapped text label always renders
  * alongside the tag's colour/effect, satisfying the greyscale requirement.
+ *
+ * Tolerates a `status` that isn't (yet) one of the known values — rendering
+ * nothing rather than throwing — as defensive handling for an
+ * unrecognised/undefined status (GitHub issue #26), e.g. new backend values
+ * this component hasn't been taught yet, rather than crashing the row's
+ * render over it.
+ *
+ * The status->presentation mapping itself lives in
+ * `src/utils/status-presentation.ts` (GitHub issue #38) so the dashboard's
+ * `el-progress` breakdowns can reuse the identical mapping instead of
+ * re-deriving their own colour assignment.
  */
-type TStatus = TEventStatus | TTicketStatus
-
-interface IStatusPresentation {
-  label: string
-  type: 'success' | 'warning' | 'danger' | 'info'
-}
-
-const STATUS_PRESENTATION: Record<TStatus, IStatusPresentation> = {
-  draft: { label: 'Draft', type: 'warning' },
-  published: { label: 'Published', type: 'success' },
-  cancelled: { label: 'Cancelled', type: 'danger' },
-  completed: { label: 'Completed', type: 'info' },
-  on_sale: { label: 'On sale', type: 'success' },
-  sold_out: { label: 'Sold out', type: 'danger' },
-  archived: { label: 'Archived', type: 'info' }
-}
-
 const props = defineProps<{
   status: TStatus
 }>()
 
-const presentation = computed(() => STATUS_PRESENTATION[props.status])
+const presentation = computed<IStatusPresentation | undefined>(() => STATUS_PRESENTATION[props.status])
 </script>
 
 <template>
-  <el-tag :type="presentation.type" effect="light" round>
+  <el-tag v-if="presentation" :type="presentation.type" effect="light" round>
     {{ presentation.label }}
   </el-tag>
 </template>

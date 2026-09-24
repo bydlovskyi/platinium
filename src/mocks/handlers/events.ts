@@ -1,8 +1,9 @@
 import type { HttpHandler } from 'msw'
 
 import { db } from '../db/singleton'
-import { createEntityHandlers } from './factory'
-import type { IValidateContext } from './factory'
+import { requireWriteAccess } from './auth'
+import { createBulkHandler, createEntityHandlers } from './factory'
+import type { TBulkApplier, IBulkFailureReason, IValidateContext } from './factory'
 import type { IEvent } from '../db'
 
 /**
@@ -134,7 +135,7 @@ function bumpUpdatedAt (input: Partial<IEvent>): Partial<IEvent> {
  * the dependent count rather than a bare refusal — see `DependencyConflict`
  * in `src/mocks/openapi.yaml`. Events have no conflict rule on update.
  */
-function checkEventConflict (record: IEvent, action: 'update' | 'delete'): { message: string; entity: string; count: number } | undefined {
+function checkEventConflict (record: IEvent, action: 'create' | 'update' | 'delete'): { message: string; entity: string; count: number } | undefined {
   if (action !== 'delete') {
     return undefined
   }
@@ -146,7 +147,51 @@ function checkEventConflict (record: IEvent, action: 'update' | 'delete'): { mes
     : undefined
 }
 
-export const eventHandlers: HttpHandler[] = createEntityHandlers<IEvent>({
+/**
+ * The lifecycle status a bulk `archive` moves an event to. Events have no
+ * `archived` status of their own; `completed` is the terminal, closed-out
+ * state that matches "archive an event after it ends" from PRD-007's user
+ * story, so it is the sensible target for the bulk archive operation.
+ */
+const EVENT_ARCHIVE_STATUS: IEvent['status'] = 'completed'
+
+const NOT_FOUND_FAILURE: IBulkFailureReason = {
+  code: 'NOT_FOUND',
+  reason: 'No event exists with this identifier.'
+}
+
+/**
+ * Deletes one event within a bulk request, reusing the *same*
+ * `checkEventConflict` a single delete runs — a referenced event is reported
+ * as a per-identifier failure carrying its blocking count, not a top-level
+ * `409` (PRD-007).
+ */
+const deleteOne: TBulkApplier = (id) => {
+  const existing = db.events.get(id)
+
+  if (existing === undefined) {
+    return NOT_FOUND_FAILURE
+  }
+
+  const conflict = checkEventConflict(existing, 'delete')
+
+  if (conflict !== undefined) {
+    return { code: 'CONFLICT', reason: conflict.message, count: conflict.count }
+  }
+
+  db.events.remove(id)
+
+  return undefined
+}
+
+/** Archives one event within a bulk request by moving it to {@link EVENT_ARCHIVE_STATUS}. */
+const archiveOne: TBulkApplier = (id) => {
+  const updated = db.events.update(id, { status: EVENT_ARCHIVE_STATUS, updatedAt: new Date().toISOString() })
+
+  return updated === undefined ? NOT_FOUND_FAILURE : undefined
+}
+
+const entityHandlers: HttpHandler[] = createEntityHandlers<IEvent>({
   path: '/events',
   collection: db.events,
   fields: {
@@ -163,5 +208,26 @@ export const eventHandlers: HttpHandler[] = createEntityHandlers<IEvent>({
   validate: validateEvent,
   createRecord: stampTimestamps,
   buildUpdatePatch: bumpUpdatedAt,
-  conflictCheck: checkEventConflict
+  conflictCheck: checkEventConflict,
+  authorize: requireWriteAccess,
+  csv: {
+    entity: 'events',
+    columns: [
+      { header: 'Name', value: event => event.name },
+      { header: 'Country', value: event => event.country },
+      { header: 'Venue', value: event => event.venue },
+      { header: 'Start Date', value: event => event.startDate },
+      { header: 'End Date', value: event => event.endDate },
+      { header: 'Status', value: event => event.status },
+      { header: 'Created At', value: event => event.createdAt }
+    ]
+  }
 })
+
+const bulkHandler: HttpHandler = createBulkHandler({
+  path: '/events/bulk',
+  appliers: { delete: deleteOne, archive: archiveOne },
+  authorize: requireWriteAccess
+})
+
+export const eventHandlers: HttpHandler[] = [...entityHandlers, bulkHandler]
