@@ -11,7 +11,7 @@
 <template>
   <el-result sub-title="You don't have permission to view this page.">
     <template #icon>
-      <Icon name="alert-circle" class="size-12 text-text-muted" />
+      <ForbiddenIllustration class="size-24 text-text-muted" />
     </template>
     <template #title>
       <h1 class="text-screen-heading text-text-primary">

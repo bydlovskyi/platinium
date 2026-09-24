@@ -3,6 +3,10 @@ import { mount, flushPromises } from '@vue/test-utils'
 import AppDataTable from './AppDataTable.vue'
 import type { IDataTableColumn, IDataTableRowAction } from './data-table.types'
 
+import EmptyNoDataIllustration from '../illustrations/EmptyNoDataIllustration.vue'
+import EmptyNoMatchesIllustration from '../illustrations/EmptyNoMatchesIllustration.vue'
+import LoadFailedIllustration from '../illustrations/LoadFailedIllustration.vue'
+
 import { setViewportToBreakpoint } from '../../../tests/support'
 
 /**
@@ -181,11 +185,15 @@ describe('AppDataTable', () => {
       expect(wrapper.find('.el-loading-mask').exists()).toBe(true)
     })
 
-    it('shows a create action when nothing exists yet', async () => {
+    it('shows a create action when nothing exists yet, with the no-data illustration and no other', async () => {
       const wrapper = mountTable({ rows: [], emptyReason: 'no-data' })
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nothing here yet')
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+
       const createButton = wrapper.findAll('button').find(button => button.text().includes('Create'))
       expect(createButton).toBeDefined()
 
@@ -193,11 +201,15 @@ describe('AppDataTable', () => {
       expect(wrapper.emitted('create-requested')).toHaveLength(1)
     })
 
-    it('shows a clear-filters action when nothing matched the filters', async () => {
+    it('shows a clear-filters action when nothing matched the filters, with the no-matches illustration and no other', async () => {
       const wrapper = mountTable({ rows: [], emptyReason: 'no-matches' })
       await flushPromises()
 
       expect(wrapper.text()).toContain('No results match your filters')
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+
       const clearButton = wrapper.findAll('button').find(button => button.text().includes('Clear filters'))
       expect(clearButton).toBeDefined()
 
@@ -205,13 +217,16 @@ describe('AppDataTable', () => {
       expect(wrapper.emitted('clear-filters-requested')).toHaveLength(1)
     })
 
-    it('shows a retry action when the load failed, distinct from the empty states', async () => {
+    it('shows a retry action when the load failed, with the load-failed illustration, distinct from the empty states', async () => {
       const wrapper = mountTable({ rows: [], error: new Error('network down') })
       await flushPromises()
 
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('Nothing here yet')
       expect(wrapper.text()).not.toContain('No results match your filters')
+      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(true)
+      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
+      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
 
       const retryButton = wrapper.findAll('button').find(button => button.text().includes('Retry'))
       expect(retryButton).toBeDefined()

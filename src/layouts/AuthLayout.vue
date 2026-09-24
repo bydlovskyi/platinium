@@ -8,8 +8,16 @@
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-surface p-4">
-    <el-card shadow="never" class="w-full max-w-sm" body-class="!p-8">
-      <router-view />
-    </el-card>
+    <div class="w-full max-w-sm flex flex-col gap-6">
+      <div class="flex justify-center">
+        <div class="flex size-12 items-center justify-center rounded-token-lg bg-accent/10 text-accent">
+          <Icon name="dashboard" class="size-6" />
+        </div>
+      </div>
+
+      <el-card shadow="always" class="w-full" body-class="!p-8">
+        <router-view />
+      </el-card>
+    </div>
   </div>
 </template>

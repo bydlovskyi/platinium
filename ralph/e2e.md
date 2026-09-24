@@ -44,7 +44,7 @@ window.__mockChaos.setLatency(3000)   // every mock response now takes 3s
 Navigate, capture the loading state, then put it back:
 
 ```js
-window.__mockChaos.reset()            // restores the environment default
+window.__mockChaos.clearChaos()       // restores the environment default (not `reset()` — no such method)
 ```
 
 The same object forces failures — `failNextRequest({ path: '...', status: 500 })` —
