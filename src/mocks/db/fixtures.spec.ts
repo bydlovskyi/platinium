@@ -8,11 +8,26 @@ const TICKET_STATUSES: TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archi
 const CURRENCIES: TCurrency[] = ['USD', 'EUR', 'GBP']
 
 describe('createSeedDataset', () => {
-  it('is deterministic: produces an identical dataset across two generations', () => {
-    const first = createSeedDataset()
-    const second = createSeedDataset()
+  it('is deterministic: produces an identical dataset across two generations with the same reference date', () => {
+    const first = createSeedDataset('2026-01-01')
+    const second = createSeedDataset('2026-01-01')
 
     expect(first).toEqual(second)
+  })
+
+  it('anchors event dates to the reference date, leaving both past and upcoming events', () => {
+    const referenceDate = '2030-06-15'
+    const { events } = createSeedDataset(referenceDate)
+
+    expect(events.some(event => event.startDate < referenceDate)).toBe(true)
+    expect(events.some(event => event.startDate >= referenceDate)).toBe(true)
+  })
+
+  it('defaults the reference date to today, so upcoming events exist whenever the portal runs', () => {
+    const today = new Date().toISOString().slice(0, 'YYYY-MM-DD'.length)
+    const { events } = createSeedDataset()
+
+    expect(events.some(event => event.startDate >= today)).toBe(true)
   })
 
   it('produces several dozen events, a handful of categories and several hundred tickets', () => {

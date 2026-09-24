@@ -14,9 +14,11 @@ export const PERSISTENCE_KEY = 'platinum:mock-db'
  * shape. A reviewer who runs an older build and then a newer one must never
  * see a corrupted state — discarding stale data is the deliberate,
  * documented trade-off (see PRD-001, "Further Notes"). Bumped to `2` when
- * `IUser`/the `users` collection was introduced.
+ * `IUser`/the `users` collection was introduced; bumped to `3` when event
+ * dates moved from a fixed epoch to today, so stored datasets with only past
+ * events are re-seeded.
  */
-export const PERSISTENCE_VERSION = 2
+export const PERSISTENCE_VERSION = 3
 
 interface IPersistenceEnvelope {
   version: number
