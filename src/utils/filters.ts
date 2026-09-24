@@ -28,9 +28,36 @@ const formatCurrency = (value: number, currency = 'USD', locale = DEFAULT_LOCALE
  */
 const DEFAULT_MINOR_UNIT_DIGITS = 2
 
+/**
+ * Decimal digit count for a currency's minor unit (e.g. `2` for USD's
+ * cents), derived from `Intl.NumberFormat` rather than a hand-maintained
+ * currency->precision map — the same technique `formatMoney` uses, factored
+ * out so `CurrencyInput` (GitHub issue #32, the sole minor-unit conversion
+ * boundary) can drive `el-input-number`'s `:precision` from it without
+ * duplicating the derivation.
+ */
+const getCurrencyPrecision = (currency: TCurrency, locale = DEFAULT_LOCALE): number => {
+  const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })
+
+  return formatter.resolvedOptions().maximumFractionDigits ?? DEFAULT_MINOR_UNIT_DIGITS
+}
+
+/**
+ * Currency symbol (e.g. `$`, `€`, `£`) for display alongside an input,
+ * picked out of `Intl.NumberFormat(...).formatToParts()` rather than a
+ * hand-maintained currency->symbol map — consistent with
+ * {@link getCurrencyPrecision} and `formatMoney`'s Intl-derived approach.
+ */
+const getCurrencySymbol = (currency: TCurrency, locale = DEFAULT_LOCALE): string => {
+  const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })
+  const parts = formatter.formatToParts(0)
+
+  return parts.find(part => part.type === 'currency')?.value ?? currency
+}
+
 const formatMoney = (amountMinorUnits: number, currency: TCurrency, locale = DEFAULT_LOCALE): string => {
   const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })
-  const minorUnitDigits = formatter.resolvedOptions().maximumFractionDigits ?? DEFAULT_MINOR_UNIT_DIGITS
+  const minorUnitDigits = getCurrencyPrecision(currency, locale)
   const amount = amountMinorUnits / (10 ** minorUnitDigits)
 
   return formatter.format(amount)
@@ -61,5 +88,7 @@ export const filters = {
   formatCurrency,
   formatMoney,
   formatDate,
-  formatDateRange
+  formatDateRange,
+  getCurrencyPrecision,
+  getCurrencySymbol
 }
