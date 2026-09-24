@@ -21,14 +21,16 @@ export function resetDatabase<T extends ISeedDataset = ISeedDataset> (dataset?: 
 }
 
 /**
- * Only a single seeded administrator exists in the fixtures
- * (`src/mocks/db/fixtures.ts`) — PRD-002 introduces the `role` field itself
- * but seeds exactly one account. Kept as a lookup table (rather than a bare
- * constant) so extending the seed with more roles later is a one-line
- * addition here.
+ * The seeded accounts' passwords, keyed by role — one entry per
+ * {@link TUserRole}. PRD-002 introduced the `role` field and seeded the
+ * administrator; PRD-007 adds the read-only `viewer` account
+ * (`src/mocks/db/fixtures.ts`). Kept as a lookup table (rather than a bare
+ * constant) so extending the seed with more roles stays a one-line addition
+ * here, and so this record must stay exhaustive over `TUserRole`.
  */
 const SEEDED_PASSWORD_BY_ROLE: Record<TUserRole, string> = {
-  admin: 'admin123'
+  admin: 'admin123',
+  viewer: 'viewer123'
 }
 
 /**

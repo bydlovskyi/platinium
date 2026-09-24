@@ -22,6 +22,40 @@ function seedWidgets (): IWidget[] {
   ]
 }
 
+/** A record shape with its own `[start, end]` range, used only by the `overlapFilters` tests below. */
+interface IBooking {
+  id: string
+  label: string
+  start: string
+  end: string
+}
+
+function seedBookings (): IBooking[] {
+  return [
+    { id: 'x', label: 'Early booking', start: '2024-01-01', end: '2024-01-10' },
+    { id: 'y', label: 'Mid booking', start: '2024-02-01', end: '2024-02-10' },
+    { id: 'z', label: 'Late booking', start: '2024-03-01', end: '2024-03-10' }
+  ]
+}
+
+function setupBookingHandlerUnderTest (): IEntityCollection<IBooking> {
+  const collection = createCollection<IBooking>({ initialRecords: seedBookings(), searchableFields: ['label'] })
+
+  const handlers = createEntityHandlers<IBooking>({
+    path: '/bookings',
+    collection,
+    fields: {
+      searchableFields: ['label'],
+      sortableFields: ['start'],
+      overlapFilters: [{ startField: 'start', endField: 'end', param: 'start' }]
+    }
+  })
+
+  server.use(...handlers)
+
+  return collection
+}
+
 /**
  * Registers a fresh set of `createEntityHandlers()` handlers onto the
  * shared node server (`src/mocks/server.ts`, already listening for the
@@ -151,6 +185,29 @@ describe('createEntityHandlers', () => {
       expect((body as { data: IWidget[] }).data.map(w => w.id)).toEqual(['b'])
       expect((body as { meta: unknown }).meta).toEqual({ page: 2, perPage: 1, total: 3, totalPages: 3 })
     })
+
+    it('returns every record unfiltered when a declared overlapFilters param has no matching query params', async () => {
+      setupBookingHandlerUnderTest()
+
+      const { body } = await requestFor('get', '/bookings')
+
+      // No `startFrom`/`startTo` on the request: `parseOverlap()` finds no
+      // matching query params for the declared filter and returns `undefined`,
+      // so `query.overlap` is never set and every record passes through
+      // unfiltered, exactly as an entity with no overlap filter declared at all.
+      expect((body as { data: IBooking[] }).data.map(b => b.id).sort()).toEqual(['x', 'y', 'z'])
+    })
+
+    it('applies a declared overlapFilters param via <param>From/<param>To, matching by overlap rather than containment', async () => {
+      setupBookingHandlerUnderTest()
+
+      const { body } = await requestFor('get', '/bookings?startFrom=2024-01-05&startTo=2024-02-05')
+
+      // 'x' (2024-01-01..2024-01-10) overlaps the window despite starting before it.
+      // 'y' (2024-02-01..2024-02-10) overlaps the window despite ending after it.
+      // 'z' (2024-03-01..2024-03-10) is entirely after the window.
+      expect((body as { data: IBooking[] }).data.map(b => b.id).sort()).toEqual(['x', 'y'])
+    })
   })
 
   describe('create', () => {
@@ -179,6 +236,18 @@ describe('createEntityHandlers', () => {
         message: expect.any(String),
         errors: { name: 'Name is required.' }
       })
+    })
+
+    it('passes context.action === "create" with no context.existing to validate()', async () => {
+      const validate = vi.fn().mockReturnValue(undefined)
+
+      setupHandlerUnderTest({ validate })
+
+      const payload = { id: 'd', name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false, createdAt: '2024-04-01' }
+
+      await requestFor('post', '/widgets', payload)
+
+      expect(validate).toHaveBeenCalledWith(payload, { action: 'create' })
     })
 
     it('generates an id when no createRecord() is given and the payload carries none, so the record stays reachable', async () => {
@@ -273,6 +342,30 @@ describe('createEntityHandlers', () => {
 
       expect(status).toBe(409)
       expect(body).toEqual({ code: 'CONFLICT', message: 'Referenced by another resource.' })
+    })
+
+    it('returns 409 with a DependencyConflict-shaped body when conflictCheck() returns a structured conflict', async () => {
+      setupHandlerUnderTest({
+        conflictCheck: (_record, action) => (action === 'update'
+          ? { message: '2 order(s) reference this widget.', entity: 'order', count: 2 }
+          : undefined)
+      })
+
+      const { status, body } = await requestFor('patch', '/widgets/a', { price: 1 })
+
+      expect(status).toBe(409)
+      expect(body).toEqual({ code: 'CONFLICT', message: '2 order(s) reference this widget.', entity: 'order', count: 2 })
+    })
+
+    it('passes context.action and context.existing to validate() on update', async () => {
+      const validate = vi.fn().mockReturnValue(undefined)
+
+      const collection = setupHandlerUnderTest({ validate })
+      const existingBeforePatch = collection.get('a')
+
+      await requestFor('patch', '/widgets/a', { price: 1 })
+
+      expect(validate).toHaveBeenCalledWith({ price: 1 }, { action: 'update', existing: existingBeforePatch })
     })
   })
 

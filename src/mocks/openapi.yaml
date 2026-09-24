@@ -98,6 +98,674 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      summary: Aggregate dashboard statistics
+      description: >
+        Returns the complete dashboard payload in one request — headline
+        counts, gross inventory value broken down per currency (never summed
+        across currencies), ticket-status and event-status breakdowns, the next
+        upcoming events and the nearly-sold-out tickets. Computed by the mock
+        handler (`src/mocks/handlers/dashboard.ts`) from the in-memory db, the
+        only version that survives a realistic dataset (PRD-007).
+      tags:
+        - Dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The aggregate dashboard statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /events:
+    get:
+      operationId: getEvents
+      summary: List events
+      description: >
+        Returns a page of events, filtered and sorted per the given query
+        parameters. `startDateFrom`/`startDateTo` match events whose own
+        `[startDate, endDate]` range overlaps the requested window, not
+        events strictly contained within it — a long-running event must not
+        be hidden from the list because it started before the window began.
+      tags:
+        - Events
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - name: status
+          in: query
+          required: false
+          description: Filters to events with this exact lifecycle status.
+          schema:
+            $ref: '#/components/schemas/EventStatus'
+        - name: country
+          in: query
+          required: false
+          description: Filters to events with this exact ISO 3166-1 alpha-2 country code.
+          schema:
+            type: string
+        - name: startDateFrom
+          in: query
+          required: false
+          description: >
+            Lower bound of the requested date window, inclusive. Matched by
+            overlap against each event's own `[startDate, endDate]` range,
+            not containment.
+          schema:
+            type: string
+            format: date
+        - name: startDateTo
+          in: query
+          required: false
+          description: >
+            Upper bound of the requested date window, inclusive. Matched by
+            overlap against each event's own `[startDate, endDate]` range,
+            not containment.
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: >
+            A page of events (default), or — when `format=csv` — the full
+            filtered result as `text/csv` (see `x-csv-export`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+            text/csv:
+              schema:
+                type: string
+        # The `200` above is content-negotiated: JSON by default, `text/csv` when
+        # `format=csv`. OpenAPI keys `responses` by status code, so the reusable
+        # CsvExport response (headers + text/csv body) is linked here via an `x-`
+        # extension rather than a second status entry, documenting the shared
+        # CSV shape without making the spec invalid.
+        x-csv-export:
+          $ref: '#/components/responses/CsvExport'
+
+    post:
+      operationId: postEvents
+      summary: Create an event
+      description: Creates a new event from the given payload.
+      tags:
+        - Events
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '201':
+          description: The event was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /events/bulk:
+    post:
+      operationId: postEventsBulk
+      summary: Apply a bulk operation to several events
+      description: >
+        Applies one operation (`delete` or `archive`) to each of the given
+        event identifiers, per-identifier, and reports a `BulkResult`: the
+        identifiers that succeeded and, separately, those that failed each with
+        a reason. Bulk `delete` reuses the same dependency-conflict rule as a
+        single delete — a referenced event is reported as a per-identifier
+        failure carrying the blocking count, not a top-level `409` (PRD-007).
+        Rejected for a viewer with `403`.
+      tags:
+        - Events
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: The per-identifier outcome of the bulk operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /events/{id}:
+    get:
+      operationId: getEventsId
+      summary: Fetch an event
+      description: Returns a single event by id.
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The event record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchEventsId
+      summary: Partially update an event
+      description: Applies a partial update to an existing event.
+      tags:
+        - Events
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '200':
+          description: The updated event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteEventsId
+      summary: Delete an event
+      description: >
+        Deletes an event, unless another entity still depends on it — cascade
+        deletion is deliberately not supported; the caller must resolve or
+        remove the dependents first.
+      tags:
+        - Events
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The event was deleted.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >
+            The event cannot be deleted because another entity (e.g. a
+            ticket) still references it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyConflict'
+
+  /categories:
+    get:
+      operationId: getCategories
+      summary: List categories
+      description: >
+        Returns a page of ticket categories, filtered and sorted per the
+        given query parameters.
+      tags:
+        - Categories
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: >
+            A page of categories (default), or — when `format=csv` — the full
+            filtered result as `text/csv` (see `x-csv-export`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+            text/csv:
+              schema:
+                type: string
+        # See the note on `GET /events`: the CSV shape of the content-negotiated
+        # `200` is linked to the reusable CsvExport response via an `x-` extension.
+        x-csv-export:
+          $ref: '#/components/responses/CsvExport'
+
+    post:
+      operationId: postCategories
+      summary: Create a category
+      description: >
+        Creates a new category from the given payload. Rejects a name that
+        already exists (case-insensitively, ignoring leading/trailing
+        whitespace) with a `409` carrying the `DUPLICATE_NAME` code.
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPayload'
+      responses:
+        '201':
+          description: The category was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: A category with this name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/bulk:
+    post:
+      operationId: postCategoriesBulk
+      summary: Apply a bulk operation to several categories
+      description: >
+        Applies one operation to each of the given category identifiers,
+        per-identifier, and reports a `BulkResult`. Bulk `delete` reuses the
+        same dependency-conflict rule as a single delete — a category still
+        referenced by tickets is reported as a per-identifier failure carrying
+        the blocking count, not a top-level `409` (PRD-007). Categories have no
+        lifecycle status, so `archive` is a no-op that reports each identifier
+        as failed with an explanatory reason. Rejected for a viewer with `403`.
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: The per-identifier outcome of the bulk operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /categories/{id}:
+    get:
+      operationId: getCategoriesId
+      summary: Fetch a category
+      description: Returns a single category by id.
+      tags:
+        - Categories
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The category record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchCategoriesId
+      summary: Partially update a category
+      description: >
+        Applies a partial update to an existing category. Rejects a name
+        that already belongs to another category (case-insensitively,
+        ignoring leading/trailing whitespace) with a `409` carrying the
+        `DUPLICATE_NAME` code.
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPayload'
+      responses:
+        '200':
+          description: The updated category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Another category already has this name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      operationId: deleteCategoriesId
+      summary: Delete a category
+      description: >
+        Deletes a category, unless a ticket still references it — cascade
+        deletion is deliberately not supported; the caller must resolve or
+        remove the dependent tickets first.
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The category was deleted.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >
+            The category cannot be deleted because one or more tickets still
+            reference it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyConflict'
+
+  /tickets:
+    get:
+      operationId: getTickets
+      summary: List tickets
+      description: >
+        Returns a page of tickets, filtered and sorted per the given query
+        parameters. Each returned ticket carries denormalised `eventName`/
+        `categoryName` alongside `eventId`/`categoryId`, resolved from the
+        referenced event/category at read time.
+      tags:
+        - Tickets
+      parameters:
+        - $ref: '#/components/parameters/search'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - name: eventId
+          in: query
+          required: false
+          description: Filters to tickets belonging to this exact event id.
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          required: false
+          description: Filters to tickets belonging to this exact category id.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filters to tickets with this exact lifecycle status.
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+        - name: currency
+          in: query
+          required: false
+          description: Filters to tickets priced in this exact currency.
+          schema:
+            $ref: '#/components/schemas/Currency'
+        - name: priceMin
+          in: query
+          required: false
+          description: Lower bound (inclusive) on price, in minor currency units.
+          schema:
+            type: integer
+        - name: priceMax
+          in: query
+          required: false
+          description: Upper bound (inclusive) on price, in minor currency units.
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: >
+            A page of tickets (default), or — when `format=csv` — the full
+            filtered result as `text/csv` (see `x-csv-export`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketListResponse'
+            text/csv:
+              schema:
+                type: string
+        # See the note on `GET /events`: the CSV shape of the content-negotiated
+        # `200` is linked to the reusable CsvExport response via an `x-` extension.
+        x-csv-export:
+          $ref: '#/components/responses/CsvExport'
+
+    post:
+      operationId: postTickets
+      summary: Create a ticket
+      description: >
+        Creates a new ticket from the given payload. Rejects an `eventId` or
+        `categoryId` that does not resolve to an existing event/category with
+        a `400` carrying a field error on the offending field.
+      tags:
+        - Tickets
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketPayload'
+      responses:
+        '201':
+          description: The ticket was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tickets/bulk:
+    post:
+      operationId: postTicketsBulk
+      summary: Apply a bulk operation to several tickets
+      description: >
+        Applies one operation (`delete` or `archive`) to each of the given
+        ticket identifiers, per-identifier, and reports a `BulkResult`. A
+        ticket is a leaf of the domain model — nothing references it — so bulk
+        `delete` has no dependency-conflict case; the only per-identifier
+        failure is a `NOT_FOUND`. `archive` sets each ticket's status to
+        `archived`. Rejected for a viewer with `403`.
+      tags:
+        - Tickets
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: The per-identifier outcome of the bulk operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tickets/{id}:
+    get:
+      operationId: getTicketsId
+      summary: Fetch a ticket
+      description: Returns a single ticket by id.
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The ticket record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: patchTicketsId
+      summary: Partially update a ticket
+      description: >
+        Applies a partial update to an existing ticket. Rejects an `eventId`
+        or `categoryId` that does not resolve to an existing event/category
+        with a `400` carrying a field error on the offending field.
+      tags:
+        - Tickets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketPayload'
+      responses:
+        '200':
+          description: The updated ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteTicketsId
+      summary: Delete a ticket
+      description: >
+        Deletes a ticket. Unlike an event or a category, a ticket is a leaf
+        of the domain model — nothing references a ticket — so, unlike their
+        delete operations, there is no dependency-conflict case here: deletion
+        always succeeds once the ticket itself is found.
+      tags:
+        - Tickets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The ticket was deleted.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   schemas:
     HealthStatus:
@@ -161,7 +829,16 @@ components:
           type: string
           description: >
             Machine-readable error code, e.g. `VALIDATION_ERROR`,
-            `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`.
+            `UNAUTHORIZED`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. `409`
+            responses use a code more specific than the generic `CONFLICT`
+            where the failure reason needs to be distinguishable by the
+            client: `DUPLICATE_NAME` for a uniqueness violation (e.g.
+            `POST /categories`/`PATCH /categories/{id}` on an existing
+            name), versus the plain `CONFLICT` carried by
+            `DependencyConflict` for a referential-integrity violation (e.g.
+            deleting a category or event tickets still reference). Not
+            modelled as a closed enum here because new codes are added by
+            each owning slice as needed, same as `message`.
         message:
           type: string
           description: Human-readable summary of the failure.
@@ -207,13 +884,26 @@ components:
         - asc
         - desc
 
+    ListFormat:
+      type: string
+      description: >
+        Response format for a list endpoint. `json` (the default) returns the
+        paginated envelope; `csv` returns the full filtered result as
+        `text/csv` (PRD-007).
+      enum:
+        - json
+        - csv
+
     UserRole:
       type: string
       description: >
-        Role granted to an authenticated user. Currently seeded with a single
-        administrator role; extended with a viewer role by PRD-007.
+        Role granted to an authenticated user. `admin` may perform every
+        operation; `viewer` may only read — every write endpoint rejects a
+        viewer's token with `403` (PRD-007). Seeded with one account of each
+        role (`src/mocks/db/fixtures.ts`).
       enum:
         - admin
+        - viewer
 
     User:
       type: object
@@ -270,6 +960,543 @@ components:
         - user
       additionalProperties: false
 
+    Event:
+      type: object
+      description: An event administrators create tickets against.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name.
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code, e.g. `US`.
+        venue:
+          type: string
+          description: Venue name.
+        startDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        endDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/EventStatus'
+          description: The event's lifecycle status.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - country
+        - venue
+        - startDate
+        - endDate
+        - status
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    EventPayload:
+      type: object
+      description: >
+        The writable subset of an Event, shared by `POST /events` (full
+        create) and `PATCH /events/{id}` (partial update). Deliberately
+        carries no `required` list: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force every field on a PATCH too,
+        defeating "partial". Which fields are mandatory for create instead of
+        update is enforced at runtime by the mock handler's `validate`
+        function (`src/mocks/handlers/events.ts`) — do not add `required`
+        back to this schema; add stricter runtime validation instead.
+      properties:
+        name:
+          type: string
+          description: Display name.
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code, e.g. `US`.
+        venue:
+          type: string
+          description: Venue name.
+        startDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        endDate:
+          type: string
+          format: date
+          description: ISO 8601 date string, no time component.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/EventStatus'
+          description: The event's lifecycle status.
+      additionalProperties: false
+
+    EventListResponse:
+      type: object
+      description: Body returned by `GET /events`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    Category:
+      type: object
+      description: >
+        A ticket category (e.g. General Admission, VIP), shared across
+        events. Names are unique case-insensitively and ignoring
+        leading/trailing whitespace, enforced by the mock handler
+        (`src/mocks/handlers/categories.ts`), not by this schema.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name, unique across all categories.
+        description:
+          type: string
+          description: Human-readable description of the category.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - description
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    CategoryPayload:
+      type: object
+      description: >
+        The writable subset of a Category, shared by `POST /categories`
+        (full create) and `PATCH /categories/{id}` (partial update).
+        Deliberately carries no `required` list, for the same reason
+        `EventPayload` does not: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force `name` on a `PATCH` too,
+        defeating "partial". Which fields are mandatory for create instead
+        of update — and the uniqueness check — is enforced at runtime by the
+        mock handler's `validate`/`conflictCheck` functions
+        (`src/mocks/handlers/categories.ts`); do not add `required` back to
+        this schema.
+      properties:
+        name:
+          type: string
+          description: Display name, unique across all categories.
+        description:
+          type: string
+          description: Human-readable description of the category.
+      additionalProperties: false
+
+    CategoryListResponse:
+      type: object
+      description: Body returned by `GET /categories`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    Ticket:
+      type: object
+      description: >
+        A ticket offered for a given event and category. `price` is an
+        integer in minor currency units (e.g. cents), never a float, so
+        formatting to a locale-aware string only happens at the presentation
+        boundary. `eventName`/`categoryName` are denormalised copies of the
+        referenced event's/category's `name`, resolved at read time by the
+        mock handler (`src/mocks/handlers/tickets.ts`) — not stored fields —
+        so they always reflect the current name and never need a cascading
+        update when an event or category is renamed.
+      properties:
+        id:
+          type: string
+          description: Opaque unique identifier.
+        name:
+          type: string
+          description: Display name.
+        price:
+          type: integer
+          description: Price in minor currency units (e.g. cents), never a float.
+          minimum: 0
+        currency:
+          allOf:
+            - $ref: '#/components/schemas/Currency'
+          description: The currency this ticket is priced in.
+        quantity:
+          type: integer
+          description: Administrator-managed stock count, capped at 100,000.
+          minimum: 0
+          maximum: 100000
+        status:
+          allOf:
+            - $ref: '#/components/schemas/TicketStatus'
+          description: The ticket's lifecycle status.
+        eventId:
+          type: string
+          description: Id of the event this ticket belongs to.
+        eventName:
+          type: string
+          description: Denormalised name of the referenced event, resolved at read time.
+        categoryId:
+          type: string
+          description: Id of the category this ticket belongs to.
+        categoryName:
+          type: string
+          description: Denormalised name of the referenced category, resolved at read time.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the record was last updated.
+      required:
+        - id
+        - name
+        - price
+        - currency
+        - quantity
+        - status
+        - eventId
+        - eventName
+        - categoryId
+        - categoryName
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+
+    TicketPayload:
+      type: object
+      description: >
+        The writable subset of a Ticket, shared by `POST /tickets` (full
+        create) and `PATCH /tickets/{id}` (partial update). Deliberately
+        carries no `required` list, for the same reason `EventPayload`/
+        `CategoryPayload` do not: OpenAPI's `required` is schema-wide, not
+        per-operation, so a list here would force every field on a `PATCH`
+        too, defeating "partial". Which fields are mandatory for create
+        instead of update — and the referential checks on `eventId`/
+        `categoryId` — is enforced at runtime by the mock handler's
+        `validate` function (`src/mocks/handlers/tickets.ts`); do not add
+        `required` back to this schema.
+      properties:
+        name:
+          type: string
+          description: Display name.
+        price:
+          type: integer
+          description: Price in minor currency units (e.g. cents), never a float.
+          minimum: 0
+        currency:
+          allOf:
+            - $ref: '#/components/schemas/Currency'
+          description: The currency this ticket is priced in.
+        quantity:
+          type: integer
+          description: Administrator-managed stock count, capped at 100,000.
+          minimum: 0
+          maximum: 100000
+        status:
+          allOf:
+            - $ref: '#/components/schemas/TicketStatus'
+          description: The ticket's lifecycle status.
+        eventId:
+          type: string
+          description: Id of the event this ticket belongs to.
+        categoryId:
+          type: string
+          description: Id of the category this ticket belongs to.
+      additionalProperties: false
+
+    TicketListResponse:
+      type: object
+      description: Body returned by `GET /tickets`.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/PaginationMeta'
+          description: Pagination metadata for the returned page.
+      required:
+        - data
+        - meta
+      additionalProperties: false
+
+    DependencyConflict:
+      description: >
+        The shared error envelope, extended with the blocking dependent
+        entity's type and count, so a `409` on delete carries enough
+        information for an administrator to act on it instead of a bare
+        refusal. Introduced by the Events contract (PRD-004) and reused by
+        the Categories contract (PRD-005).
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            entity:
+              type: string
+              description: The type of the blocking dependent entity, e.g. `ticket`.
+            count:
+              type: integer
+              minimum: 1
+              description: The number of dependent records blocking the operation.
+          required:
+            - entity
+            - count
+          additionalProperties: false
+
+    CurrencyTotal:
+      type: object
+      description: >
+        A monetary total for a single currency, in minor units (e.g. cents).
+        The dashboard's gross inventory value is an array of these — one entry
+        per currency present in the catalogue — and is NEVER summed across
+        currencies into one figure. A single total mixing euros and pounds is
+        not a number; it is a bug with a friendly face (PRD-007). The
+        presentation layer formats each entry with its own currency.
+      properties:
+        currency:
+          allOf:
+            - $ref: '#/components/schemas/Currency'
+          description: The currency this total is denominated in.
+        totalMinorUnits:
+          type: integer
+          minimum: 0
+          description: >
+            The total value in this currency, in minor units (e.g. cents),
+            never a float — mirrors `Ticket.price`.
+      required:
+        - currency
+        - totalMinorUnits
+      additionalProperties: false
+
+    StatusBreakdown:
+      type: object
+      description: >
+        The number of records carrying a given lifecycle status. Used for both
+        the ticket-status and event-status breakdowns on the dashboard. `status`
+        is a bare string rather than a specific status enum because the same
+        shape serves both Event and Ticket statuses; the owning breakdown array
+        constrains which values appear.
+      properties:
+        status:
+          type: string
+          description: The lifecycle status value, e.g. `draft` or `on_sale`.
+        count:
+          type: integer
+          minimum: 0
+          description: The number of records carrying this status.
+      required:
+        - status
+        - count
+      additionalProperties: false
+
+    DashboardStats:
+      type: object
+      description: >
+        The complete aggregate payload for `GET /dashboard/stats`, computed in
+        one request by the mock handler (`src/mocks/handlers/dashboard.ts`)
+        rather than by reducing lists in the browser — the only version that
+        survives a realistic dataset (PRD-007). Gross inventory value is broken
+        down per currency and never summed across currencies.
+      properties:
+        totalEvents:
+          type: integer
+          minimum: 0
+          description: Total number of events in the catalogue.
+        runningEvents:
+          type: integer
+          minimum: 0
+          description: >
+            Number of events currently running — those whose lifecycle status
+            is `published`.
+        totalTickets:
+          type: integer
+          minimum: 0
+          description: Total number of tickets in the catalogue.
+        totalAvailableQuantity:
+          type: integer
+          minimum: 0
+          description: Sum of every ticket's stock quantity across the catalogue.
+        grossInventoryValue:
+          type: array
+          description: >
+            Gross inventory value (price × quantity) broken down per currency.
+            Never a single cross-currency total — see `CurrencyTotal`.
+          items:
+            $ref: '#/components/schemas/CurrencyTotal'
+        ticketStatusBreakdown:
+          type: array
+          description: Ticket count per `TicketStatus`.
+          items:
+            $ref: '#/components/schemas/StatusBreakdown'
+        eventStatusBreakdown:
+          type: array
+          description: Event count per `EventStatus`.
+          items:
+            $ref: '#/components/schemas/StatusBreakdown'
+        upcomingEvents:
+          type: array
+          description: >
+            The next events starting, soonest first — events whose start date is
+            today or later, capped at a handler-defined limit.
+          items:
+            $ref: '#/components/schemas/Event'
+        nearlySoldOutTickets:
+          type: array
+          description: >
+            Tickets whose stock is nearly exhausted — quantity at or below the
+            handler's documented `NEARLY_SOLD_OUT_MAX_QUANTITY` threshold, and
+            not already `sold_out`/`archived` — lowest stock first, capped at a
+            handler-defined limit.
+          items:
+            $ref: '#/components/schemas/Ticket'
+      required:
+        - totalEvents
+        - runningEvents
+        - totalTickets
+        - totalAvailableQuantity
+        - grossInventoryValue
+        - ticketStatusBreakdown
+        - eventStatusBreakdown
+        - upcomingEvents
+        - nearlySoldOutTickets
+      additionalProperties: false
+
+    BulkOperation:
+      type: string
+      description: >
+        The operation a bulk request applies to each of its identifiers.
+        `delete` removes each record (subject to the same dependency-conflict
+        rules as a single delete); `archive` sets each record's status to its
+        archived/completed terminal state.
+      enum:
+        - delete
+        - archive
+
+    BulkRequest:
+      type: object
+      description: >
+        Body of a bulk endpoint (`POST /events/bulk`, `POST /categories/bulk`,
+        `POST /tickets/bulk`): a list of record identifiers and the single
+        operation to apply to each. A server-side loop rather than N client
+        round trips, so partial failure can be reported coherently (PRD-007).
+      properties:
+        ids:
+          type: array
+          # Bounded to guard against an unbounded server-side loop (DoS). No
+          # list/page-size cap exists elsewhere to inherit (list-query uses a
+          # default perPage of 20 with no hard max), so 100 is chosen as a
+          # sensible batch ceiling — comfortably above any realistic multi-select
+          # yet small enough to bound the work. Enforced at runtime in
+          # `parseBulkRequest` (factory.ts), since `maxItems` is type-level only.
+          maxItems: 100
+          description: >-
+            The identifiers to apply the operation to. At most 100 per request.
+          items:
+            type: string
+        operation:
+          allOf:
+            - $ref: '#/components/schemas/BulkOperation'
+          description: The operation applied to each identifier.
+      required:
+        - ids
+        - operation
+      additionalProperties: false
+
+    BulkFailure:
+      type: object
+      description: >
+        One failed identifier within a `BulkResult`, carrying why it failed. A
+        dependency-conflict failure (a referenced event/category, same rule as
+        a single delete) additionally carries the blocking dependent count, so
+        the UI can report it per record rather than as a top-level `409`.
+      properties:
+        id:
+          type: string
+          description: The identifier that failed.
+        code:
+          type: string
+          description: >
+            Machine-readable failure code, e.g. `NOT_FOUND` or `CONFLICT`
+            (a dependency conflict) — mirrors `ErrorResponse.code`.
+        reason:
+          type: string
+          description: Human-readable explanation of the failure.
+        count:
+          type: integer
+          minimum: 1
+          description: >
+            For a dependency conflict only: the number of dependent records
+            blocking the operation on this identifier. Absent otherwise.
+      required:
+        - id
+        - code
+        - reason
+      additionalProperties: false
+
+    BulkResult:
+      type: object
+      description: >
+        Body returned by a bulk endpoint: the identifiers that succeeded and,
+        separately, the identifiers that failed each with a reason. Partial
+        success is the expected case, not an edge case (PRD-007), so both
+        arrays are always present (either may be empty).
+      properties:
+        succeeded:
+          type: array
+          description: Identifiers the operation was applied to successfully.
+          items:
+            type: string
+        failed:
+          type: array
+          description: Identifiers the operation could not be applied to, each with a reason.
+          items:
+            $ref: '#/components/schemas/BulkFailure'
+      required:
+        - succeeded
+        - failed
+      additionalProperties: false
+
   parameters:
     search:
       name: search
@@ -316,6 +1543,19 @@ components:
         maximum: 100
         default: 20
 
+    format:
+      name: format
+      in: query
+      required: false
+      description: >
+        Response format. Omit (or `json`) for the paginated JSON list envelope.
+        `csv` returns the FULL filtered and sorted result — every matching
+        record, not just the current page — as `text/csv` with a
+        `Content-Disposition` filename, so an export reflects exactly the query
+        the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`.
+      schema:
+        $ref: '#/components/schemas/ListFormat'
+
   responses:
     BadRequest:
       description: The request failed validation.
@@ -326,6 +1566,18 @@ components:
 
     Unauthorized:
       description: The session is absent or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: >
+        The session is valid but the authenticated user lacks permission for
+        this operation — a viewer attempting a write (PRD-007). Distinct from
+        `401`: the caller is authenticated, so this is a permission failure,
+        not a session failure, and the response interceptor notifies without
+        signing the user out.
       content:
         application/json:
           schema:
@@ -351,6 +1603,25 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+
+    CsvExport:
+      description: >
+        The full filtered and sorted result as CSV (`format=csv`) — every
+        matching record, not just the current page. A `Content-Disposition`
+        header carries a filename combining the entity and the export date
+        (e.g. `attachment; filename="tickets-2026-09-23.csv"`). Money is a
+        decimal with its currency in a separate column, dates are ISO-8601, and
+        references appear by name; comma/quote/newline field values are escaped
+        RFC-4180 style.
+      headers:
+        Content-Disposition:
+          description: Carries the download filename combining the entity and export date.
+          schema:
+            type: string
+      content:
+        text/csv:
+          schema:
+            type: string
 
   securitySchemes:
     bearerAuth:

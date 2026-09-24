@@ -22,7 +22,7 @@ export type TCurrency = 'USD' | 'EUR' | 'GBP'
 export type TSortOrder = 'asc' | 'desc'
 
 /** Role granted to an authenticated user. Mirrors `UserRole` in `openapi.yaml`. */
-export type TUserRole = 'admin'
+export type TUserRole = 'admin' | 'viewer'
 
 /** An opaque, UUID-shaped identifier. Never assumed sequential or sortable. */
 export type TEntityId = string
@@ -48,9 +48,9 @@ export interface IEvent extends IEntityBase {
   /** ISO 3166-1 alpha-2 country code, e.g. `US`. */
   country: string
   venue: string
-  /** ISO 8601 date-time string. */
+  /** ISO 8601 date string (`YYYY-MM-DD`), no time component. */
   startDate: string
-  /** ISO 8601 date-time string. */
+  /** ISO 8601 date string (`YYYY-MM-DD`), no time component. */
   endDate: string
   status: TEventStatus
 }

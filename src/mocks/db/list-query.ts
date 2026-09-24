@@ -1,4 +1,4 @@
-import type { IListQuery, IListResult, IRangeFilter } from './query.types'
+import type { IListQuery, IListResult, IOverlapFilter, IRangeFilter } from './query.types'
 import type { IIdentifiable } from './types'
 
 const DEFAULT_PAGE = 1
@@ -53,6 +53,35 @@ function matchesRange<T> (record: T, range: NonNullable<IListQuery<T>['range']>)
   })
 }
 
+/**
+ * Two inclusive ranges `[recordStart, recordEnd]` and `[from, to]` overlap
+ * iff neither lies entirely before the other. An omitted `from`/`to` bound
+ * leaves that side of the requested window open, matching everything on
+ * that side.
+ */
+function rangesOverlap (recordStart: string, recordEnd: string, overlap: IOverlapFilter): boolean {
+  if (overlap.from !== undefined && recordEnd < overlap.from) {
+    return false
+  }
+
+  if (overlap.to !== undefined && recordStart > overlap.to) {
+    return false
+  }
+
+  return true
+}
+
+function matchesOverlap<T> (record: T, overlap: IOverlapFilter): boolean {
+  const recordStart = record[overlap.startField as keyof T]
+  const recordEnd = record[overlap.endField as keyof T]
+
+  if (typeof recordStart !== 'string' || typeof recordEnd !== 'string') {
+    return false
+  }
+
+  return rangesOverlap(recordStart, recordEnd, overlap)
+}
+
 function compareValues (a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number') {
     return a - b
@@ -103,6 +132,12 @@ export function applyListQuery<T extends IIdentifiable> (
 
   if (query.range !== undefined) {
     filtered = filtered.filter(record => matchesRange(record, query.range ?? {}))
+  }
+
+  const overlap = query.overlap
+
+  if (overlap !== undefined) {
+    filtered = filtered.filter(record => matchesOverlap(record, overlap))
   }
 
   const sorted = sortRecords(filtered, query.sort, query.order ?? 'asc')

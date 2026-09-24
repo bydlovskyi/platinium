@@ -35,3 +35,57 @@ type TLoginRequest = TApiComponents['schemas']['LoginRequest']
 
 /** Body returned by a successful `POST /auth/login`. */
 type TLoginResponse = TApiComponents['schemas']['LoginResponse']
+
+/** An event administrators create tickets against. */
+type TEvent = TApiComponents['schemas']['Event']
+
+/** The writable subset of an Event, shared by create and update. */
+type TEventPayload = TApiComponents['schemas']['EventPayload']
+
+/** Body returned by `GET /events`. */
+type TEventListResponse = TApiComponents['schemas']['EventListResponse']
+
+/** The shared error envelope extended with the blocking dependent entity's type and count. */
+type TDependencyConflict = TApiComponents['schemas']['DependencyConflict']
+
+/** A ticket category (e.g. General Admission, VIP), shared across events. */
+type TCategory = TApiComponents['schemas']['Category']
+
+/** The writable subset of a Category, shared by create and update. */
+type TCategoryPayload = TApiComponents['schemas']['CategoryPayload']
+
+/** Body returned by `GET /categories`. */
+type TCategoryListResponse = TApiComponents['schemas']['CategoryListResponse']
+
+/** A ticket offered for a given event and category. */
+type TTicket = TApiComponents['schemas']['Ticket']
+
+/** The writable subset of a Ticket, shared by create and update. */
+type TTicketPayload = TApiComponents['schemas']['TicketPayload']
+
+/** Body returned by `GET /tickets`. */
+type TTicketListResponse = TApiComponents['schemas']['TicketListResponse']
+
+/** The complete aggregate payload returned by `GET /dashboard/stats`. */
+type TDashboardStats = TApiComponents['schemas']['DashboardStats']
+
+/** A monetary total for a single currency, in minor units — never summed across currencies. */
+type TCurrencyTotal = TApiComponents['schemas']['CurrencyTotal']
+
+/** The number of records carrying a given lifecycle status, for a dashboard breakdown. */
+type TStatusBreakdown = TApiComponents['schemas']['StatusBreakdown']
+
+/** The operation a bulk request applies to each of its identifiers. */
+type TBulkOperation = TApiComponents['schemas']['BulkOperation']
+
+/** Body of a bulk endpoint: a list of identifiers and the single operation to apply to each. */
+type TBulkRequest = TApiComponents['schemas']['BulkRequest']
+
+/** One failed identifier within a `TBulkResult`, carrying why it failed. */
+type TBulkFailure = TApiComponents['schemas']['BulkFailure']
+
+/** Body returned by a bulk endpoint: succeeded identifiers and failed identifiers each with a reason. */
+type TBulkResult = TApiComponents['schemas']['BulkResult']
+
+/** Response format for a list endpoint (`json` or `csv`). */
+type TListFormat = TApiComponents['schemas']['ListFormat']
