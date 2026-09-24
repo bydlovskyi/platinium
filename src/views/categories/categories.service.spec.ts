@@ -152,4 +152,40 @@ describe('categoriesService', () => {
       await expect(categoriesService.delete('does-not-exist')).rejects.toBeDefined()
     })
   })
+
+  describe('exportCsv', () => {
+    it('sends a GET request to /categories with format=csv plus the given filter params, and resolves a Blob', async () => {
+      db.categories.insert(buildCategory({ id: 'category-42', name: 'VIP' }))
+      const requests = captureRequests()
+
+      const blob = await categoriesService.exportCsv({ search: 'vip', sort: 'name', order: 'asc' })
+
+      expect(requests).toHaveLength(1)
+      expect(requests[0]!.method).toBe('GET')
+      expect(requests[0]!.pathname).toBe('/categories')
+
+      const params = new URLSearchParams(requests[0]!.search)
+      expect(params.get('format')).toBe('csv')
+      expect(params.get('search')).toBe('vip')
+
+      // Not `expect(blob).toBeInstanceOf(Blob)` — see
+      // `eventsService.exportCsv`'s spec comment for why: axios's fetch
+      // adapter resolves its `Blob` through Node/undici's realm, a different
+      // constructor identity than jsdom's global `Blob`.
+      expect(typeof blob.size).toBe('number')
+      expect(blob.type).toContain('text/csv')
+      const text = await blob.text()
+      expect(text).toContain('VIP')
+    })
+
+    it('never sends page/perPage — the export always covers the full filtered result', async () => {
+      const requests = captureRequests()
+
+      await categoriesService.exportCsv({ search: 'vip' })
+
+      const params = new URLSearchParams(requests[0]!.search)
+      expect(params.has('page')).toBe(false)
+      expect(params.has('perPage')).toBe(false)
+    })
+  })
 })

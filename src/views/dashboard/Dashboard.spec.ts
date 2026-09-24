@@ -204,34 +204,59 @@ describe('Dashboard screen', () => {
   })
 
   describe('status breakdowns', () => {
-    it('renders each status-breakdown bar with the count matching the response data', async () => {
+    it('renders a single stacked distribution bar with the legend count matching the response data', async () => {
       seedControlledDashboardDataset()
 
       const { wrapper } = await mountDashboard()
 
       await vi.waitFor(() => {
         expect(wrapper.text()).toContain('Events by status')
-        expect(wrapper.findAllComponents({ name: 'ElProgress' }).length).toBeGreaterThan(0)
+        expect(wrapper.findComponent({ name: 'StatusDistributionBar' }).exists()).toBe(true)
       })
 
-      // Assert via rendered text: each status row shows its label alongside
-      // the bar carrying that exact count via :format.
-      const eventsCard = wrapper.findAll('.el-card').find(card => card.text().includes('Events by status'))!
-      expect(eventsCard.text()).toContain('Draft')
-      expect(eventsCard.text()).toContain('Published')
-      expect(eventsCard.text()).toContain('Cancelled')
+      // Assert via rendered text, scoped to each breakdown's `<section>`
+      // (found via the heading rather than a bordered `.el-card` — PRD-010
+      // §43 deliberately drops the card wrapper here).
+      const eventsHeading = wrapper.findAll('h2').find(heading => heading.text() === 'Events by status')!
+      const eventsSection = eventsHeading.element.closest('section')!
+      expect(eventsSection.textContent).toContain('Draft')
+      expect(eventsSection.textContent).toContain('Published')
+      expect(eventsSection.textContent).toContain('Cancelled')
 
-      // `el-progress`'s `:format` renders as visible text inside
-      // `.el-progress__text` — asserting the rendered DOM text (rather than
-      // reaching into the component's `format` prop) keeps this on
-      // user-visible behaviour, consistent with the rest of this file.
-      const eventCountsFromDom = eventsCard.findAll('.el-progress__text').map(node => node.text())
-      expect(eventCountsFromDom).toEqual(['1', '2', '1', '0']) // draft, published, cancelled, completed
+      // The legend list is the accessible text equivalent for the (aria-hidden)
+      // bar — one link per status, each carrying its exact count.
+      const eventsLegendCounts = Array.from(eventsSection.querySelectorAll('li')).map(item => item.querySelector('span.tabular-nums')?.textContent)
+      expect(eventsLegendCounts).toEqual(['1', '2', '1', '0']) // draft, published, cancelled, completed
 
-      const ticketsCard = wrapper.findAll('.el-card').find(card => card.text().includes('Tickets by status'))!
-      const ticketCountsFromDom = ticketsCard.findAll('.el-progress__text').map(node => node.text())
+      const ticketsHeading = wrapper.findAll('h2').find(heading => heading.text() === 'Tickets by status')!
+      const ticketsSection = ticketsHeading.element.closest('section')!
+      const ticketsLegendCounts = Array.from(ticketsSection.querySelectorAll('li')).map(item => item.querySelector('span.tabular-nums')?.textContent)
       // draft: dash-tix-usd-1 (1), on_sale: dash-tix-usd-2 + dash-tix-low-stock (2), sold_out: dash-tix-eur-1 (1), archived: 0.
-      expect(ticketCountsFromDom).toEqual(['1', '2', '1', '0'])
+      expect(ticketsLegendCounts).toEqual(['1', '2', '1', '0'])
+    })
+
+    it('renders each headline figure at the screen-heading type step with tabular figures', async () => {
+      seedControlledDashboardDataset()
+
+      const { wrapper } = await mountDashboard()
+
+      await vi.waitFor(() => {
+        const totalEvents = wrapper.findAllComponents({ name: 'ElStatistic' }).find(stat => stat.props('title') === 'Total events')
+        expect(totalEvents?.classes()).toContain('headline-statistic')
+        expect(totalEvents?.classes()).toContain('tabular-nums')
+      })
+    })
+
+    it('shows the running/draft share of total events as a secondary figure', async () => {
+      seedControlledDashboardDataset()
+
+      const { wrapper } = await mountDashboard()
+
+      // 2 running / 4 total = 50%; 1 draft / 4 total = 25% (seeded dataset above).
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('(50%)')
+        expect(wrapper.text()).toContain('(25%)')
+      })
     })
   })
 
@@ -338,8 +363,8 @@ describe('Dashboard screen', () => {
         expect(wrapper.text()).toContain('Events by status')
       })
 
-      const eventsCard = wrapper.findAll('.el-card').find(card => card.text().includes('Events by status'))!
-      const cancelledRow = eventsCard.findAllComponents({ name: 'RouterLink' })
+      const eventsSection = wrapper.findAll('section').find(section => section.text().includes('Events by status'))!
+      const cancelledRow = eventsSection.findAllComponents({ name: 'RouterLink' })
         .find((routerLink: VueWrapper) => routerLink.text().includes('Cancelled'))!
 
       await cancelledRow.trigger('click')
@@ -359,8 +384,8 @@ describe('Dashboard screen', () => {
         expect(wrapper.text()).toContain('Tickets by status')
       })
 
-      const ticketsCard = wrapper.findAll('.el-card').find(card => card.text().includes('Tickets by status'))!
-      const soldOutRow = ticketsCard.findAllComponents({ name: 'RouterLink' })
+      const ticketsSection = wrapper.findAll('section').find(section => section.text().includes('Tickets by status'))!
+      const soldOutRow = ticketsSection.findAllComponents({ name: 'RouterLink' })
         .find((routerLink: VueWrapper) => routerLink.text().includes('Sold out'))!
 
       await soldOutRow.trigger('click')

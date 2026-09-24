@@ -169,15 +169,21 @@ describe('Tickets form', () => {
       await wrapper.find('form').trigger('submit')
       await flushPromises()
 
-      await vi.waitFor(() => {
-        expect(wrapper.text()).toContain('Required field')
-      })
-
+      // `el-form.validate()` resolves per-field, so its rejected fields'
+      // `el-form-item__error` nodes can render one at a time rather than all
+      // at once — waiting for the first ("Required field" appearing anywhere)
+      // and then checking every field synchronously right after is a race
+      // that only surfaces under enough scheduling pressure (e.g. right after
+      // a CPU-heavy `vue-tsc --build`, as this repo's pre-push hook runs
+      // back-to-back with this suite). Wait for the full set instead.
       const requiredLabels = ['Name', 'Currency', 'Event', 'Category']
-      for (const label of requiredLabels) {
-        const formItem = wrapper.findAll('.el-form-item').find(item => item.text().includes(label))!
-        expect(formItem.find('.el-form-item__error').exists()).toBe(true)
-      }
+
+      await vi.waitFor(() => {
+        for (const label of requiredLabels) {
+          const formItem = wrapper.findAll('.el-form-item').find(item => item.text().includes(label))!
+          expect(formItem.find('.el-form-item__error').exists()).toBe(true)
+        }
+      })
 
       // No ticket was created by the failed attempt.
       expect(db.tickets.list({ perPage: 100 }).meta.total).toBe(0)
