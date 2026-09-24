@@ -44,7 +44,49 @@ class DependencyConflictError extends Error {
   }
 }
 
+/**
+ * Rejection reason for a 409 whose body is NOT a `DependencyConflict` (PRD-005
+ * "Uniqueness" — a category name collision has no blocking dependent
+ * record, just a clash with another record of the same collection). The
+ * mock's `conflictBody()` (`src/mocks/handlers/factory.ts`) returns this
+ * shape — `{ code, message }`, no `entity`/`count` — for any
+ * `ICodedConflict`, e.g. `{ code: 'DUPLICATE_NAME', message: '...' }`
+ * (`src/mocks/handlers/categories.ts`'s `checkDuplicateName`). Distinct from
+ * `DependencyConflictError` so a caller can tell "this clashes with another
+ * record" apart from "other records depend on this one" without inspecting
+ * an empty `entity`/zero `count` as a proxy for "not actually a dependency
+ * conflict".
+ */
+class ConflictError extends Error {
+  readonly code: string
+
+  constructor ({ code, message }: { code?: string; message: string }) {
+    super(message)
+    this.code = code ?? 'CONFLICT'
+  }
+}
+
+/**
+ * Rejection reason for a 403 (PRD-007 permissions). A permission failure, NOT
+ * a session failure: the caller is authenticated but their role (a `viewer`)
+ * may not perform this write. Distinct from `SessionExpiredError` so the 403
+ * branch below can notify WITHOUT signing the user out — there is nothing
+ * wrong with the session, only with the attempted action. An `Error` subclass
+ * for the same reason the others are: the rejection stays a real `Error`.
+ */
+class ForbiddenError extends Error {
+  readonly code = 'FORBIDDEN'
+}
+
+/** Narrows a 409 body to the `DependencyConflict` shape — present iff both `entity` and `count` are on the payload. */
+function isDependencyConflictBody (
+  body: TErrorResponse | TDependencyConflict | undefined
+): body is TDependencyConflict {
+  return body !== undefined && 'entity' in body && 'count' in body
+}
+
 const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please sign in again.'
+const FORBIDDEN_MESSAGE = 'You do not have permission to perform this action.'
 const NETWORK_ERROR_MESSAGE = 'Unable to reach the server. Check your connection and try again.'
 const TIMEOUT_MESSAGE = 'The request took too long to respond. Please try again.'
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
@@ -52,6 +94,7 @@ const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 const HTTP_STATUS = {
   badRequest: 400,
   unauthorized: 401,
+  forbidden: 403,
   conflict: 409
 } as const
 
@@ -103,6 +146,21 @@ const errorInterceptor = (error: AxiosError): Promise<never> => {
     return Promise.reject(new SessionExpiredError(SESSION_EXPIRED_MESSAGE))
   }
 
+  if (status === HTTP_STATUS.forbidden) {
+    // A permission failure, not a session failure (PRD-007): the caller is
+    // authenticated but their role may not perform this write. Notify through
+    // the same pathway as any other error toast, but do NOT sign the user out
+    // — no `sessionExpired` event, no touching the 401 branch above. Prefer
+    // the mock's actual per-request message where present.
+    const message = errorResponseBody(error)?.message ?? FORBIDDEN_MESSAGE
+
+    if (shouldNotify(error)) {
+      notificationService.error({ message })
+    }
+
+    return Promise.reject(new ForbiddenError(message))
+  }
+
   if (status === HTTP_STATUS.badRequest) {
     // Rejects with the parsed field-error map so a form can attach each
     // message to its input — no global toast for validation failures.
@@ -112,15 +170,22 @@ const errorInterceptor = (error: AxiosError): Promise<never> => {
   }
 
   if (status === HTTP_STATUS.conflict) {
-    // Rejects with the parsed dependent entity/count so a delete call site
-    // can render its own actionable message — no global toast, same
-    // reasoning as the 400 branch above.
-    const body = errorResponseBody(error) as TDependencyConflict | undefined
+    // Rejects with a typed conflict reason so a call site can render its own
+    // actionable message — no global toast, same reasoning as the 400
+    // branch above. A body carrying both `entity` and `count` is a
+    // `DependencyConflict` (PRD-004 "Deletion"); anything else is a coded,
+    // non-dependency conflict (PRD-005 "Uniqueness", e.g. a duplicate name)
+    // and must NOT be forced into `DependencyConflictError`'s shape — doing
+    // so would report a misleading `entity: ''`/`count: 0` and give the
+    // caller no `code` to branch on.
+    const body = errorResponseBody(error) as TErrorResponse | TDependencyConflict | undefined
     const message = body?.message ?? GENERIC_ERROR_MESSAGE
-    const entity = body?.entity ?? ''
-    const count = body?.count ?? 0
 
-    return Promise.reject(new DependencyConflictError({ message, entity, count }))
+    if (isDependencyConflictBody(body)) {
+      return Promise.reject(new DependencyConflictError({ message, entity: body.entity, count: body.count }))
+    }
+
+    return Promise.reject(new ConflictError({ code: body?.code, message }))
   }
 
   if (status !== undefined) {
@@ -151,6 +216,8 @@ export {
   responseInterceptor,
   errorInterceptor,
   SessionExpiredError,
+  ForbiddenError,
   ValidationFieldError,
-  DependencyConflictError
+  DependencyConflictError,
+  ConflictError
 }

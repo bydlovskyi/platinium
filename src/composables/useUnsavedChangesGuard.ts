@@ -29,11 +29,33 @@ interface IUseUnsavedChangesGuardOptions {
   isDirty: Ref<boolean>
   /** Prompt copy shown in the in-app `ElMessageBox.confirm`. */
   message?: string
+  /**
+   * Registers the `onBeforeRouteLeave` guard. Defaults to `true`, matching
+   * every caller before PRD-005: a route-based form (e.g. `EventForm.vue`)
+   * genuinely leaves via a route change, so intercepting that navigation is
+   * the correct guard.
+   *
+   * Set to `false` for a form hosted inside a dialog rather than a route
+   * (PRD-005 "Ticket Categories Management" — the category form is an
+   * `el-dialog`, not a route). There, no route change happens when the
+   * dialog closes, so an `onBeforeRouteLeave` guard would never fire for the
+   * actual leave path (closing the dialog) and would incorrectly intercept
+   * unrelated navigation while the dialog happens to be open (e.g. a sidebar
+   * link click). The `beforeunload` registration stays unconditional either
+   * way — a dirty dialog should still warn on tab close/reload — so the
+   * caller wires its own `el-dialog` `:before-close` to `isDirty` and
+   * `markClean` instead.
+   */
+  guardRouteLeave?: boolean
 }
 
 const DEFAULT_MESSAGE = 'You have unsaved changes. Leave this page and discard them?'
 
-export function useUnsavedChangesGuard ({ isDirty, message = DEFAULT_MESSAGE }: IUseUnsavedChangesGuardOptions) {
+export function useUnsavedChangesGuard ({
+  isDirty,
+  message = DEFAULT_MESSAGE,
+  guardRouteLeave = true
+}: IUseUnsavedChangesGuardOptions) {
   function onBeforeUnload (event: BeforeUnloadEvent): void {
     if (!isDirty.value) {
       return
@@ -52,24 +74,26 @@ export function useUnsavedChangesGuard ({ isDirty, message = DEFAULT_MESSAGE }: 
     window.removeEventListener('beforeunload', onBeforeUnload)
   })
 
-  onBeforeRouteLeave(async () => {
-    if (!isDirty.value) {
-      return true
-    }
+  if (guardRouteLeave) {
+    onBeforeRouteLeave(async () => {
+      if (!isDirty.value) {
+        return true
+      }
 
-    try {
-      await ElMessageBox.confirm(message, 'Unsaved changes', {
-        confirmButtonText: 'Leave',
-        cancelButtonText: 'Stay',
-        type: 'warning',
-        distinguishCancelAndClose: true
-      })
+      try {
+        await ElMessageBox.confirm(message, 'Unsaved changes', {
+          confirmButtonText: 'Leave',
+          cancelButtonText: 'Stay',
+          type: 'warning',
+          distinguishCancelAndClose: true
+        })
 
-      return true
-    } catch {
-      return false
-    }
-  })
+        return true
+      } catch {
+        return false
+      }
+    })
+  }
 
   /** Marks the tracked state as saved/clean — call after a successful save so the post-save navigation doesn't re-trigger the prompt. */
   function markClean (): void {
