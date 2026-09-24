@@ -47,6 +47,17 @@ class EventsService {
   delete (id: string): Promise<void> {
     return apiClient.delete('/events/{id}', { dynamicKeys: { id } })
   }
+
+  /**
+   * Applies `body.operation` (`delete` or `archive`) to every id in
+   * `body.ids`, one at a time server-side, and always resolves `200` with a
+   * `TBulkResult` — per-identifier failures (not-found, a referential
+   * conflict) are reported in `result.failed` rather than rejecting the
+   * whole request (GitHub issue #39, PRD-007).
+   */
+  bulk (body: TBulkRequest): Promise<TBulkResult> {
+    return apiClient.post('/events/bulk', body)
+  }
 }
 
 export const eventsService = new EventsService()

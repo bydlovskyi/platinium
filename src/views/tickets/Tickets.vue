@@ -20,6 +20,13 @@ const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()
 const { canDo } = useCapability()
+const {
+  selectedIds,
+  isRunning: bulkRunning,
+  lastResult: bulkResult,
+  clearSelection,
+  runBulkOperation
+} = useBulkOperations()
 
 const {
   search,
@@ -266,6 +273,51 @@ const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
   return actions
 })
 
+// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
+const canBulkDelete = computed(() => canDo('tickets', 'delete'))
+const canBulkArchive = computed(() => canDo('tickets', 'update'))
+
+function selectionSubject (): string {
+  const count = selectedIds.value.length
+  return `${count} ticket${count === 1 ? '' : 's'}`
+}
+
+/**
+ * Mirrors `deleteTicket`'s own page-back check below, generalized to "every
+ * row currently on this page was deleted" rather than "the one row was the
+ * last one on the page" — a bulk delete can wipe out the whole page at once,
+ * not just its final row (GitHub issue #39 follow-up fix).
+ */
+function onBulkDeleteComplete (): void {
+  const allVisibleRowsDeleted = data.value.length > 0 &&
+    data.value.every(ticket => bulkResult.value?.succeeded.includes(ticket.id))
+
+  if (allVisibleRowsDeleted && page.value > 1) {
+    void setPage(page.value - 1)
+  } else {
+    void refetch()
+  }
+}
+
+async function bulkDeleteTickets (): Promise<void> {
+  await runBulkOperation('delete', {
+    confirmSubject: selectionSubject(),
+    bulk: body => ticketsService.bulk(body),
+    onComplete: onBulkDeleteComplete
+  })
+}
+
+async function bulkArchiveTickets (): Promise<void> {
+  await runBulkOperation('archive', {
+    confirmSubject: selectionSubject(),
+    confirmMessage: `Archive ${selectionSubject()}? This sets their status to archived.`,
+    confirmButtonText: 'Archive',
+    danger: false,
+    bulk: body => ticketsService.bulk(body),
+    onComplete: refetch
+  })
+}
+
 /**
  * Deletes `ticket` after confirmation. Unlike `Events.vue`'s/`Categories.vue`'s
  * delete, there is no `DependencyConflictError` handling here — PRD-006
@@ -302,6 +354,19 @@ function onRowAction ({ action, row }: { action: string; row: TTicket }): void {
 function onCreateClicked (): void {
   void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
+
+function onSelectionChanged (keys: string[]): void {
+  selectedIds.value = keys
+}
+
+const bulkResultVisible = computed({
+  get: () => bulkResult.value !== undefined,
+  set: (value: boolean) => {
+    if (!value) {
+      bulkResult.value = undefined
+    }
+  }
+})
 </script>
 
 <template>
@@ -430,6 +495,8 @@ function onCreateClicked (): void {
       :empty-reason="emptyReason"
       :sort="dataTableSort"
       :row-actions="rowActions"
+      selectable
+      :selected-row-keys="selectedIds"
       caption="Tickets"
       @sort-requested="setSort"
       @page-requested="setPage"
@@ -437,6 +504,7 @@ function onCreateClicked (): void {
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
       @row-action-invoked="onRowAction"
+      @selection-changed="onSelectionChanged"
     >
       <template #cell-price="{ row }">
         <span class="tabular-nums">{{ filters.formatMoney((row as TTicket).price, (row as TTicket).currency) }}</span>
@@ -458,5 +526,36 @@ function onCreateClicked (): void {
         <StatusTag :status="(row as TTicket).status" />
       </template>
     </AppDataTable>
+
+    <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
+      <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">
+        <el-tag size="large">
+          {{ selectedIds.length }} selected on this page
+        </el-tag>
+
+        <el-button
+          v-if="canBulkDelete"
+          type="danger"
+          :loading="bulkRunning"
+          @click="bulkDeleteTickets"
+        >
+          Delete
+        </el-button>
+
+        <el-button
+          v-if="canBulkArchive"
+          :loading="bulkRunning"
+          @click="bulkArchiveTickets"
+        >
+          Archive
+        </el-button>
+
+        <el-button link @click="clearSelection">
+          Clear selection
+        </el-button>
+      </el-card>
+    </el-affix>
+
+    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="ticket" />
   </div>
 </template>

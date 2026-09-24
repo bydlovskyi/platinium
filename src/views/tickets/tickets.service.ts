@@ -54,6 +54,17 @@ class TicketsService {
   delete (id: string): Promise<void> {
     return apiClient.delete('/tickets/{id}', { dynamicKeys: { id } })
   }
+
+  /**
+   * Applies `body.operation` (`delete` or `archive`) to every id in
+   * `body.ids` and always resolves `200` with a `TBulkResult`, exactly like
+   * `eventsService.bulk` (GitHub issue #39, PRD-007). `archive` sets each
+   * ticket's status to `archived`; `delete` has no dependency check, same as
+   * `delete` above.
+   */
+  bulk (body: TBulkRequest): Promise<TBulkResult> {
+    return apiClient.post('/tickets/bulk', body)
+  }
 }
 
 export const ticketsService = new TicketsService()

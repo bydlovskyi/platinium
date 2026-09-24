@@ -17,6 +17,13 @@ const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
 const { canDo } = useCapability()
+const {
+  selectedIds,
+  isRunning: bulkRunning,
+  lastResult: bulkResult,
+  clearSelection,
+  runBulkOperation
+} = useBulkOperations()
 
 const {
   search,
@@ -127,6 +134,55 @@ const rowActions = computed<IDataTableRowAction<TEvent>[]>(() => {
   return actions
 })
 
+// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
+// Mirrors `rowActions` above: whether the bulk bar can delete/archive at all
+// is gated by the same `canDo` capability check as the row-level actions, so
+// a viewer never sees an affordance that would just 403.
+const canBulkDelete = computed(() => canDo('events', 'delete'))
+const canBulkArchive = computed(() => canDo('events', 'update'))
+
+function selectionSubject (): string {
+  const count = selectedIds.value.length
+  return `${count} event${count === 1 ? '' : 's'}`
+}
+
+/**
+ * Mirrors `deleteEvent`'s own page-back check below, generalized to "every
+ * row currently on this page was deleted" rather than "the one row was the
+ * last one on the page" — a bulk delete can wipe out the whole page at once,
+ * not just its final row. Only relevant to `delete`; `archive` never removes
+ * a row from the list via this check (GitHub issue #39 follow-up fix).
+ */
+function onBulkDeleteComplete (): void {
+  const allVisibleRowsDeleted = data.value.length > 0 &&
+    data.value.every(event => bulkResult.value?.succeeded.includes(event.id))
+
+  if (allVisibleRowsDeleted && page.value > 1) {
+    void setPage(page.value - 1)
+  } else {
+    void refetch()
+  }
+}
+
+async function bulkDeleteEvents (): Promise<void> {
+  await runBulkOperation('delete', {
+    confirmSubject: selectionSubject(),
+    bulk: body => eventsService.bulk(body),
+    onComplete: onBulkDeleteComplete
+  })
+}
+
+async function bulkArchiveEvents (): Promise<void> {
+  await runBulkOperation('archive', {
+    confirmSubject: selectionSubject(),
+    confirmMessage: `Archive ${selectionSubject()}? This sets their status to completed.`,
+    confirmButtonText: 'Archive',
+    danger: false,
+    bulk: body => eventsService.bulk(body),
+    onComplete: refetch
+  })
+}
+
 /**
  * Deletes `event` after confirmation (GitHub issue #28, PRD-004
  * "Deletion"). A 409 (`DependencyConflictError`, thrown by the response
@@ -177,6 +233,19 @@ function onRowAction ({ action, row }: { action: string; row: TEvent }): void {
 function onCreateClicked (): void {
   void router.push({ name: routeNames.eventCreate, query: { from: route.fullPath } })
 }
+
+function onSelectionChanged (keys: string[]): void {
+  selectedIds.value = keys
+}
+
+const bulkResultVisible = computed({
+  get: () => bulkResult.value !== undefined,
+  set: (value: boolean) => {
+    if (!value) {
+      bulkResult.value = undefined
+    }
+  }
+})
 </script>
 
 <template>
@@ -259,6 +328,8 @@ function onCreateClicked (): void {
       :empty-reason="emptyReason"
       :sort="dataTableSort"
       :row-actions="rowActions"
+      selectable
+      :selected-row-keys="selectedIds"
       caption="Events"
       @sort-requested="setSort"
       @page-requested="setPage"
@@ -266,6 +337,7 @@ function onCreateClicked (): void {
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
       @row-action-invoked="onRowAction"
+      @selection-changed="onSelectionChanged"
     >
       <template #cell-country="{ row }">
         {{ countries.getCountryName((row as TEvent).country) }}
@@ -279,5 +351,36 @@ function onCreateClicked (): void {
         <StatusTag :status="(row as TEvent).status" />
       </template>
     </AppDataTable>
+
+    <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
+      <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">
+        <el-tag size="large">
+          {{ selectedIds.length }} selected on this page
+        </el-tag>
+
+        <el-button
+          v-if="canBulkDelete"
+          type="danger"
+          :loading="bulkRunning"
+          @click="bulkDeleteEvents"
+        >
+          Delete
+        </el-button>
+
+        <el-button
+          v-if="canBulkArchive"
+          :loading="bulkRunning"
+          @click="bulkArchiveEvents"
+        >
+          Archive
+        </el-button>
+
+        <el-button link @click="clearSelection">
+          Clear selection
+        </el-button>
+      </el-card>
+    </el-affix>
+
+    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="event" />
   </div>
 </template>

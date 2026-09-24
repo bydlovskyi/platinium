@@ -45,6 +45,18 @@ class CategoriesService {
   delete (id: string): Promise<void> {
     return apiClient.delete('/categories/{id}', { dynamicKeys: { id } })
   }
+
+  /**
+   * Applies `body.operation` to every id in `body.ids` and always resolves
+   * `200` with a `TBulkResult`, exactly like `eventsService.bulk` (GitHub
+   * issue #39, PRD-007). Categories have no status field, so the mock
+   * reports every id as a per-identifier `UNSUPPORTED_OPERATION` failure for
+   * `operation: 'archive'` — this method itself stays entity-agnostic and
+   * makes no assumption about which operations succeed.
+   */
+  bulk (body: TBulkRequest): Promise<TBulkResult> {
+    return apiClient.post('/categories/bulk', body)
+  }
 }
 
 export const categoriesService = new CategoriesService()

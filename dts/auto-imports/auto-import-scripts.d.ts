@@ -168,6 +168,7 @@ declare global {
   const useBreakpoints: typeof import('@vueuse/core').useBreakpoints
   const useBroadcastChannel: typeof import('@vueuse/core').useBroadcastChannel
   const useBrowserLocation: typeof import('@vueuse/core').useBrowserLocation
+  const useBulkOperations: typeof import('../../src/composables/useBulkOperations').useBulkOperations
   const useCached: typeof import('@vueuse/core').useCached
   const useCapability: typeof import('../../src/composables/useCapability').useCapability
   const useCategoriesList: typeof import('../../src/views/categories/composables/useCategoriesList').useCategoriesList
@@ -544,6 +545,7 @@ declare module 'vue' {
     readonly useBreakpoints: UnwrapRef<typeof import('@vueuse/core')['useBreakpoints']>
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
+    readonly useBulkOperations: UnwrapRef<typeof import('../../src/composables/useBulkOperations')['useBulkOperations']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
     readonly useCapability: UnwrapRef<typeof import('../../src/composables/useCapability')['useCapability']>
     readonly useCategoriesList: UnwrapRef<typeof import('../../src/views/categories/composables/useCategoriesList')['useCategoriesList']>

@@ -189,6 +189,7 @@
     "useBreakpoints": true,
     "useBroadcastChannel": true,
     "useBrowserLocation": true,
+    "useBulkOperations": true,
     "useCached": true,
     "useCapability": true,
     "useCategoriesList": true,
