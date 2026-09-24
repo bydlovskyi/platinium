@@ -75,7 +75,12 @@ Not-found route.
 
 **Responsive and theme.** Every screen at 375px, 768px and 1440px in both themes. Mobile
 drawer opens, traps focus, closes on navigate and on Escape. Toggle theme on every screen;
-no unthemed element, no flash on reload. Open every Element Plus popper (`el-select`,
+no unthemed element, no flash on reload.
+
+**Visual judgement (moved from #44).** Walk every finished screen at desktop, tablet and
+mobile widths in both themes and note what still reads as generated rather than designed —
+spacing, density, card overuse, hover/zebra choice, icon consistency. Resolve each finding
+or record why it stays. Open every Element Plus popper (`el-select`,
 `el-dropdown`, `el-date-picker`, `el-tooltip`), an `ElMessageBox` confirm, an `el-dialog`
 and an `ElNotification` in both themes; each is styled (its `theme-chalk` stylesheet is
 registered) and follows the tokens.

@@ -2,9 +2,9 @@ import { createSeededId, createSeededRandom, type TSeededRandom } from './random
 import type { ICategory, IEvent, ITicket, IUser, TCurrency, TEventStatus, TTicketStatus } from './types'
 
 /**
- * Fixed seed for the deterministic PRNG. Never `Date.now()` or `Math.random()`
- * — the same seed must produce the identical dataset on every run, in every
- * environment, forever.
+ * Fixed seed for the deterministic PRNG. Never `Math.random()` — the same
+ * seed and reference date must produce the identical dataset on every run,
+ * in every environment.
  */
 const SEED = 1337
 
@@ -112,10 +112,20 @@ function createCategories (random: TSeededRandom): ICategory[] {
   }))
 }
 
-function createEvents (random: TSeededRandom): IEvent[] {
+/**
+ * Today's UTC date as `YYYY-MM-DD` — the default anchor for event dates.
+ * Day-granular on purpose: the dataset stays identical for every call on the
+ * same day, and event dates stay spread around the real "now" instead of
+ * drifting into the past as the calendar moves on.
+ */
+function currentIsoDate (): string {
+  return new Date().toISOString().slice(0, ISO_DATE_LENGTH)
+}
+
+function createEvents (random: TSeededRandom, referenceDate: string): IEvent[] {
   return Array.from({ length: EVENT_COUNT }, (_, index) => {
     const startOffsetDays = intBetween(random, EVENT_START_OFFSET_DAYS_MIN, EVENT_START_OFFSET_DAYS_RANGE)
-    const startDate = addDays(FIXED_NOW_ISO, startOffsetDays)
+    const startDate = addDays(referenceDate, startOffsetDays)
     const endDate = addDays(startDate, 1 + Math.floor(random() * EVENT_DURATION_DAYS_RANGE))
 
     const prefix = pick(random, EVENT_NAME_PREFIXES)
@@ -201,15 +211,17 @@ function createUsers (random: TSeededRandom): IUser[] {
  * seeded administrator user. Every ticket references a real event id and a
  * real category id from the same generation.
  *
- * Seeded entirely from a fixed integer via {@link createSeededRandom} — no
- * `Date.now()`, no `Math.random()` — so two calls produce byte-for-byte
- * identical output.
+ * Seeded from a fixed integer via {@link createSeededRandom} — no
+ * `Math.random()` — so two calls with the same `referenceDate` produce
+ * byte-for-byte identical output. Event start dates are offsets from
+ * `referenceDate` (today by default), so the portal always has past, running
+ * and upcoming events; tests pass a fixed date to pin the output.
  */
-export function createSeedDataset (): ISeedDataset {
+export function createSeedDataset (referenceDate: string = currentIsoDate()): ISeedDataset {
   const random = createSeededRandom(SEED)
 
   const categories = createCategories(random)
-  const events = createEvents(random)
+  const events = createEvents(random, referenceDate)
   const tickets = createTickets(random, events, categories)
   const users = createUsers(random)
 
