@@ -130,7 +130,10 @@ describe('ListToolbar', () => {
     })
 
     it('shows the active-filter count on the badge', async () => {
-      const wrapper = mountToolbar({ activeFilters: buildActiveFilters() }, { attachTo: document.body })
+      const wrapper = mountToolbar({ activeFilters: buildActiveFilters() }, {
+        slots: { filters: '<div class="entity-filter">Entity filter</div>' },
+        attachTo: document.body
+      })
       await flushPromises()
 
       const badge = wrapper.findComponent({ name: 'ElBadge' })
@@ -139,11 +142,21 @@ describe('ListToolbar', () => {
     })
 
     it('hides the badge value when there are no active filters', async () => {
-      const wrapper = mountToolbar({ activeFilters: [] }, { attachTo: document.body })
+      const wrapper = mountToolbar({ activeFilters: [] }, {
+        slots: { filters: '<div class="entity-filter">Entity filter</div>' },
+        attachTo: document.body
+      })
       await flushPromises()
 
       const badge = wrapper.findComponent({ name: 'ElBadge' })
       expect(badge.props('hidden')).toBe(true)
+    })
+
+    it('does not render the filters button/drawer at all when the entity supplies no filter controls', async () => {
+      const wrapper = mountToolbar({}, { attachTo: document.body })
+      await flushPromises()
+
+      expect(wrapper.find('button[aria-label="Open filters"]').exists()).toBe(false)
     })
 
     it('renders the filter slot inside the el-drawer once opened', async () => {

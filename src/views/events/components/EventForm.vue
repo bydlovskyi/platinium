@@ -12,7 +12,7 @@
  * column, usable at 375px" — no grid, so nothing needs to collapse at the
  * mobile breakpoint.
  */
-import { ValidationFieldError } from '@/features/platform/api/interceptors/response.interceptor'
+import { ValidationFieldError, DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
 
 interface IEventFormModel {
   name: string
@@ -50,6 +50,7 @@ function cloneModel (model: IEventFormModel): IEventFormModel {
 
 const route = useRoute()
 const router = useRouter()
+const { canDo } = useCapability()
 
 /** Present only on the edit route (`/events/:id/edit`); its absence is what distinguishes create from edit mode. */
 const eventId = computed<string | undefined>(() => (
@@ -71,6 +72,48 @@ const returnTo = computed<string | { name: string }>(() => (
 
 function goToList (): void {
   void router.push(returnTo.value)
+}
+
+const { confirm } = useConfirm()
+
+/**
+ * Deletes the event being edited (GitHub issue #28, PRD-004 "Delete
+ * available as a row action and from the edit form"). Mirrors
+ * `Events.vue`'s row-action delete: a 409 (`DependencyConflictError`) is
+ * rendered as its own actionable notification and re-thrown so `useConfirm`
+ * keeps the dialog open instead of navigating away or closing silently. A
+ * successful delete returns to the list the same way "Cancel"/"Save" do
+ * (`returnTo`, the `from` query param captured above).
+ */
+async function deleteEvent (): Promise<void> {
+  const id = eventId.value
+
+  if (id === undefined) {
+    return
+  }
+
+  await confirm({
+    subject: form.name,
+    onConfirm: async () => {
+      try {
+        await eventsService.delete(id)
+      } catch (error) {
+        if (error instanceof DependencyConflictError) {
+          notificationService.error({
+            title: 'Cannot delete event',
+            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this event and must be removed first.`
+          })
+        }
+
+        throw error
+      }
+
+      notificationService.success({ message: 'Event deleted.' })
+
+      markClean()
+      await router.push(returnTo.value)
+    }
+  })
 }
 
 // --- Loading the existing record (edit mode only) --------------------------
@@ -310,115 +353,141 @@ async function onSubmit (): Promise<void> {
   <div class="flex flex-col gap-4">
     <PageHeader :title="isEditMode ? 'Edit event' : 'Create event'" />
 
-    <el-skeleton v-if="loadingRecord" :rows="6" animated />
+    <!-- Skeleton-to-content crossfade (GitHub issue #42, PRD-010 "Motion" —
+         "loading does not end in a flash"). `el-skeleton` itself has no
+         built-in transition between its `#template` and real content (it's
+         a plain `v-if` internally), so this wraps the loading/error/form
+         tri-state switch in a `<Transition>` keyed per branch. -->
+    <Transition name="skeleton-fade" mode="out-in">
+      <el-skeleton v-if="loadingRecord" key="skeleton" :rows="6" animated />
 
-    <div v-else-if="loadError" class="rounded-token-md border border-border">
-      <el-result
-        icon="warning"
-        title="Event not found"
-        sub-title="This event may have been deleted or the link is incorrect."
-      >
-        <template #extra>
-          <el-button type="primary" @click="goToList">
-            Back to list
-          </el-button>
-        </template>
-      </el-result>
-    </div>
-
-    <el-form
-      v-else
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-position="top"
-      class="max-w-lg"
-      @submit.prevent="onSubmit"
-    >
-      <el-form-item label="Name" prop="name" :error="fieldError('name')">
-        <el-input
-          v-model="form.name"
-          maxlength="120"
-          show-word-limit
-          placeholder="Summer Jazz Festival"
-          @input="clearServerError('name')"
-        />
-      </el-form-item>
-
-      <el-form-item label="Country" prop="country" :error="fieldError('country')">
-        <el-select
-          v-model="form.country"
-          filterable
-          placeholder="Select a country"
-          class="w-full"
-          @change="clearServerError('country')"
+      <div v-else-if="loadError" key="error" class="rounded-token-md border border-border">
+        <el-result
+          icon="warning"
+          title="Event not found"
+          sub-title="This event may have been deleted or the link is incorrect."
         >
-          <el-option
-            v-for="option in countries.options"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-      </el-form-item>
-
-      <el-form-item label="Venue" prop="venue" :error="fieldError('venue')">
-        <el-input
-          v-model="form.venue"
-          maxlength="120"
-          show-word-limit
-          placeholder="Skyline Terrace"
-          @input="clearServerError('venue')"
-        />
-      </el-form-item>
-
-      <el-form-item label="Start date" prop="startDate" :error="fieldError('startDate')">
-        <el-date-picker
-          v-model="form.startDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="Select a start date"
-          class="!w-full"
-          @change="onStartDateChange"
-        />
-      </el-form-item>
-
-      <el-form-item label="End date" prop="endDate" :error="fieldError('endDate')">
-        <el-date-picker
-          v-model="form.endDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="Select an end date"
-          class="!w-full"
-          :disabled-date="disabledEndDate"
-          @change="onEndDateChange"
-        />
-        <el-alert
-          v-if="justClearedEndDate"
-          type="warning"
-          :closable="false"
-          class="mt-2"
-          title="End date cleared"
-          description="The end date was cleared because it fell before the new start date. Choose a new end date."
-        />
-      </el-form-item>
-
-      <el-form-item label="Status" prop="status" :error="fieldError('status')">
-        <el-radio-group v-model="form.status" @change="clearServerError('status')">
-          <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </el-radio>
-        </el-radio-group>
-      </el-form-item>
-
-      <div class="flex gap-2">
-        <el-button type="primary" native-type="submit" :loading="submitting" :disabled="submitting">
-          {{ isEditMode ? 'Save changes' : 'Create event' }}
-        </el-button>
-        <el-button :disabled="submitting" @click="goToList">
-          Cancel
-        </el-button>
+          <template #extra>
+            <el-button type="primary" @click="goToList">
+              Back to list
+            </el-button>
+          </template>
+        </el-result>
       </div>
-    </el-form>
+
+      <el-form
+        v-else
+        key="form"
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        class="max-w-lg"
+        @submit.prevent="onSubmit"
+      >
+        <el-form-item label="Name" prop="name" :error="fieldError('name')">
+          <el-input
+            v-model="form.name"
+            maxlength="120"
+            show-word-limit
+            placeholder="Summer Jazz Festival"
+            @input="clearServerError('name')"
+          />
+        </el-form-item>
+
+        <el-form-item label="Country" prop="country" :error="fieldError('country')">
+          <el-select
+            v-model="form.country"
+            filterable
+            placeholder="Select a country"
+            class="w-full"
+            @change="clearServerError('country')"
+          >
+            <el-option
+              v-for="option in countries.options"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Venue" prop="venue" :error="fieldError('venue')">
+          <el-input
+            v-model="form.venue"
+            maxlength="120"
+            show-word-limit
+            placeholder="Skyline Terrace"
+            @input="clearServerError('venue')"
+          />
+        </el-form-item>
+
+        <el-form-item label="Start date" prop="startDate" :error="fieldError('startDate')">
+          <el-date-picker
+            v-model="form.startDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="Select a start date"
+            class="!w-full"
+            @change="onStartDateChange"
+          />
+        </el-form-item>
+
+        <el-form-item label="End date" prop="endDate" :error="fieldError('endDate')">
+          <el-date-picker
+            v-model="form.endDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="Select an end date"
+            class="!w-full"
+            :disabled-date="disabledEndDate"
+            @change="onEndDateChange"
+          />
+          <el-alert
+            v-if="justClearedEndDate"
+            type="warning"
+            :closable="false"
+            class="mt-2"
+            title="End date cleared"
+            description="The end date was cleared because it fell before the new start date. Choose a new end date."
+          />
+        </el-form-item>
+
+        <el-form-item label="Status" prop="status" :error="fieldError('status')">
+          <el-radio-group v-model="form.status" @change="clearServerError('status')">
+            <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex gap-2">
+            <el-button
+              v-if="canDo('events', isEditMode ? 'update' : 'create')"
+              type="primary"
+              native-type="submit"
+              :loading="submitting"
+              :disabled="submitting"
+            >
+              {{ isEditMode ? 'Save changes' : 'Create event' }}
+            </el-button>
+            <el-button :disabled="submitting" @click="goToList">
+              Cancel
+            </el-button>
+          </div>
+
+          <el-button
+            v-if="isEditMode && canDo('events', 'delete')"
+            type="danger"
+            plain
+            :disabled="submitting"
+            @click="deleteEvent"
+          >
+            Delete event
+          </el-button>
+        </div>
+      </el-form>
+    </Transition>
   </div>
 </template>
