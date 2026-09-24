@@ -144,6 +144,11 @@ emitter orchestrate between them.
 
 Full rules, naming conventions and examples: [`architecture.md`](architecture.md).
 
+## Design system
+
+Tokens, the Element Plus theme bridge, the type scale, motion rules and the
+status colour mapping: [`docs/design-system.md`](docs/design-system.md).
+
 ## Conventions worth knowing
 
 - **Auto-imports.** Composables, services, stores, utils, components and the

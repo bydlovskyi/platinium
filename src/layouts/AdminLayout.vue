@@ -96,22 +96,30 @@ watch(() => route.fullPath, () => {
       </el-header>
 
       <el-main class="min-w-0">
-        <!-- Route transitions (issue #42, PRD-010 "Motion") — a short
-             crossfade so navigating between screens reads as continuous
-             rather than a jump-cut. `mode="out-in"` avoids the outgoing and
-             incoming pages briefly overlapping/reflowing together; `:key`
-             on the full path (not just the route name) so two visits to the
-             same named route with different params (e.g. edit ids) still
-             transition. Duration/easing come from the motion tokens mapped
-             onto `--el-transition-duration*`, not a literal value, so
-             reduced-motion's `0s` override (element-reset/theme.css)
-             suppresses this the same way it suppresses every other mapped
-             transition. -->
-        <router-view #default="{ Component, route: current }">
-          <Transition name="route-fade" mode="out-in">
-            <component :is="Component" :key="current.fullPath" />
-          </Transition>
-        </router-view>
+        <!-- Constrained content width (issue #44, PRD-010 "Layout and
+             density") — `el-main` already carries consistent gutters via
+             Element Plus's own `--el-main-padding`; this wrapper stops the
+             content itself from stretching edge-to-edge on a wide monitor
+             while keeping those gutters symmetric once the max-width caps
+             out. -->
+        <div class="mx-auto w-full max-w-screen-2xl">
+          <!-- Route transitions (issue #42, PRD-010 "Motion") — a short
+               crossfade so navigating between screens reads as continuous
+               rather than a jump-cut. `mode="out-in"` avoids the outgoing and
+               incoming pages briefly overlapping/reflowing together; `:key`
+               on the full path (not just the route name) so two visits to the
+               same named route with different params (e.g. edit ids) still
+               transition. Duration/easing come from the motion tokens mapped
+               onto `--el-transition-duration*`, not a literal value, so
+               reduced-motion's `0s` override (element-reset/theme.css)
+               suppresses this the same way it suppresses every other mapped
+               transition. -->
+          <router-view #default="{ Component, route: current }">
+            <Transition name="route-fade" mode="out-in">
+              <component :is="Component" :key="current.fullPath" />
+            </Transition>
+          </router-view>
+        </div>
       </el-main>
     </el-container>
   </el-container>

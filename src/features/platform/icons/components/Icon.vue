@@ -10,8 +10,6 @@ const props = defineProps<{
   name: TIcons
 }>()
 
-console.log(icons)
-
 const icon = shallowRef<Component | null>(null)
 
 watch(() => props.name, async (name) => {

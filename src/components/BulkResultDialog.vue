@@ -46,12 +46,15 @@ const resultSubTitle = computed(() => (
 function onClose (): void {
   emit('update:modelValue', false)
 }
+
+const { isMobile } = useBreakpoint()
 </script>
 
 <template>
   <el-dialog
     :model-value="modelValue"
     :title="`Bulk ${entityLabel} update result`"
+    :fullscreen="isMobile"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-result :icon="resultType" :title="resultTitle" :sub-title="resultSubTitle" />
@@ -61,7 +64,7 @@ function onClose (): void {
       <el-table-column prop="reason" label="Reason" />
       <el-table-column label="Blocking count" width="140" align="right">
         <template #default="{ row }">
-          {{ (row as TBulkFailure).count ?? '—' }}
+          <span class="tabular-nums">{{ (row as TBulkFailure).count ?? '—' }}</span>
         </template>
       </el-table-column>
     </el-table>
