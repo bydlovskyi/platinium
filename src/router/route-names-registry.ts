@@ -4,8 +4,11 @@ export const routeNames = {
   eventCreate: 'eventCreate',
   eventEdit: 'eventEdit',
   events: 'events',
+  forbidden: 'forbidden',
   home: 'home',
   login: 'login',
   notFound: 'notFound',
+  ticketCreate: 'ticketCreate',
+  ticketEdit: 'ticketEdit',
   tickets: 'tickets'
 }

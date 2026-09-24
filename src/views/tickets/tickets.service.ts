@@ -1,5 +1,6 @@
 /**
- * Tickets service (GitHub issue #34, PRD-006 "Tickets list"). A thin
+ * Tickets service (GitHub issue #34, PRD-006 "Tickets list"; extended by
+ * GitHub issue #35 "Tickets form" with `create`/`get`/`update`). A thin
  * wrapper over `apiClient` — parameters in, data out, no store or
  * composable knowledge (code-conventions "Service layer"). Mirrors
  * `src/views/events/events.service.ts`'s shape. `price*` params are already
@@ -7,11 +8,9 @@
  * boundary for the price-range filter lives in `useTicketsList`, not this
  * service (code-conventions/PRD-006: "the minor-unit conversion exists in
  * exactly one module" per caller, never spread across layers).
- *
- * No `get(id)` here: this slice is list-only (no create/edit form yet, see
- * issue #35), so nothing in this view resolves a ticket by id. `RemoteSelect`
- * usages below are for events/categories, backed by their own services.
  */
+import { blobExportTestOverrides } from '@/features/platform/api/helpers'
+
 interface ITicketListParams {
   search?: string
   eventId?: string
@@ -26,9 +25,29 @@ interface ITicketListParams {
   perPage?: number
 }
 
+/** `ITicketListParams` minus pagination — the CSV export always covers the full filtered result, never one page (GitHub issue #40, PRD-007). */
+type TTicketExportParams = Omit<ITicketListParams, 'page' | 'perPage'>
+
+interface ITicketGetOptions {
+  /** Suppresses the response interceptor's global error toast — the edit route renders its own `el-result` for a 404 instead. */
+  showNotification?: boolean
+}
+
 class TicketsService {
   list (params: ITicketListParams, signal?: AbortSignal): Promise<TTicketListResponse> {
     return apiClient.get('/tickets', { params, signal })
+  }
+
+  create (payload: TTicketPayload): Promise<TTicket> {
+    return apiClient.post('/tickets', payload)
+  }
+
+  get (id: string, { showNotification }: ITicketGetOptions = {}): Promise<TTicket> {
+    return apiClient.get('/tickets/{id}', { dynamicKeys: { id }, showNotification })
+  }
+
+  update (id: string, payload: TTicketPayload): Promise<TTicket> {
+    return apiClient.patch('/tickets/{id}', payload, { dynamicKeys: { id } })
   }
 
   /**
@@ -39,6 +58,35 @@ class TicketsService {
    */
   delete (id: string): Promise<void> {
     return apiClient.delete('/tickets/{id}', { dynamicKeys: { id } })
+  }
+
+  /**
+   * Applies `body.operation` (`delete` or `archive`) to every id in
+   * `body.ids` and always resolves `200` with a `TBulkResult`, exactly like
+   * `eventsService.bulk` (GitHub issue #39, PRD-007). `archive` sets each
+   * ticket's status to `archived`; `delete` has no dependency check, same as
+   * `delete` above.
+   */
+  bulk (body: TBulkRequest): Promise<TBulkResult> {
+    return apiClient.post('/tickets/bulk', body)
+  }
+
+  /**
+   * Requests the full filtered/sorted result as a CSV `Blob` (GitHub issue
+   * #40, PRD-007 "CSV export"), mirroring `eventsService.exportCsv` exactly —
+   * see that method's comment, and `blobExportTestOverrides`'s own, for why
+   * the response is cast rather than typed through the generated schema and
+   * why the adapter/`baseURL` overrides apply only under Vitest.
+   * `priceMin`/`priceMax` are already in minor units by the time they reach
+   * here, same as `list` above.
+   */
+  exportCsv (params: TTicketExportParams, signal?: AbortSignal): Promise<Blob> {
+    return apiClient.get('/tickets', {
+      ...blobExportTestOverrides(apiClient.defaults.baseURL),
+      params: { ...params, format: 'csv' },
+      responseType: 'blob',
+      signal
+    }) as unknown as Promise<Blob>
   }
 }
 

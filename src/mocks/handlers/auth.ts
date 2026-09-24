@@ -23,13 +23,24 @@ const HTTP_STATUS = {
   ok: 200,
   noContent: 204,
   badRequest: 400,
-  unauthorized: 401
+  unauthorized: 401,
+  forbidden: 403
 } as const
 
-const SEEDED_ADMIN_PASSWORD = 'admin123'
+/**
+ * Seeded account passwords, keyed by email. Not stored on {@link IUser} or in
+ * the fixture (`src/mocks/db/fixtures.ts`) — checked here directly, per the
+ * PRD-002 convention. PRD-007 adds the read-only `viewer` account alongside
+ * the original administrator; both are documented in `fixtures.ts`.
+ */
+const SEEDED_PASSWORDS: Record<string, string> = {
+  'admin@platinium.test': 'admin123',
+  'viewer@platinium.test': 'viewer123'
+}
 
 const UNAUTHORIZED_MESSAGE = 'Email or password is incorrect.'
 const MISSING_TOKEN_MESSAGE = 'The session is absent or invalid.'
+const FORBIDDEN_MESSAGE = 'You do not have permission to perform this action.'
 const VALIDATION_MESSAGE = 'The request failed validation.'
 
 function errorBody (code: string, message: string, errors?: Record<string, string>): TErrorResponse {
@@ -38,6 +49,10 @@ function errorBody (code: string, message: string, errors?: Record<string, strin
 
 function unauthorizedResponse (message: string = MISSING_TOKEN_MESSAGE): Response {
   return HttpResponse.json(errorBody('UNAUTHORIZED', message), { status: HTTP_STATUS.unauthorized })
+}
+
+function forbiddenResponse (message: string = FORBIDDEN_MESSAGE): Response {
+  return HttpResponse.json(errorBody('FORBIDDEN', message), { status: HTTP_STATUS.forbidden })
 }
 
 /** Deterministic mock token for a given user id. Never a real signed token — see the module doc comment. */
@@ -96,6 +111,43 @@ export function requireAuth (request: Request): { user: IUser } | Response {
 }
 
 /**
+ * Resolves the bearer token on a request to its active user WITHOUT rejecting
+ * the tokenless case — the read-side counterpart to {@link requireAuth} used by
+ * a write guard that only needs to know "is a viewer signed in?", not "is
+ * anyone signed in?". Returns the user, or `undefined` for a missing/invalid/
+ * logged-out token.
+ */
+function resolveUser (request: Request): IUser | undefined {
+  const authResult = requireAuth(request)
+
+  return authResult instanceof Response ? undefined : authResult.user
+}
+
+/**
+ * The gate every write handler (create/update/delete, plus the three bulk
+ * endpoints) runs before mutating anything (PRD-007): a `viewer`'s token is
+ * rejected with `403` — a permission failure, not a session failure, so the
+ * response interceptor notifies without signing the user out.
+ *
+ * Deliberately does NOT require authentication for the tokenless case: the
+ * entity write endpoints were never behind a `401` before this slice (only the
+ * `/auth/*` paths enforce a session), and PRD-007 adds exactly one new rule —
+ * "reject a viewer's write with 403" — not "require a session on every write".
+ * So a request with no token, or an admin's token, proceeds unchanged; only a
+ * resolved viewer is turned away. A UI-only permission is a suggestion; this
+ * is the real control, so it lives at the mock layer beside the single-record
+ * handlers it guards.
+ *
+ * Returns the `403 Response` to return verbatim when the caller is a viewer,
+ * or `undefined` to let the write proceed.
+ */
+export function requireWriteAccess (request: Request): Response | undefined {
+  const user = resolveUser(request)
+
+  return user !== undefined && user.role !== 'admin' ? forbiddenResponse() : undefined
+}
+
+/**
  * Wraps a resolver with the shared chaos behaviour every handler in this
  * module respects uniformly: simulated latency, then a forced status if one
  * is registered against `path` in `src/mocks/chaos.ts`. Mirrors
@@ -139,7 +191,7 @@ const login = http.post('/auth/login', ({ request }) => withChaos('/auth/login',
 
   const user = db.users.list({ perPage: Number.MAX_SAFE_INTEGER }).data.find(candidate => candidate.email === email)
 
-  if (user === undefined || password !== SEEDED_ADMIN_PASSWORD) {
+  if (user === undefined || password === '' || SEEDED_PASSWORDS[user.email] !== password) {
     return unauthorizedResponse(UNAUTHORIZED_MESSAGE)
   }
 
