@@ -76,6 +76,7 @@ declare module 'vue' {
     RemoteSelect: typeof import('./../../src/components/RemoteSelect.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StatusDistributionBar: typeof import('./../../src/views/dashboard/components/StatusDistributionBar.vue')['default']
     StatusTag: typeof import('./../../src/components/StatusTag.vue')['default']
     TicketForm: typeof import('./../../src/views/tickets/components/TicketForm.vue')['default']
   }
