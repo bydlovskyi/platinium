@@ -44,6 +44,7 @@ const {
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
+const { loading: csvExportLoading, exportCsv } = useCsvExport()
 
 const columns: IDataTableColumn<TCategory>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
@@ -229,6 +230,28 @@ function onCreateClicked (): void {
   openModal('CategoryModal', { category: undefined, onSaved: refetch })
 }
 
+/**
+ * The export always covers the full filtered/sorted result, never one page
+ * (GitHub issue #40, PRD-007) — the same `search`/`sort` the on-screen list
+ * is currently using, just without `page`/`perPage`.
+ */
+function onExportCsvClicked (): void {
+  // The response interceptor already toasts a failure (see
+  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
+  // to stop the rejection reaching here unhandled, not to add a second
+  // notification.
+  exportCsv({
+    entity: 'categories',
+    exportFn: (params, signal) => categoriesService.exportCsv(params, signal),
+    params: {
+      search: search.value || undefined,
+      sort: sort.value?.field,
+      order: sort.value?.order
+    },
+    total: meta.value?.total ?? 0
+  }).catch(() => undefined)
+}
+
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
@@ -278,6 +301,10 @@ const bulkResultVisible = computed({
             :value="option.value"
           />
         </el-select>
+
+        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+          Export CSV
+        </el-button>
       </template>
     </ListToolbar>
 

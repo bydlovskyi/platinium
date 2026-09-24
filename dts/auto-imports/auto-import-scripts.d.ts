@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const CSV_EXPORT_WARNING_THRESHOLD: typeof import('../../src/composables/useCsvExport').CSV_EXPORT_WARNING_THRESHOLD
   const EffectScope: typeof import('vue').EffectScope
   const STATUS_PRESENTATION: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION
   const STATUS_PRESENTATION_TYPE_COLOR: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION_TYPE_COLOR
@@ -183,6 +184,7 @@ declare global {
   const useCssModule: typeof import('vue').useCssModule
   const useCssVar: typeof import('@vueuse/core').useCssVar
   const useCssVars: typeof import('vue').useCssVars
+  const useCsvExport: typeof import('../../src/composables/useCsvExport').useCsvExport
   const useCurrentElement: typeof import('@vueuse/core').useCurrentElement
   const useCycleList: typeof import('@vueuse/core').useCycleList
   const useDark: typeof import('@vueuse/core').useDark
@@ -384,6 +386,7 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly CSV_EXPORT_WARNING_THRESHOLD: UnwrapRef<typeof import('../../src/composables/useCsvExport')['CSV_EXPORT_WARNING_THRESHOLD']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly STATUS_PRESENTATION: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION']>
     readonly STATUS_PRESENTATION_TYPE_COLOR: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION_TYPE_COLOR']>
@@ -560,6 +563,7 @@ declare module 'vue' {
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVar: UnwrapRef<typeof import('@vueuse/core')['useCssVar']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
+    readonly useCsvExport: UnwrapRef<typeof import('../../src/composables/useCsvExport')['useCsvExport']>
     readonly useCurrentElement: UnwrapRef<typeof import('@vueuse/core')['useCurrentElement']>
     readonly useCycleList: UnwrapRef<typeof import('@vueuse/core')['useCycleList']>
     readonly useDark: UnwrapRef<typeof import('@vueuse/core')['useDark']>

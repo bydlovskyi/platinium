@@ -27,6 +27,7 @@ const {
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
+const { loading: csvExportLoading, exportCsv } = useCsvExport()
 
 const {
   search,
@@ -355,6 +356,37 @@ function onCreateClicked (): void {
   void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
 
+/**
+ * The export always covers the full filtered/sorted result, never one page
+ * (GitHub issue #40, PRD-007) — the same `search`/`eventId`/`categoryId`/
+ * `status`/`currency`/price-range/`sort` the on-screen list is currently
+ * using, just without `page`/`perPage`. `priceMin`/`priceMax` are already in
+ * integer minor units on `listFilters`, matching what `ticketsService.exportCsv`
+ * expects (same as `useTicketsList`'s own request `query`).
+ */
+function onExportCsvClicked (): void {
+  // The response interceptor already toasts a failure (see
+  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
+  // to stop the rejection reaching here unhandled, not to add a second
+  // notification.
+  exportCsv({
+    entity: 'tickets',
+    exportFn: (params, signal) => ticketsService.exportCsv(params, signal),
+    params: {
+      search: search.value || undefined,
+      eventId: listFilters.eventId || undefined,
+      categoryId: listFilters.categoryId || undefined,
+      status: listFilters.status === 'all' ? undefined : listFilters.status,
+      currency: listFilters.currency === 'all' ? undefined : listFilters.currency,
+      priceMin: listFilters.priceMin,
+      priceMax: listFilters.priceMax,
+      sort: sort.value?.field,
+      order: sort.value?.order
+    },
+    total: meta.value?.total ?? 0
+  }).catch(() => undefined)
+}
+
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
@@ -475,6 +507,10 @@ const bulkResultVisible = computed({
             :value="option.value"
           />
         </el-select>
+
+        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+          Export CSV
+        </el-button>
 
         <el-button v-if="canDo('tickets', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>

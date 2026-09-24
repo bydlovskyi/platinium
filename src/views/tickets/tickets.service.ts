@@ -9,6 +9,8 @@
  * service (code-conventions/PRD-006: "the minor-unit conversion exists in
  * exactly one module" per caller, never spread across layers).
  */
+import { blobExportTestOverrides } from '@/features/platform/api/helpers'
+
 interface ITicketListParams {
   search?: string
   eventId?: string
@@ -22,6 +24,9 @@ interface ITicketListParams {
   page?: number
   perPage?: number
 }
+
+/** `ITicketListParams` minus pagination — the CSV export always covers the full filtered result, never one page (GitHub issue #40, PRD-007). */
+type TTicketExportParams = Omit<ITicketListParams, 'page' | 'perPage'>
 
 interface ITicketGetOptions {
   /** Suppresses the response interceptor's global error toast — the edit route renders its own `el-result` for a 404 instead. */
@@ -64,6 +69,24 @@ class TicketsService {
    */
   bulk (body: TBulkRequest): Promise<TBulkResult> {
     return apiClient.post('/tickets/bulk', body)
+  }
+
+  /**
+   * Requests the full filtered/sorted result as a CSV `Blob` (GitHub issue
+   * #40, PRD-007 "CSV export"), mirroring `eventsService.exportCsv` exactly —
+   * see that method's comment, and `blobExportTestOverrides`'s own, for why
+   * the response is cast rather than typed through the generated schema and
+   * why the adapter/`baseURL` overrides apply only under Vitest.
+   * `priceMin`/`priceMax` are already in minor units by the time they reach
+   * here, same as `list` above.
+   */
+  exportCsv (params: TTicketExportParams, signal?: AbortSignal): Promise<Blob> {
+    return apiClient.get('/tickets', {
+      ...blobExportTestOverrides(apiClient.defaults.baseURL),
+      params: { ...params, format: 'csv' },
+      responseType: 'blob',
+      signal
+    }) as unknown as Promise<Blob>
   }
 }
 

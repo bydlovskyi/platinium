@@ -10,6 +10,8 @@
  * category by id from the tickets list/form, the same way
  * `eventsService.get` backs the event picker.
  */
+import { blobExportTestOverrides } from '@/features/platform/api/helpers'
+
 interface ICategoryListParams {
   search?: string
   sort?: string
@@ -17,6 +19,9 @@ interface ICategoryListParams {
   page?: number
   perPage?: number
 }
+
+/** `ICategoryListParams` minus pagination — the CSV export always covers the full filtered result, never one page (GitHub issue #40, PRD-007). */
+type TCategoryExportParams = Omit<ICategoryListParams, 'page' | 'perPage'>
 
 class CategoriesService {
   list (params: ICategoryListParams, signal?: AbortSignal): Promise<TCategoryListResponse> {
@@ -56,6 +61,22 @@ class CategoriesService {
    */
   bulk (body: TBulkRequest): Promise<TBulkResult> {
     return apiClient.post('/categories/bulk', body)
+  }
+
+  /**
+   * Requests the full filtered/sorted result as a CSV `Blob` (GitHub issue
+   * #40, PRD-007 "CSV export"), mirroring `eventsService.exportCsv` exactly —
+   * see that method's comment, and `blobExportTestOverrides`'s own, for why
+   * the response is cast rather than typed through the generated schema and
+   * why the adapter/`baseURL` overrides apply only under Vitest.
+   */
+  exportCsv (params: TCategoryExportParams, signal?: AbortSignal): Promise<Blob> {
+    return apiClient.get('/categories', {
+      ...blobExportTestOverrides(apiClient.defaults.baseURL),
+      params: { ...params, format: 'csv' },
+      responseType: 'blob',
+      signal
+    }) as unknown as Promise<Blob>
   }
 }
 

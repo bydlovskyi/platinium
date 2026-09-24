@@ -1,5 +1,6 @@
 {
   "globals": {
+    "CSV_EXPORT_WARNING_THRESHOLD": true,
     "Component": true,
     "ComponentPublicInstance": true,
     "ComputedRef": true,
@@ -204,6 +205,7 @@
     "useCssModule": true,
     "useCssVar": true,
     "useCssVars": true,
+    "useCsvExport": true,
     "useCurrentElement": true,
     "useCycleList": true,
     "useDark": true,

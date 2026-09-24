@@ -24,6 +24,7 @@ const {
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
+const { loading: csvExportLoading, exportCsv } = useCsvExport()
 
 const {
   search,
@@ -234,6 +235,32 @@ function onCreateClicked (): void {
   void router.push({ name: routeNames.eventCreate, query: { from: route.fullPath } })
 }
 
+/**
+ * The export always covers the full filtered/sorted result, never one page
+ * (GitHub issue #40, PRD-007) — the same `search`/`status`/`country`/date-range/
+ * `sort` the on-screen list is currently using, just without `page`/`perPage`.
+ */
+function onExportCsvClicked (): void {
+  // The response interceptor already toasts a failure (see
+  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
+  // to stop the rejection reaching here unhandled, not to add a second
+  // notification.
+  exportCsv({
+    entity: 'events',
+    exportFn: (params, signal) => eventsService.exportCsv(params, signal),
+    params: {
+      search: search.value || undefined,
+      status: listFilters.status === 'all' ? undefined : listFilters.status,
+      country: listFilters.country || undefined,
+      startDateFrom: listFilters.startDateFrom || undefined,
+      startDateTo: listFilters.startDateTo || undefined,
+      sort: sort.value?.field,
+      order: sort.value?.order
+    },
+    total: meta.value?.total ?? 0
+  }).catch(() => undefined)
+}
+
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
@@ -309,6 +336,10 @@ const bulkResultVisible = computed({
       </template>
 
       <template #actions>
+        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+          Export CSV
+        </el-button>
+
         <el-button v-if="canDo('events', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
