@@ -1,5 +1,6 @@
 {
   "globals": {
+    "CSV_EXPORT_WARNING_THRESHOLD": true,
     "Component": true,
     "ComponentPublicInstance": true,
     "ComputedRef": true,
@@ -199,11 +200,13 @@
     "useColorMode": true,
     "useConfirm": true,
     "useConfirmDialog": true,
+    "useCountUp": true,
     "useCountdown": true,
     "useCounter": true,
     "useCssModule": true,
     "useCssVar": true,
     "useCssVars": true,
+    "useCsvExport": true,
     "useCurrentElement": true,
     "useCycleList": true,
     "useDark": true,
@@ -302,6 +305,7 @@
     "useResizeObserver": true,
     "useRoute": true,
     "useRouter": true,
+    "useRowLeaveAnimation": true,
     "useSSRWidth": true,
     "useScreenOrientation": true,
     "useScreenSafeArea": true,

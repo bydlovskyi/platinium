@@ -62,3 +62,54 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Route transitions (issue #42, PRD-010 "Motion") — shared by both
+   `AdminLayout.vue` and `AuthLayout.vue`'s `<Transition name="route-fade">`
+   around `router-view`, so the one class pair lives here instead of being
+   duplicated per-layout `.vue` file. A short opacity/translate crossfade,
+   timed off the base duration/easing tokens (not a literal value) so the
+   reduced-motion override above still neutralises it via the near-zero
+   `transition-duration`, and element-reset/theme.css's token override keeps
+   `getComputedStyle` consistent for anything that reads the tokens directly. */
+.route-fade-enter-active,
+.route-fade-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out-token), transform var(--duration-base) var(--ease-out-token);
+}
+
+.route-fade-enter-from,
+.route-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+/* List item leave (issue #42, PRD-010 "Motion") — the `row-class-name`
+   leaving class `AppDataTable` applies (via each list view's delete flow)
+   before the refetch. `el-table` renders its own body, so this cannot be a
+   `<TransitionGroup>` the way the mobile card list could be — this class
+   just plays a short CSS animation on the `<tr>` marked for removal. */
+@keyframes row-leaving {
+  to {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+.app-table-row-leaving {
+  animation: row-leaving var(--duration-base) var(--ease-in-out-token) forwards;
+}
+
+/* Skeleton-to-content crossfade (issue #42, PRD-010 "Motion" — "loading does
+   not end in a flash"). `el-skeleton` has no built-in transition between its
+   `#template` and real content (a plain `v-if` internally), so every call
+   site that swaps a skeleton for real content wraps the pair in
+   `<Transition name="skeleton-fade" mode="out-in">` — shared here rather
+   than duplicated per component, the same way `.route-fade-*` is shared. */
+.skeleton-fade-enter-active,
+.skeleton-fade-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out-token);
+}
+
+.skeleton-fade-enter-from,
+.skeleton-fade-leave-to {
+  opacity: 0;
+}
