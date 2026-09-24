@@ -55,7 +55,6 @@ declare global {
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const h: typeof import('vue').h
   const helpers: typeof import('../../src/utils/helpers').helpers
-  const homeService: typeof import('../../src/views/home/home.service').homeService
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
@@ -179,6 +178,7 @@ declare global {
   const useColorMode: typeof import('@vueuse/core').useColorMode
   const useConfirm: typeof import('../../src/composables/useConfirm').useConfirm
   const useConfirmDialog: typeof import('@vueuse/core').useConfirmDialog
+  const useCountUp: typeof import('../../src/composables/useCountUp').useCountUp
   const useCountdown: typeof import('@vueuse/core').useCountdown
   const useCounter: typeof import('@vueuse/core').useCounter
   const useCssModule: typeof import('vue').useCssModule
@@ -228,7 +228,6 @@ declare global {
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
   const useGlobalProperties: typeof import('../../src/composables/useGlobalProperties').useGlobalProperties
   const useHead: typeof import('@vueuse/head').useHead
-  const useHomeStore: typeof import('../../src/views/home/home.store').useHomeStore
   const useId: typeof import('vue').useId
   const useIdle: typeof import('@vueuse/core').useIdle
   const useImage: typeof import('@vueuse/core').useImage
@@ -284,6 +283,7 @@ declare global {
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
+  const useRowLeaveAnimation: typeof import('../../src/composables/useRowLeaveAnimation').useRowLeaveAnimation
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
   const useScreenOrientation: typeof import('@vueuse/core').useScreenOrientation
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
@@ -558,6 +558,7 @@ declare module 'vue' {
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
     readonly useConfirm: UnwrapRef<typeof import('../../src/composables/useConfirm')['useConfirm']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
+    readonly useCountUp: UnwrapRef<typeof import('../../src/composables/useCountUp')['useCountUp']>
     readonly useCountdown: UnwrapRef<typeof import('@vueuse/core')['useCountdown']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
@@ -662,6 +663,7 @@ declare module 'vue' {
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
+    readonly useRowLeaveAnimation: UnwrapRef<typeof import('../../src/composables/useRowLeaveAnimation')['useRowLeaveAnimation']>
     readonly useSSRWidth: UnwrapRef<typeof import('@vueuse/core')['useSSRWidth']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>

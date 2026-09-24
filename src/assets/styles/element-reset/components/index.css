@@ -52,3 +52,5 @@
 @import "element-plus/theme-chalk/el-tooltip.css";
 
 @import './el-dialog.css';
+@import './el-notification.css';
+@import './el-table.css';
