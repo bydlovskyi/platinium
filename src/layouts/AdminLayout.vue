@@ -96,7 +96,22 @@ watch(() => route.fullPath, () => {
       </el-header>
 
       <el-main class="min-w-0">
-        <router-view />
+        <!-- Route transitions (issue #42, PRD-010 "Motion") — a short
+             crossfade so navigating between screens reads as continuous
+             rather than a jump-cut. `mode="out-in"` avoids the outgoing and
+             incoming pages briefly overlapping/reflowing together; `:key`
+             on the full path (not just the route name) so two visits to the
+             same named route with different params (e.g. edit ids) still
+             transition. Duration/easing come from the motion tokens mapped
+             onto `--el-transition-duration*`, not a literal value, so
+             reduced-motion's `0s` override (element-reset/theme.css)
+             suppresses this the same way it suppresses every other mapped
+             transition. -->
+        <router-view #default="{ Component, route: current }">
+          <Transition name="route-fade" mode="out-in">
+            <component :is="Component" :key="current.fullPath" />
+          </Transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>

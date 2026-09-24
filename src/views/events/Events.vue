@@ -25,6 +25,7 @@ const {
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
+const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
@@ -153,10 +154,17 @@ function selectionSubject (): string {
  * last one on the page" — a bulk delete can wipe out the whole page at once,
  * not just its final row. Only relevant to `delete`; `archive` never removes
  * a row from the list via this check (GitHub issue #39 follow-up fix).
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
+ * every succeeded row before either step-back or refetch runs, so the
+ * administrator sees which records were removed rather than the list
+ * silently shrinking.
  */
-function onBulkDeleteComplete (): void {
-  const allVisibleRowsDeleted = data.value.length > 0 &&
-    data.value.every(event => bulkResult.value?.succeeded.includes(event.id))
+async function onBulkDeleteComplete (): Promise<void> {
+  const succeededIds = bulkResult.value?.succeeded ?? []
+  const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(event => succeededIds.includes(event.id))
+
+  await playLeave(succeededIds)
 
   if (allVisibleRowsDeleted && page.value > 1) {
     void setPage(page.value - 1)
@@ -194,6 +202,11 @@ async function bulkArchiveEvents (): Promise<void> {
  * A successful delete keeps the page in place unless the deleted row was the
  * last one on a page beyond the first — `useListResource` has no automatic
  * page-adjustment, so that's handled explicitly here.
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") before
+ * the page-adjustment/refetch, so the administrator sees the deleted row
+ * animate out rather than the table jump-cutting straight to the refetched
+ * result.
  */
 async function deleteEvent (event: TEvent): Promise<void> {
   await confirm({
@@ -213,6 +226,8 @@ async function deleteEvent (event: TEvent): Promise<void> {
       }
 
       notificationService.success({ message: 'Event deleted.' })
+
+      await playLeave([event.id])
 
       if (data.value.length === 1 && page.value > 1) {
         void setPage(page.value - 1)
@@ -361,6 +376,7 @@ const bulkResultVisible = computed({
       :row-actions="rowActions"
       selectable
       :selected-row-keys="selectedIds"
+      :leaving-row-keys="leavingRowKeys"
       caption="Events"
       @sort-requested="setSort"
       @page-requested="setPage"

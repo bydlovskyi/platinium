@@ -16,7 +16,16 @@
       </div>
 
       <el-card shadow="always" class="w-full" body-class="!p-8">
-        <router-view />
+        <!-- Route transitions (issue #42, PRD-010 "Motion") — same
+             `route-fade` crossfade as `AdminLayout.vue`'s `router-view`
+             (shared CSS in base.css), applied here too so navigating within
+             the anonymous shell (login variants) is consistent with the
+             authenticated shell rather than a special case. -->
+        <router-view #default="{ Component, route: current }">
+          <Transition name="route-fade" mode="out-in">
+            <component :is="Component" :key="current.fullPath" />
+          </Transition>
+        </router-view>
       </el-card>
     </div>
   </div>
