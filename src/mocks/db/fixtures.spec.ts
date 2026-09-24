@@ -101,16 +101,27 @@ describe('createSeedDataset', () => {
     expect(events.every(event => new Date(event.startDate) < new Date(event.endDate))).toBe(true)
   })
 
-  it('seeds exactly one administrator user, logged out by default', () => {
+  it('seeds one administrator and one viewer account, both logged out by default', () => {
     const { users } = createSeedDataset()
 
-    expect(users).toHaveLength(1)
-    expect(users[0]).toMatchObject({
+    expect(users).toHaveLength(2)
+
+    const admin = users.find(user => user.role === 'admin')
+    const viewer = users.find(user => user.role === 'viewer')
+
+    expect(admin).toMatchObject({
       name: 'Admin',
       email: 'admin@platinium.test',
       role: 'admin',
       sessionActive: false
     })
-    expect(users[0]?.email).toMatch(USER_EMAIL_PATTERN)
+    expect(viewer).toMatchObject({
+      name: 'Viewer',
+      email: 'viewer@platinium.test',
+      role: 'viewer',
+      sessionActive: false
+    })
+    expect(admin?.email).toMatch(USER_EMAIL_PATTERN)
+    expect(viewer?.email).toMatch(USER_EMAIL_PATTERN)
   })
 })

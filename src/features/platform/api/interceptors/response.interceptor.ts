@@ -66,6 +66,18 @@ class ConflictError extends Error {
   }
 }
 
+/**
+ * Rejection reason for a 403 (PRD-007 permissions). A permission failure, NOT
+ * a session failure: the caller is authenticated but their role (a `viewer`)
+ * may not perform this write. Distinct from `SessionExpiredError` so the 403
+ * branch below can notify WITHOUT signing the user out — there is nothing
+ * wrong with the session, only with the attempted action. An `Error` subclass
+ * for the same reason the others are: the rejection stays a real `Error`.
+ */
+class ForbiddenError extends Error {
+  readonly code = 'FORBIDDEN'
+}
+
 /** Narrows a 409 body to the `DependencyConflict` shape — present iff both `entity` and `count` are on the payload. */
 function isDependencyConflictBody (
   body: TErrorResponse | TDependencyConflict | undefined
@@ -74,6 +86,7 @@ function isDependencyConflictBody (
 }
 
 const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please sign in again.'
+const FORBIDDEN_MESSAGE = 'You do not have permission to perform this action.'
 const NETWORK_ERROR_MESSAGE = 'Unable to reach the server. Check your connection and try again.'
 const TIMEOUT_MESSAGE = 'The request took too long to respond. Please try again.'
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
@@ -81,6 +94,7 @@ const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 const HTTP_STATUS = {
   badRequest: 400,
   unauthorized: 401,
+  forbidden: 403,
   conflict: 409
 } as const
 
@@ -130,6 +144,21 @@ const errorInterceptor = (error: AxiosError): Promise<never> => {
     helpers.eventEmitter.publish('sessionExpired', { message: SESSION_EXPIRED_MESSAGE })
 
     return Promise.reject(new SessionExpiredError(SESSION_EXPIRED_MESSAGE))
+  }
+
+  if (status === HTTP_STATUS.forbidden) {
+    // A permission failure, not a session failure (PRD-007): the caller is
+    // authenticated but their role may not perform this write. Notify through
+    // the same pathway as any other error toast, but do NOT sign the user out
+    // — no `sessionExpired` event, no touching the 401 branch above. Prefer
+    // the mock's actual per-request message where present.
+    const message = errorResponseBody(error)?.message ?? FORBIDDEN_MESSAGE
+
+    if (shouldNotify(error)) {
+      notificationService.error({ message })
+    }
+
+    return Promise.reject(new ForbiddenError(message))
   }
 
   if (status === HTTP_STATUS.badRequest) {
@@ -187,6 +216,7 @@ export {
   responseInterceptor,
   errorInterceptor,
   SessionExpiredError,
+  ForbiddenError,
   ValidationFieldError,
   DependencyConflictError,
   ConflictError
