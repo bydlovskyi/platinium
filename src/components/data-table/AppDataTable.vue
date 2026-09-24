@@ -70,6 +70,17 @@ const props = withDefaults(defineProps<{
    * `create-requested` at all) are unaffected.
    */
   canCreate?: boolean
+  /**
+   * Row keys (per `rowKey`) currently playing the row-leave animation
+   * (GitHub issue #42, PRD-010 "Motion" — "a deleted row animates out"). The
+   * caller (the entity list view) adds a key here, waits a beat for the CSS
+   * animation to play, then removes the row from `rows` and refetches — this
+   * component only turns the set into `el-table`'s `row-class-name` (table
+   * presentation) or a `<TransitionGroup>` leave class (card presentation);
+   * it owns no timing or deletion logic itself, matching how it already
+   * knows nothing about *why* rows are empty (`emptyReason`) or loading.
+   */
+  leavingRowKeys?: string[]
 }>(), {
   meta: undefined,
   loading: false,
@@ -81,7 +92,8 @@ const props = withDefaults(defineProps<{
   selectedRowKeys: () => [],
   caption: undefined,
   pageSizes: () => [10, 20, 50, 100],
-  canCreate: true
+  canCreate: true,
+  leavingRowKeys: () => []
 })
 
 const emit = defineEmits<{
@@ -143,6 +155,19 @@ const tableRows = computed(() => (isSkeleton.value ? skeletonRows : props.rows))
 
 function tableRowKey (row: TRow): string {
   return isSkeleton.value ? `${SKELETON_KEY_PREFIX}${String(row[SKELETON_KEY_PREFIX])}` : props.rowKey(row)
+}
+
+// --- Row leave (issue #42) ----------------------------------------------------
+// `el-table`'s own `row-class-name` prop (`(row, rowIndex) => string`, see
+// `data.value` prop above) is how a per-row leaving class reaches the real
+// `<tr>` — there is no `<TransitionGroup>` here, `el-table` renders its own
+// body (PRD-010 "Motion"). `.app-table-row-leaving` (base.css) plays a short
+// CSS animation timed off the motion tokens.
+
+const leavingKeySet = computed(() => new Set(props.leavingRowKeys))
+
+function rowClassName ({ row }: { row: TRow }): string {
+  return leavingKeySet.value.has(props.rowKey(row)) ? 'app-table-row-leaving' : ''
 }
 
 // --- Sort --------------------------------------------------------------------
@@ -341,6 +366,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           :data="tableRows"
           :row-key="tableRowKey"
           :default-sort="defaultSort"
+          :row-class-name="rowClassName"
           :aria-label="caption"
           @sort-change="onSortChange"
           @selection-change="onTableSelectionChange"
@@ -425,54 +451,64 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           </el-checkbox>
         </div>
 
-        <el-card
-          v-for="row in rows"
-          :key="rowKey(row)"
-          shadow="never"
-          body-class="flex items-start justify-between gap-2 !p-3"
-        >
-          <el-checkbox
-            v-if="selectable"
-            :model-value="isRowSelected(row)"
-            aria-label="Select this row"
-            @change="(value: IElementPlus['CheckboxValueType']) => toggleCardRow(row, value)"
-          />
+        <!-- Card presentation is a separate rendering path from `el-table`
+             (it never touches `el-table`'s own body), so — unlike the
+             table's `row-class-name` approach above — a real
+             `<TransitionGroup>` can own the leave animation here (PRD-010
+             "Motion": "mobile cards may use `<TransitionGroup>`"). The same
+             `.app-table-row-leaving` class/keyframe from base.css is reused
+             as the `leave-active-class` rather than duplicating the
+             animation under a second name. -->
+        <TransitionGroup tag="div" class="contents" leave-active-class="app-table-row-leaving">
+          <el-card
+            v-for="row in rows"
+            :key="rowKey(row)"
+            shadow="never"
+            body-class="flex items-start justify-between gap-2 !p-3"
+          >
+            <el-checkbox
+              v-if="selectable"
+              :model-value="isRowSelected(row)"
+              aria-label="Select this row"
+              @change="(value: IElementPlus['CheckboxValueType']) => toggleCardRow(row, value)"
+            />
 
-          <div class="flex flex-1 flex-col gap-1">
-            <div v-for="column in cardColumns" :key="column.key" class="flex flex-col">
-              <span class="text-caption text-text-muted">{{ column.label }}</span>
-              <span class="text-body text-text-primary">
-                <slot v-if="column.cellSlot" :name="`cell-${column.cellSlot}`" :row="row" :column="column">
-                  {{ row[column.key] }}
-                </slot>
-                <template v-else>{{ row[column.key] }}</template>
-              </span>
+            <div class="flex flex-1 flex-col gap-1">
+              <div v-for="column in cardColumns" :key="column.key" class="flex flex-col">
+                <span class="text-caption text-text-muted">{{ column.label }}</span>
+                <span class="text-body text-text-primary">
+                  <slot v-if="column.cellSlot" :name="`cell-${column.cellSlot}`" :row="row" :column="column">
+                    {{ row[column.key] }}
+                  </slot>
+                  <template v-else>{{ row[column.key] }}</template>
+                </span>
+              </div>
             </div>
-          </div>
 
-          <el-dropdown v-if="hasActions" trigger="click" placement="bottom-end">
-            <el-button text circle aria-label="Row actions">
-              <template #icon>
-                <Icon name="more" />
+            <el-dropdown v-if="hasActions" trigger="click" placement="bottom-end">
+              <el-button text circle aria-label="Row actions">
+                <template #icon>
+                  <Icon name="more" />
+                </template>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-for="action in rowActions"
+                    :key="action.key"
+                    :disabled="isActionDisabled(action, row)"
+                    :divided="action.danger"
+                    :class="{ '!text-danger': action.danger }"
+                    @click="onRowAction(action, row)"
+                  >
+                    <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
+                    {{ action.label }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
               </template>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item
-                  v-for="action in rowActions"
-                  :key="action.key"
-                  :disabled="isActionDisabled(action, row)"
-                  :divided="action.danger"
-                  :class="{ '!text-danger': action.danger }"
-                  @click="onRowAction(action, row)"
-                >
-                  <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
-                  {{ action.label }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </el-card>
+            </el-dropdown>
+          </el-card>
+        </TransitionGroup>
       </div>
 
       <!-- Pagination: renders the `PaginationMeta` envelope directly, total

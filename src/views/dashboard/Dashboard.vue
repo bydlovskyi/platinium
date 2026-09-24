@@ -66,6 +66,17 @@ const ticketsTotal = computed(() => data.value?.ticketStatusBreakdown.reduce((su
 /** Draft-event count for the headline tile — `TDashboardStats` has no dedicated field, only the status breakdown array, so this reads the `draft` entry out of it rather than summing lists client-side. */
 const draftEvents = computed(() => data.value?.eventStatusBreakdown.find(entry => entry.status === 'draft')?.count ?? 0)
 
+// --- Headline figures counting into place (GitHub issue #42, PRD-010
+// "Motion") — one `useCountUp` per headline `el-statistic`, each fed a plain
+// numeric source derived above/from `data`. `useCountUp` itself bypasses the
+// count under `prefers-reduced-motion` (see its own file comment), so
+// nothing here branches on the preference directly.
+const totalEventsDisplay = useCountUp(computed(() => data.value?.totalEvents ?? 0))
+const runningEventsDisplay = useCountUp(computed(() => data.value?.runningEvents ?? 0))
+const draftEventsDisplay = useCountUp(draftEvents)
+const totalTicketsDisplay = useCountUp(computed(() => data.value?.totalTickets ?? 0))
+const totalAvailableQuantityDisplay = useCountUp(computed(() => data.value?.totalAvailableQuantity ?? 0))
+
 /** Clicking anywhere in an upcoming-event row navigates to that event's edit view — a specific record link, not a filtered list (PRD-007 distinguishes the two). The name cell's own `router-link` covers keyboard/assistive-tech access; this covers the rest of the row for a mouse/touch user. A viewer has no `events`/`update` capability and the edit route is gated on it (`events.routes.ts`), so this is a no-op for a viewer — mirroring `Events.vue`'s `rowActions`, which hides the edit affordance rather than presenting a link/action that would 403. */
 function onUpcomingEventRowClick (row: TEvent): void {
   if (!canDo('events', 'update')) {
@@ -89,191 +100,196 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
   <div class="flex flex-col gap-5">
     <PageHeader title="Dashboard" />
 
-    <!-- First load: skeleton mirrors the final grid shape (headline tiles,
+    <!-- Skeleton-to-content crossfade (GitHub issue #42, PRD-010 "Motion")
+         — same `<Transition name="skeleton-fade">` wrap as
+         `EventForm.vue`/`TicketForm.vue`'s loading/error/content tri-state,
+         keyed per branch. -->
+    <Transition name="skeleton-fade" mode="out-in">
+      <!-- First load: skeleton mirrors the final grid shape (headline tiles,
          two breakdown cards, two shortlist tables) so nothing jumps when the
          data arrives. -->
-    <div v-if="loading && !data" class="flex flex-col gap-5">
-      <el-row :gutter="16">
-        <el-col v-for="n in 5" :key="n" :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="0">
-              <template #template>
-                <el-skeleton-item variant="text" class="!w-2/3" />
-                <el-skeleton-item variant="h3" class="!mt-3 !w-1/2" />
-              </template>
-            </el-skeleton>
-          </el-card>
-        </el-col>
-      </el-row>
+      <div v-if="loading && !data" key="skeleton" class="flex flex-col gap-5">
+        <el-row :gutter="16">
+          <el-col v-for="n in 5" :key="n" :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="0">
+                <template #template>
+                  <el-skeleton-item variant="text" class="!w-2/3" />
+                  <el-skeleton-item variant="h3" class="!mt-3 !w-1/2" />
+                </template>
+              </el-skeleton>
+            </el-card>
+          </el-col>
+        </el-row>
 
-      <el-row :gutter="16">
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="3" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :md="6" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="4" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :md="6" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="4" />
-          </el-card>
-        </el-col>
-      </el-row>
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="3" />
+            </el-card>
+          </el-col>
+          <el-col :xs="24" :md="6" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="4" />
+            </el-card>
+          </el-col>
+          <el-col :xs="24" :md="6" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="4" />
+            </el-card>
+          </el-col>
+        </el-row>
 
-      <el-row :gutter="16">
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="5" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <el-skeleton animated :rows="5" />
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="5" />
+            </el-card>
+          </el-col>
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <el-skeleton animated :rows="5" />
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
 
-    <!-- Failed load: retry re-triggers the fetch, no page reload. -->
-    <div v-else-if="error" class="rounded-token-md border border-border">
-      <el-result
-        icon="warning"
-        title="Couldn't load the dashboard"
-        sub-title="Something went wrong while fetching the latest statistics."
-      >
-        <template #extra>
-          <el-button type="primary" @click="retry">
-            Retry
-          </el-button>
-        </template>
-      </el-result>
-    </div>
+      <!-- Failed load: retry re-triggers the fetch, no page reload. -->
+      <div v-else-if="error" key="error" class="rounded-token-md border border-border">
+        <el-result
+          icon="warning"
+          title="Couldn't load the dashboard"
+          sub-title="Something went wrong while fetching the latest statistics."
+        >
+          <template #extra>
+            <el-button type="primary" @click="retry">
+              Retry
+            </el-button>
+          </template>
+        </el-result>
+      </div>
 
-    <div v-else-if="data" class="flex flex-col gap-5">
-      <!-- Headline figures -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <router-link :to="{ name: routeNames.events }" class="block hover:text-accent">
-              <el-statistic title="Total events" :value="data.totalEvents" />
-            </router-link>
-          </el-card>
-        </el-col>
-
-        <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <router-link
-              :to="{ name: routeNames.events, query: { status: 'published' } }"
-              class="block hover:text-accent"
-            >
-              <el-statistic title="Currently running" :value="data.runningEvents" />
-            </router-link>
-          </el-card>
-        </el-col>
-
-        <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <router-link
-              :to="{ name: routeNames.events, query: { status: 'draft' } }"
-              class="block hover:text-accent"
-            >
-              <el-statistic title="Draft events" :value="draftEvents" />
-            </router-link>
-          </el-card>
-        </el-col>
-
-        <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-              <el-statistic title="Total tickets" :value="data.totalTickets" />
-            </router-link>
-          </el-card>
-        </el-col>
-
-        <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-          <el-card shadow="never">
-            <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-              <el-statistic title="Total available quantity" :value="data.totalAvailableQuantity" />
-            </router-link>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <!-- Gross inventory value per currency — one labelled block, never summed across currencies. -->
-      <el-row :gutter="16">
-        <el-col :span="24" class="mb-4">
-          <el-card shadow="never">
-            <el-descriptions title="Gross inventory value" :column="grossInventoryValueColumns" border>
-              <el-descriptions-item
-                v-for="currencyTotal in data.grossInventoryValue"
-                :key="currencyTotal.currency"
-                :label="currencyTotal.currency"
-              >
-                {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
-              </el-descriptions-item>
-
-              <el-descriptions-item v-if="data.grossInventoryValue.length === 0" label="No inventory">
-                —
-              </el-descriptions-item>
-            </el-descriptions>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <!-- Status breakdowns -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <h2 class="text-section-heading text-text-primary mb-3">Events by status</h2>
-            <div class="flex flex-col gap-3">
-              <router-link
-                v-for="entry in data.eventStatusBreakdown"
-                :key="entry.status"
-                :to="{ name: routeNames.events, query: { status: entry.status } }"
-                class="block"
-              >
-                <div class="flex items-center justify-between text-body text-text-muted mb-1">
-                  <span>{{ statusLabel(entry.status) }}</span>
-                </div>
-                <el-progress
-                  :percentage="breakdownPercentage(entry.count, eventsTotal)"
-                  :color="progressColor(entry.status)"
-                  :format="() => String(entry.count)"
-                />
+      <div v-else-if="data" key="content" class="flex flex-col gap-5">
+        <!-- Headline figures -->
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
+              <router-link :to="{ name: routeNames.events }" class="block hover:text-accent">
+                <el-statistic title="Total events" :value="totalEventsDisplay" />
               </router-link>
-            </div>
-          </el-card>
-        </el-col>
+            </el-card>
+          </el-col>
 
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <h2 class="text-section-heading text-text-primary mb-3">Tickets by status</h2>
-            <div class="flex flex-col gap-3">
+          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
               <router-link
-                v-for="entry in data.ticketStatusBreakdown"
-                :key="entry.status"
-                :to="{ name: routeNames.tickets, query: { status: entry.status } }"
-                class="block"
+                :to="{ name: routeNames.events, query: { status: 'published' } }"
+                class="block hover:text-accent"
               >
-                <div class="flex items-center justify-between text-body text-text-muted mb-1">
-                  <span>{{ statusLabel(entry.status) }}</span>
-                </div>
-                <el-progress
-                  :percentage="breakdownPercentage(entry.count, ticketsTotal)"
-                  :color="progressColor(entry.status)"
-                  :format="() => String(entry.count)"
-                />
+                <el-statistic title="Currently running" :value="runningEventsDisplay" />
               </router-link>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+            </el-card>
+          </el-col>
 
-      <!-- Next events starting / tickets nearly sold out — for a user who
+          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
+              <router-link
+                :to="{ name: routeNames.events, query: { status: 'draft' } }"
+                class="block hover:text-accent"
+              >
+                <el-statistic title="Draft events" :value="draftEventsDisplay" />
+              </router-link>
+            </el-card>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
+              <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
+                <el-statistic title="Total tickets" :value="totalTicketsDisplay" />
+              </router-link>
+            </el-card>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
+            <el-card shadow="never">
+              <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
+                <el-statistic title="Total available quantity" :value="totalAvailableQuantityDisplay" />
+              </router-link>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- Gross inventory value per currency — one labelled block, never summed across currencies. -->
+        <el-row :gutter="16">
+          <el-col :span="24" class="mb-4">
+            <el-card shadow="never">
+              <el-descriptions title="Gross inventory value" :column="grossInventoryValueColumns" border>
+                <el-descriptions-item
+                  v-for="currencyTotal in data.grossInventoryValue"
+                  :key="currencyTotal.currency"
+                  :label="currencyTotal.currency"
+                >
+                  {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
+                </el-descriptions-item>
+
+                <el-descriptions-item v-if="data.grossInventoryValue.length === 0" label="No inventory">
+                  —
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- Status breakdowns -->
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <h2 class="text-section-heading text-text-primary mb-3">Events by status</h2>
+              <div class="flex flex-col gap-3">
+                <router-link
+                  v-for="entry in data.eventStatusBreakdown"
+                  :key="entry.status"
+                  :to="{ name: routeNames.events, query: { status: entry.status } }"
+                  class="block"
+                >
+                  <div class="flex items-center justify-between text-body text-text-muted mb-1">
+                    <span>{{ statusLabel(entry.status) }}</span>
+                  </div>
+                  <el-progress
+                    :percentage="breakdownPercentage(entry.count, eventsTotal)"
+                    :color="progressColor(entry.status)"
+                    :format="() => String(entry.count)"
+                  />
+                </router-link>
+              </div>
+            </el-card>
+          </el-col>
+
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <h2 class="text-section-heading text-text-primary mb-3">Tickets by status</h2>
+              <div class="flex flex-col gap-3">
+                <router-link
+                  v-for="entry in data.ticketStatusBreakdown"
+                  :key="entry.status"
+                  :to="{ name: routeNames.tickets, query: { status: entry.status } }"
+                  class="block"
+                >
+                  <div class="flex items-center justify-between text-body text-text-muted mb-1">
+                    <span>{{ statusLabel(entry.status) }}</span>
+                  </div>
+                  <el-progress
+                    :percentage="breakdownPercentage(entry.count, ticketsTotal)"
+                    :color="progressColor(entry.status)"
+                    :format="() => String(entry.count)"
+                  />
+                </router-link>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- Next events starting / tickets nearly sold out — for a user who
            can update the entity, each row links to that specific record's
            edit view (not a filtered list), via the name cell's
            `router-link` and a `row-click` handler on the row itself so the
@@ -282,69 +298,70 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
            viewer the name renders as plain text and the row click is a
            no-op (see `canDo` calls below and on `onUpcomingEventRowClick`/
            `onNearlySoldOutTicketRowClick`). -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <h2 class="text-section-heading text-text-primary mb-3">Next events starting</h2>
-            <el-table :data="data.upcomingEvents" size="small" @row-click="onUpcomingEventRowClick">
-              <el-table-column label="Name">
-                <template #default="{ row }">
-                  <router-link
-                    v-if="canDo('events', 'update')"
-                    :to="{ name: routeNames.eventEdit, params: { id: (row as TEvent).id } }"
-                    class="text-accent hover:underline"
-                  >
-                    {{ (row as TEvent).name }}
-                  </router-link>
-                  <span v-else>{{ (row as TEvent).name }}</span>
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <h2 class="text-section-heading text-text-primary mb-3">Next events starting</h2>
+              <el-table :data="data.upcomingEvents" size="small" @row-click="onUpcomingEventRowClick">
+                <el-table-column label="Name">
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="canDo('events', 'update')"
+                      :to="{ name: routeNames.eventEdit, params: { id: (row as TEvent).id } }"
+                      class="text-accent hover:underline"
+                    >
+                      {{ (row as TEvent).name }}
+                    </router-link>
+                    <span v-else>{{ (row as TEvent).name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="Starts">
+                  <template #default="{ row }">
+                    {{ filters.formatDate((row as TEvent).startDate) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="Status">
+                  <template #default="{ row }">
+                    <StatusTag :status="(row as TEvent).status" />
+                  </template>
+                </el-table-column>
+                <template #empty>
+                  No upcoming events.
                 </template>
-              </el-table-column>
-              <el-table-column label="Starts">
-                <template #default="{ row }">
-                  {{ filters.formatDate((row as TEvent).startDate) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="Status">
-                <template #default="{ row }">
-                  <StatusTag :status="(row as TEvent).status" />
-                </template>
-              </el-table-column>
-              <template #empty>
-                No upcoming events.
-              </template>
-            </el-table>
-          </el-card>
-        </el-col>
+              </el-table>
+            </el-card>
+          </el-col>
 
-        <el-col :xs="24" :md="12" class="mb-4">
-          <el-card shadow="never">
-            <h2 class="text-section-heading text-text-primary mb-3">Tickets nearly sold out</h2>
-            <el-table :data="data.nearlySoldOutTickets" size="small" @row-click="onNearlySoldOutTicketRowClick">
-              <el-table-column label="Name">
-                <template #default="{ row }">
-                  <router-link
-                    v-if="canDo('tickets', 'update')"
-                    :to="{ name: routeNames.ticketEdit, params: { id: (row as TTicket).id } }"
-                    class="text-accent hover:underline"
-                  >
-                    {{ (row as TTicket).name }}
-                  </router-link>
-                  <span v-else>{{ (row as TTicket).name }}</span>
+          <el-col :xs="24" :md="12" class="mb-4">
+            <el-card shadow="never">
+              <h2 class="text-section-heading text-text-primary mb-3">Tickets nearly sold out</h2>
+              <el-table :data="data.nearlySoldOutTickets" size="small" @row-click="onNearlySoldOutTicketRowClick">
+                <el-table-column label="Name">
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="canDo('tickets', 'update')"
+                      :to="{ name: routeNames.ticketEdit, params: { id: (row as TTicket).id } }"
+                      class="text-accent hover:underline"
+                    >
+                      {{ (row as TTicket).name }}
+                    </router-link>
+                    <span v-else>{{ (row as TTicket).name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="Quantity">
+                  <template #default="{ row }">
+                    <span class="tabular-nums">{{ (row as TTicket).quantity }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="eventName" label="Event" />
+                <template #empty>
+                  No tickets are running low.
                 </template>
-              </el-table-column>
-              <el-table-column label="Quantity">
-                <template #default="{ row }">
-                  <span class="tabular-nums">{{ (row as TTicket).quantity }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="eventName" label="Event" />
-              <template #empty>
-                No tickets are running low.
-              </template>
-            </el-table>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+    </Transition>
   </div>
 </template>

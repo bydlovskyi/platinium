@@ -357,6 +357,49 @@ describe('AppDataTable', () => {
     })
   })
 
+  describe('row-leave animation (GitHub issue #42, PRD-010 "Motion")', () => {
+    it('applies the leaving class to the table row matching a leavingRowKeys entry, and not to any other row', async () => {
+      const wrapper = mountTable({ leavingRowKeys: ['row-2'] })
+      await flushPromises()
+
+      const rows = wrapper.findAll('tbody tr')
+      const leavingRow = rows.find(row => row.text().includes('Row 2'))
+      const otherRow = rows.find(row => row.text().includes('Row 1'))
+
+      expect(leavingRow!.classes()).toContain('app-table-row-leaving')
+      expect(otherRow!.classes()).not.toContain('app-table-row-leaving')
+    })
+
+    it('applies no leaving class when leavingRowKeys is empty (the default)', async () => {
+      const wrapper = mountTable({})
+      await flushPromises()
+
+      const rows = wrapper.findAll('tbody tr')
+      expect(rows.some(row => row.classes().includes('app-table-row-leaving'))).toBe(false)
+    })
+
+    it('configures the mobile card list\'s TransitionGroup with the same leaving class the table presentation uses', async () => {
+      // `@vue/test-utils` stubs `<TransitionGroup>` (as `<transition-group-stub>`)
+      // rather than running Vue's real leave-transition timing, so the
+      // outgoing element is removed immediately with no leave-active-class
+      // ever attached to it in this environment — a real browser is what
+      // actually plays the leave animation (covered by the live/manual
+      // verification pass, not a jsdom component test). What IS honestly
+      // assertable here is that the `<TransitionGroup>` is wired with the
+      // correct `leave-active-class`, i.e. it WOULD play
+      // `.app-table-row-leaving` (the same class/keyframe the table
+      // presentation applies via `row-class-name`) once Vue's real leave
+      // logic runs it.
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({ leavingRowKeys: ['row-1'] })
+      await flushPromises()
+
+      const transitionGroup = wrapper.find('transition-group-stub')
+      expect(transitionGroup.exists()).toBe(true)
+      expect(transitionGroup.attributes('leaveactiveclass')).toBe('app-table-row-leaving')
+    })
+  })
+
   describe('presentation switch at the tablet breakpoint', () => {
     it('renders a real table at and above the tablet breakpoint', async () => {
       setViewportToBreakpoint('tablet')

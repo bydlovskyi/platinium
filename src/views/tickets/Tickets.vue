@@ -28,6 +28,7 @@ const {
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
+const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
@@ -288,10 +289,15 @@ function selectionSubject (): string {
  * row currently on this page was deleted" rather than "the one row was the
  * last one on the page" — a bulk delete can wipe out the whole page at once,
  * not just its final row (GitHub issue #39 follow-up fix).
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
+ * every succeeded row before either step-back or refetch runs.
  */
-function onBulkDeleteComplete (): void {
-  const allVisibleRowsDeleted = data.value.length > 0 &&
-    data.value.every(ticket => bulkResult.value?.succeeded.includes(ticket.id))
+async function onBulkDeleteComplete (): Promise<void> {
+  const succeededIds = bulkResult.value?.succeeded ?? []
+  const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(ticket => succeededIds.includes(ticket.id))
+
+  await playLeave(succeededIds)
 
   if (allVisibleRowsDeleted && page.value > 1) {
     void setPage(page.value - 1)
@@ -325,7 +331,8 @@ async function bulkArchiveTickets (): Promise<void> {
  * "Tickets are leaves: nothing references them, so deletion has no
  * dependency check" — `ticketsService.delete` never rejects with one.
  * Page-adjustment on deleting the last row of a page beyond the first
- * mirrors `Events.vue`'s `deleteEvent` exactly.
+ * mirrors `Events.vue`'s `deleteEvent` exactly, including the row-leave
+ * animation (GitHub issue #42, PRD-010 "Motion") played before it.
  */
 async function deleteTicket (ticket: TTicket): Promise<void> {
   await confirm({
@@ -334,6 +341,8 @@ async function deleteTicket (ticket: TTicket): Promise<void> {
       await ticketsService.delete(ticket.id)
 
       notificationService.success({ message: 'Ticket deleted.' })
+
+      await playLeave([ticket.id])
 
       if (data.value.length === 1 && page.value > 1) {
         void setPage(page.value - 1)
@@ -533,6 +542,7 @@ const bulkResultVisible = computed({
       :row-actions="rowActions"
       selectable
       :selected-row-keys="selectedIds"
+      :leaving-row-keys="leavingRowKeys"
       caption="Tickets"
       @sort-requested="setSort"
       @page-requested="setPage"

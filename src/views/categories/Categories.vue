@@ -45,6 +45,7 @@ const {
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
+const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const columns: IDataTableColumn<TCategory>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
@@ -150,10 +151,16 @@ function selectionSubject (): string {
  * "every row currently on this page was deleted" rather than "the one row
  * was the last one on the page" — a bulk delete can wipe out the whole page
  * at once, not just its final row (GitHub issue #39 follow-up fix).
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
+ * every succeeded row before either step-back or refetch runs.
  */
-function onBulkDeleteComplete (): void {
+async function onBulkDeleteComplete (): Promise<void> {
+  const succeededIds = bulkResult.value?.succeeded ?? []
   const allVisibleRowsDeleted = data.value.length > 0 &&
-    data.value.every(category => bulkResult.value?.succeeded.includes(category.id))
+    data.value.every(category => succeededIds.includes(category.id))
+
+  await playLeave(succeededIds)
 
   if (allVisibleRowsDeleted && page.value > 1) {
     void setPage(page.value - 1)
@@ -181,6 +188,9 @@ async function bulkDeleteCategories (): Promise<void> {
  * tickets-reference conflict — this shows the count-bearing message only,
  * with no link to a tickets list. That is a known, accepted forward
  * dependency, not an oversight here.
+ *
+ * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") before
+ * the page-adjustment/refetch, mirroring `Events.vue`'s `deleteEvent`.
  */
 async function deleteCategory (category: TCategory): Promise<void> {
   await confirm({
@@ -200,6 +210,8 @@ async function deleteCategory (category: TCategory): Promise<void> {
       }
 
       notificationService.success({ message: 'Category deleted.' })
+
+      await playLeave([category.id])
 
       if (data.value.length === 1 && page.value > 1) {
         void setPage(page.value - 1)
@@ -321,6 +333,7 @@ const bulkResultVisible = computed({
       :can-create="canDo('categories', 'create')"
       selectable
       :selected-row-keys="selectedIds"
+      :leaving-row-keys="leavingRowKeys"
       caption="Categories"
       @sort-requested="setSort"
       @page-requested="setPage"
