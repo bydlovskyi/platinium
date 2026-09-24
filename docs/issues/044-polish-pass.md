@@ -38,8 +38,9 @@ interactive HTML or hand-built control is replaced by its Element Plus equivalen
 the component map, and any `.el-*` selector override is moved into an `--el-*` variable
 where the variable can express it.
 
-HITL because this is a judgement pass. It needs a human looking at real screens at real
-widths and deciding what is still wrong.
+Every criterion below has an objective pass/fail. The subjective part — a human judging
+whether screens still read as "generated" rather than designed — lives in #51
+(Final manual QA), not here.
 
 ## Acceptance criteria
 
@@ -54,7 +55,7 @@ widths and deciding what is still wrong.
 - [ ] Tap targets meet the minimum size on touch devices, especially for destructive actions
 - [ ] Destructive actions visually distinct from safe ones on every screen — `el-button type="danger"`, `divided` danger `el-dropdown-item`, confirmed through `ElMessageBox.confirm` via `useConfirm`
 - [ ] Focus ring visible on every interactive element across every screen in both themes, including native controls rendered by Element Plus
-- [ ] Full visual review at desktop, tablet and mobile widths in both themes, with findings resolved
+- [ ] Browser pass on every screen at 375px, 768px and 1440px in both themes: no horizontal page scroll, no clipped or overlapping text, no unthemed element, no console errors — checked screens listed in the PR
 - [ ] No hardcoded colour, size or spacing value remains — all values come from tokens or the `--el-*` variables mapped from them
 - [ ] Audit: no raw `<button>`/`<input>`/`<table>`/`<select>`/`<textarea>` in feature or shared code outside the standing exceptions in `ELEMENT-PLUS.md`; each remaining `.el-*` override carries a comment naming what the variable could not express
 - [ ] Every Element Plus component used in `src/` has its theme-chalk stylesheet imported in `src/assets/styles/element-reset/components/index.css` (resolver runs with `importStyle: false`)
