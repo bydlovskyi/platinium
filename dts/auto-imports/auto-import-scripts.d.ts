@@ -7,6 +7,8 @@
 export {}
 declare global {
   const EffectScope: typeof import('vue').EffectScope
+  const STATUS_PRESENTATION: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION
+  const STATUS_PRESENTATION_TYPE_COLOR: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION_TYPE_COLOR
   const THEME_STORAGE_KEY: typeof import('../../src/composables/useTheme').THEME_STORAGE_KEY
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const apiClient: typeof import('../../src/features/platform/api/client').apiClient
@@ -34,6 +36,7 @@ declare global {
   const createTemplatePromise: typeof import('@vueuse/core').createTemplatePromise
   const createUnrefFn: typeof import('@vueuse/core').createUnrefFn
   const customRef: typeof import('vue').customRef
+  const dashboardService: typeof import('../../src/views/dashboard/dashboard.service').dashboardService
   const debouncedRef: typeof import('@vueuse/core').debouncedRef
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
@@ -182,6 +185,7 @@ declare global {
   const useCurrentElement: typeof import('@vueuse/core').useCurrentElement
   const useCycleList: typeof import('@vueuse/core').useCycleList
   const useDark: typeof import('@vueuse/core').useDark
+  const useDashboardStats: typeof import('../../src/views/dashboard/composables/useDashboardStats').useDashboardStats
   const useDateFormat: typeof import('@vueuse/core').useDateFormat
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
@@ -358,6 +362,9 @@ declare global {
   export type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
   import('vue-router')
   // @ts-ignore
+  export type { TStatus, TStatusPresentationType, IStatusPresentation } from '../../src/utils/status-presentation'
+  import('../../src/utils/status-presentation')
+  // @ts-ignore
   export type { TCapabilityEntity, TCapabilityOperation, ICapability } from '../../src/composables/useCapability'
   import('../../src/composables/useCapability')
   // @ts-ignore
@@ -377,6 +384,8 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly STATUS_PRESENTATION: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION']>
+    readonly STATUS_PRESENTATION_TYPE_COLOR: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION_TYPE_COLOR']>
     readonly THEME_STORAGE_KEY: UnwrapRef<typeof import('../../src/composables/useTheme')['THEME_STORAGE_KEY']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly apiClient: UnwrapRef<typeof import('../../src/features/platform/api/client')['apiClient']>
@@ -404,6 +413,7 @@ declare module 'vue' {
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
+    readonly dashboardService: UnwrapRef<typeof import('../../src/views/dashboard/dashboard.service')['dashboardService']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
@@ -421,7 +431,6 @@ declare module 'vue' {
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly helpers: UnwrapRef<typeof import('../../src/utils/helpers')['helpers']>
-    readonly homeService: UnwrapRef<typeof import('../../src/views/home/home.service')['homeService']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
@@ -552,6 +561,7 @@ declare module 'vue' {
     readonly useCurrentElement: UnwrapRef<typeof import('@vueuse/core')['useCurrentElement']>
     readonly useCycleList: UnwrapRef<typeof import('@vueuse/core')['useCycleList']>
     readonly useDark: UnwrapRef<typeof import('@vueuse/core')['useDark']>
+    readonly useDashboardStats: UnwrapRef<typeof import('../../src/views/dashboard/composables/useDashboardStats')['useDashboardStats']>
     readonly useDateFormat: UnwrapRef<typeof import('@vueuse/core')['useDateFormat']>
     readonly useDebounce: UnwrapRef<typeof import('@vueuse/core')['useDebounce']>
     readonly useDebounceFn: UnwrapRef<typeof import('@vueuse/core')['useDebounceFn']>
@@ -591,7 +601,6 @@ declare module 'vue' {
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
     readonly useGlobalProperties: UnwrapRef<typeof import('../../src/composables/useGlobalProperties')['useGlobalProperties']>
     readonly useHead: UnwrapRef<typeof import('@vueuse/head')['useHead']>
-    readonly useHomeStore: UnwrapRef<typeof import('../../src/views/home/home.store')['useHomeStore']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
