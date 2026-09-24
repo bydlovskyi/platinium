@@ -157,12 +157,18 @@ function createTickets (random: TSeededRandom, events: IEvent[], categories: ICa
 }
 
 /**
- * The single seeded administrator account. Its password (`admin123`) is not
- * part of this fixture or of {@link IUser} — it is checked directly by the
- * login handler (`src/mocks/handlers/auth.ts`), matching the "credentials
- * are defined in the mock auth handler" note in PRD-002. `sessionActive`
- * starts `false`: a fresh dataset has no active session until a successful
+ * The two seeded accounts, one per {@link TUserRole}. Passwords are not part
+ * of this fixture or of {@link IUser} — they are checked directly by the login
+ * handler (`src/mocks/handlers/auth.ts`), matching the "credentials are
+ * defined in the mock auth handler" note in PRD-002. `sessionActive` starts
+ * `false` on both: a fresh dataset has no active session until a successful
  * `POST /auth/login`.
+ *
+ * Documented credentials (a later doc slice surfaces these in the README):
+ * - Administrator — `admin@platinium.test` / `admin123` — may perform every
+ *   operation.
+ * - Viewer — `viewer@platinium.test` / `viewer123` — read-only; every write
+ *   endpoint rejects this account's token with `403` (PRD-007).
  */
 function createUsers (random: TSeededRandom): IUser[] {
   return [
@@ -171,6 +177,15 @@ function createUsers (random: TSeededRandom): IUser[] {
       name: 'Admin',
       email: 'admin@platinium.test',
       role: 'admin',
+      sessionActive: false,
+      createdAt: FIXED_NOW_ISO,
+      updatedAt: FIXED_NOW_ISO
+    },
+    {
+      id: createSeededId(random),
+      name: 'Viewer',
+      email: 'viewer@platinium.test',
+      role: 'viewer',
       sessionActive: false,
       createdAt: FIXED_NOW_ISO,
       updatedAt: FIXED_NOW_ISO

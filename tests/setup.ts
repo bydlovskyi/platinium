@@ -1,6 +1,7 @@
 import { chaos } from '@/mocks/chaos'
 import { server } from '@/mocks/server'
 
+import './support/intersection-observer'
 import './support/match-media'
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
