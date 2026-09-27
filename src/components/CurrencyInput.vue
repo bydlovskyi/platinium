@@ -9,6 +9,9 @@ const minorUnits = defineModel<number>({ required: true })
 const precision = computed(() => filters.getCurrencyPrecision(props.currency))
 const symbol = computed(() => filters.getCurrencySymbol(props.currency))
 
+// Rendered as the native `step`; the default of 1 makes the browser block submitting 45.50.
+const step = computed(() => 1 / (10 ** precision.value))
+
 const displayAmount = computed<number | undefined>({
   get: () => minorUnits.value / (10 ** precision.value),
   set: (decimalAmount) => {
@@ -43,6 +46,7 @@ watch(
   <el-input-number
     v-model="displayAmount"
     :precision="precision"
+    :step="step"
     :min="0"
     :controls="false"
     class="w-full"

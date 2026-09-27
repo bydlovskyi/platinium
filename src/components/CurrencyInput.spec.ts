@@ -74,6 +74,16 @@ describe('CurrencyInput', () => {
     expect(emissions?.[emissions.length - 1]).toEqual([5000])
   })
 
+  it('keeps a two-decimal amount valid for the browser, so a native form submit is not blocked', async () => {
+    const wrapper = mountCurrencyInput({ modelValue: 0, currency: 'USD' })
+
+    await setAmount(wrapper, '45.50')
+
+    const input = wrapper.find('input').element as HTMLInputElement
+    expect(input.validity.stepMismatch).toBe(false)
+    expect(input.checkValidity()).toBe(true)
+  })
+
   it('rejects a negative typed value, clamping to the 0 minimum', async () => {
     const wrapper = mountCurrencyInput({ modelValue: 500, currency: 'USD' })
 
