@@ -182,9 +182,12 @@ describe('Events bulk operations', () => {
       })
 
       const dialogText = document.querySelector('.el-dialog')?.textContent ?? ''
-      expect(dialogText).toContain('e2')
+      expect(dialogText).toContain('Harbourside Market')
       expect(dialogText).toContain('reference this event')
-      expect(dialogText).toContain('1')
+
+      const blockingLink = document.querySelector<HTMLAnchorElement>('.el-dialog a[href*="/tickets"]')
+      expect(blockingLink?.textContent).toContain('View 1 ticket')
+      expect(blockingLink?.getAttribute('href')).toBe('/tickets?eventId=e2')
 
       expect(db.events.get('e1')).toBeUndefined()
       expect(db.events.get('e2')).toBeDefined()

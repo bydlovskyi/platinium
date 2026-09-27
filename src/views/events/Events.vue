@@ -7,6 +7,7 @@ const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
 const { canDo } = useCapability()
+const { isMobile } = useBreakpoint()
 const {
   selectedIds,
   isRunning: bulkRunning,
@@ -168,9 +169,17 @@ async function deleteEvent (event: TEvent): Promise<void> {
         await eventsService.delete(event.id)
       } catch (error) {
         if (error instanceof DependencyConflictError) {
+          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
+
           notificationService.error({
             title: 'Cannot delete event',
-            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this event and must be removed first.`
+            message: `${blocking} reference this event and must be removed first.`,
+            action: {
+              label: `View ${blocking}`,
+              onClick: () => {
+                void router.push({ name: routeNames.tickets, query: { eventId: event.id } })
+              }
+            }
           })
         }
 
@@ -232,6 +241,19 @@ const bulkResultVisible = computed({
     }
   }
 })
+
+const bulkResultNames = computed(() => Object.fromEntries(data.value.map(event => [event.id, event.name])))
+
+function bulkBlockingLink (failure: TBulkFailure) {
+  if (failure.code !== 'CONFLICT' || failure.count === undefined) {
+    return undefined
+  }
+
+  return {
+    to: { name: routeNames.tickets, query: { eventId: failure.id } },
+    label: `View ${failure.count} ticket${failure.count === 1 ? '' : 's'}`
+  }
+}
 </script>
 
 <template>
@@ -296,7 +318,33 @@ const bulkResultVisible = computed({
           </el-select>
         </ListFilterField>
 
-        <ListFilterField label="Dates" class="w-72">
+        <template v-if="isMobile">
+          <ListFilterField label="From">
+            <el-date-picker
+              :model-value="listFilters.startDateFrom || undefined"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="Start date"
+              aria-label="Filter by start date from"
+              class="!w-full"
+              @update:model-value="(value: string | null) => setFilter('startDateFrom', value ?? '')"
+            />
+          </ListFilterField>
+
+          <ListFilterField label="To">
+            <el-date-picker
+              :model-value="listFilters.startDateTo || undefined"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="End date"
+              aria-label="Filter by start date to"
+              class="!w-full"
+              @update:model-value="(value: string | null) => setFilter('startDateTo', value ?? '')"
+            />
+          </ListFilterField>
+        </template>
+
+        <ListFilterField v-else label="Dates" class="w-72">
           <el-date-picker
             v-model="dateRangeModel"
             type="daterange"
@@ -375,6 +423,12 @@ const bulkResultVisible = computed({
       </el-card>
     </el-affix>
 
-    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="event" />
+    <BulkResultDialog
+      v-model="bulkResultVisible"
+      :result="bulkResult"
+      entity-label="event"
+      :names="bulkResultNames"
+      :blocking-link="bulkBlockingLink"
+    />
   </div>
 </template>

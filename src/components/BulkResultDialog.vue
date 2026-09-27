@@ -1,8 +1,18 @@
 <script lang="ts" setup>
+import type { RouteLocationRaw } from 'vue-router'
+
+interface IBlockingLink {
+  to: RouteLocationRaw
+  label: string
+}
+
 const props = defineProps<{
   modelValue: boolean
   result?: TBulkResult
   entityLabel: string
+  /** Failed rows are listed by name; ids are only a fallback. */
+  names?: Record<string, string>
+  blockingLink?: (failure: TBulkFailure) => IBlockingLink | undefined
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +42,13 @@ const resultSubTitle = computed(() => (
   `${succeededCount.value} succeeded, ${failedCount.value} failed`
 ))
 
+const failureRows = computed(() => (props.result?.failed ?? []).map(failure => ({
+  id: failure.id,
+  name: props.names?.[failure.id] ?? failure.id,
+  reason: failure.reason,
+  link: props.blockingLink?.(failure)
+})))
+
 function onClose (): void {
   emit('update:modelValue', false)
 }
@@ -48,15 +65,33 @@ const { isMobile } = useBreakpoint()
   >
     <el-result :icon="resultType" :title="resultTitle" :sub-title="resultSubTitle" />
 
-    <el-table v-if="failedCount > 0" :data="result?.failed ?? []" class="mt-2">
-      <el-table-column prop="id" label="ID" />
-      <el-table-column prop="reason" label="Reason" />
-      <el-table-column label="Blocking count" width="140" align="right">
-        <template #default="{ row }">
-          <span class="tabular-nums">{{ (row as TBulkFailure).count ?? '—' }}</span>
-        </template>
-      </el-table-column>
-    </el-table>
+    <ul v-if="failedCount > 0" class="mt-2 divide-y divide-border border-y border-border">
+      <li
+        v-for="row in failureRows"
+        :key="row.id"
+        class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      >
+        <div class="min-w-0">
+          <p class="truncate font-medium text-text-primary">
+            {{ row.name }}
+          </p>
+          <p class="text-caption text-text-muted">
+            {{ row.reason }}
+          </p>
+        </div>
+
+        <el-button
+          v-if="row.link"
+          tag="router-link"
+          :to="row.link.to"
+          size="small"
+          class="self-start sm:self-center"
+          @click="onClose"
+        >
+          {{ row.link.label }}
+        </el-button>
+      </li>
+    </ul>
 
     <template #footer>
       <el-button type="primary" @click="onClose">

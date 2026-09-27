@@ -18,7 +18,7 @@ watch(() => route.fullPath, () => {
 </script>
 
 <template>
-  <el-container class="h-screen overflow-hidden bg-surface text-text-primary">
+  <el-container class="admin-shell h-screen overflow-hidden bg-surface text-text-primary">
     <el-aside
       v-if="!isMobile"
       :width="showIconOnlyRail ? '4rem' : '15rem'"
@@ -75,9 +75,8 @@ watch(() => route.fullPath, () => {
         </div>
       </el-header>
 
-      <el-main class="min-w-0">
+      <el-main class="min-w-0 [scrollbar-gutter:stable]">
         <div class="mx-auto w-full max-w-screen-2xl">
-          <!-- Keyed on `path`: param changes (edit ids) remount, query changes (list filters) must not. -->
           <router-view #default="{ Component, route: current }">
             <Transition name="route-fade" mode="out-in">
               <component :is="Component" :key="current.path" />

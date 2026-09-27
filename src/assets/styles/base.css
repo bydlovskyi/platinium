@@ -45,6 +45,11 @@
   }
 }
 
+/* Only `el-main` scrolls in the admin shell; a teleported popper following its trigger off-screen would otherwise grow the document. */
+html:has(.admin-shell) {
+  overflow: hidden;
+}
+
 /* Shared by AdminLayout and AuthLayout's `<Transition name="route-fade">`. */
 .route-fade-enter-active,
 .route-fade-leave-active {

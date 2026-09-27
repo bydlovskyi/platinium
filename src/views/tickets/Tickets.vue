@@ -308,6 +308,8 @@ const bulkResultVisible = computed({
     }
   }
 })
+
+const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket => [ticket.id, ticket.name])))
 </script>
 
 <template>
@@ -497,6 +499,6 @@ const bulkResultVisible = computed({
       </el-card>
     </el-affix>
 
-    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="ticket" />
+    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="ticket" :names="bulkResultNames" />
   </div>
 </template>

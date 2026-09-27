@@ -20,6 +20,7 @@ async function mountLayoutWithCountingPage () {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
+      { path: '/', name: routeNames.home, component: CountingPage },
       { path: '/list', component: CountingPage },
       { path: '/items/:id', component: CountingPage }
     ]

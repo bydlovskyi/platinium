@@ -16,7 +16,8 @@ Administrators sign in and then:
 - **CRUD.** Create, edit and delete every entity, with validation, server field errors
   mapped onto the form, and a guard against leaving a form with unsaved changes.
 - **Bulk actions.** Delete many rows at once, or archive events and tickets, with a
-  per-row result report when some rows fail.
+  per-row result report when some rows fail: each row is named, and a row blocked by
+  tickets links straight to them.
 - **CSV export.** Export exactly what the current filter and sort show.
 - **Roles.** An administrator can read and write; a viewer is read-only. Permissions are
   enforced by the mock server, the router and the UI.
@@ -264,7 +265,7 @@ The full rules, naming conventions and examples are in [`architecture.md`](archi
 | **Money in integer minor units** | No floating-point rounding. Conversion happens in exactly one place, `CurrencyInput` |
 | **One configurable table** | Three lists share one set of sorting, selection, loading, empty, error and mobile behaviour |
 | **Element Plus first** | Shared components (`AppDataTable`, `ListToolbar`, `StatusTag`, `CurrencyInput`, `RemoteSelect`, `useConfirm`) wrap `el-table`, `el-form`, `el-select`, `el-pagination` and `ElMessageBox` instead of hand-building controls. Theming goes through `--el-*` variables mapped onto the design tokens. See [`ELEMENT-PLUS.md`](docs/prd/ELEMENT-PLUS.md) |
-| **Refuse, never cascade** | Deleting an event or category that tickets still reference returns `409` with the blocking count, which the admin sees, instead of silently deleting the tickets |
+| **Refuse, never cascade** | Deleting an event or category that tickets still reference returns `409` with the blocking count, which the admin sees with a link to the blocking tickets, instead of silently deleting them |
 | **Bulk endpoints with per-row results** | Partial success is reported row by row instead of by N sequential client requests |
 | **One aggregate dashboard endpoint** | Statistics are computed where a server would compute them, not reduced in the browser |
 | **Tailwind v4 for layout, tokens for colour** | Tailwind and Element Plus read the same CSS variables, so a utility class and a component cannot disagree. See [`docs/design-system.md`](docs/design-system.md) |

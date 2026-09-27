@@ -1,4 +1,6 @@
+import { mount } from '@vue/test-utils'
 import { ElNotification } from 'element-plus'
+import { defineComponent, type VNode } from 'vue'
 
 import { notificationService } from './notification.service'
 
@@ -41,5 +43,22 @@ describe('notificationService', () => {
     notificationService.error({ message: 'Failed.', title: 'Request failed' })
 
     expect(ElNotification).toHaveBeenCalledWith({ type: 'error', title: 'Request failed', message: 'Failed.' })
+  })
+
+  it('renders an action button that closes the toast and runs the action', async () => {
+    const close = vi.fn()
+    vi.mocked(ElNotification).mockReturnValue({ close } as unknown as ReturnType<typeof ElNotification>)
+    const onClick = vi.fn()
+
+    notificationService.error({ message: 'Blocked.', action: { label: 'View 3 tickets', onClick } })
+
+    const { message } = vi.mocked(ElNotification).mock.calls[0]![0] as { message: VNode }
+    const wrapper = mount(defineComponent({ render: () => message }))
+    expect(wrapper.text()).toContain('Blocked.')
+
+    await wrapper.get('button').trigger('click')
+
+    expect(close).toHaveBeenCalledOnce()
+    expect(onClick).toHaveBeenCalledOnce()
   })
 })

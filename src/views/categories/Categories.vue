@@ -3,6 +3,8 @@ import { DependencyConflictError } from '@/features/platform/api/interceptors/re
 
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
 
+const router = useRouter()
+
 const {
   search,
   appliedSearch,
@@ -101,9 +103,17 @@ async function deleteCategory (category: TCategory): Promise<void> {
         await categoriesService.delete(category.id)
       } catch (error) {
         if (error instanceof DependencyConflictError) {
+          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
+
           notificationService.error({
             title: 'Cannot delete category',
-            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this category and must be removed first.`
+            message: `${blocking} reference this category and must be removed first.`,
+            action: {
+              label: `View ${blocking}`,
+              onClick: () => {
+                void router.push({ name: routeNames.tickets, query: { categoryId: category.id } })
+              }
+            }
           })
         }
 
@@ -161,6 +171,19 @@ const bulkResultVisible = computed({
     }
   }
 })
+
+const bulkResultNames = computed(() => Object.fromEntries(data.value.map(category => [category.id, category.name])))
+
+function bulkBlockingLink (failure: TBulkFailure) {
+  if (failure.code !== 'CONFLICT' || failure.count === undefined) {
+    return undefined
+  }
+
+  return {
+    to: { name: routeNames.tickets, query: { categoryId: failure.id } },
+    label: `View ${failure.count} ticket${failure.count === 1 ? '' : 's'}`
+  }
+}
 </script>
 
 <template>
@@ -238,6 +261,12 @@ const bulkResultVisible = computed({
       </el-card>
     </el-affix>
 
-    <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="category" />
+    <BulkResultDialog
+      v-model="bulkResultVisible"
+      :result="bulkResult"
+      entity-label="category"
+      :names="bulkResultNames"
+      :blocking-link="bulkBlockingLink"
+    />
   </div>
 </template>

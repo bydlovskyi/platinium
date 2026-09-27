@@ -38,6 +38,8 @@ function cloneModel (model: IEventFormModel): IEventFormModel {
 const route = useRoute()
 const router = useRouter()
 const { canDo } = useCapability()
+const { isMobile } = useBreakpoint()
+const actionButtonSize = computed(() => (isMobile.value ? 'small' : 'default'))
 
 const eventId = computed<string | undefined>(() => (
   typeof route.params.id === 'string' ? route.params.id : undefined
@@ -70,9 +72,17 @@ async function deleteEvent (): Promise<void> {
         await eventsService.delete(id)
       } catch (error) {
         if (error instanceof DependencyConflictError) {
+          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
+
           notificationService.error({
             title: 'Cannot delete event',
-            message: `${error.count} ${error.entity}${error.count === 1 ? '' : 's'} reference this event and must be removed first.`
+            message: `${blocking} reference this event and must be removed first.`,
+            action: {
+              label: `View ${blocking}`,
+              onClick: () => {
+                void router.push({ name: routeNames.tickets, query: { eventId: id } })
+              }
+            }
           })
         }
 
@@ -394,6 +404,7 @@ async function onSubmit (): Promise<void> {
           <div class="flex gap-2">
             <el-button
               v-if="canDo('events', isEditMode ? 'update' : 'create')"
+              :size="actionButtonSize"
               type="primary"
               native-type="submit"
               :loading="submitting"
@@ -401,13 +412,14 @@ async function onSubmit (): Promise<void> {
             >
               {{ isEditMode ? 'Save changes' : 'Create event' }}
             </el-button>
-            <el-button :disabled="submitting" @click="goToList">
+            <el-button :size="actionButtonSize" :disabled="submitting" @click="goToList">
               Cancel
             </el-button>
           </div>
 
           <el-button
             v-if="isEditMode && canDo('events', 'delete')"
+            :size="actionButtonSize"
             type="danger"
             plain
             :disabled="submitting"

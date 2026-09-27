@@ -27,8 +27,19 @@ async function onSelect (routeName: string): Promise<void> {
 </script>
 
 <template>
-  <nav aria-label="Primary" class="h-full">
-    <el-scrollbar>
+  <nav aria-label="Primary" class="flex h-full flex-col">
+    <router-link
+      :to="{ name: routeNames.home }"
+      aria-label="Ticket Admin home"
+      class="flex h-16 shrink-0 items-center gap-3 border-b border-border px-5"
+      :class="{ 'justify-center !px-0': collapsed }"
+      @click="emit('navigate')"
+    >
+      <img src="/favicon.svg" alt="" class="size-8 shrink-0">
+      <span v-if="!collapsed" class="truncate font-semibold text-text-primary">Ticket Admin</span>
+    </router-link>
+
+    <el-scrollbar class="min-h-0 flex-1">
       <el-menu
         :default-active="activeRouteName"
         :collapse="collapsed"

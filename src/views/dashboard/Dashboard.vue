@@ -237,8 +237,13 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
               <h2 id="upcoming-events-heading" class="text-section-heading text-text-primary mb-3">
                 Next events starting
               </h2>
-              <el-table :data="data.upcomingEvents" size="small" @row-click="onUpcomingEventRowClick">
-                <el-table-column label="Name">
+              <el-table
+                :data="data.upcomingEvents"
+                size="small"
+                :row-class-name="canDo('events', 'update') ? 'clickable-row' : ''"
+                @row-click="onUpcomingEventRowClick"
+              >
+                <el-table-column label="Name" show-overflow-tooltip>
                   <template #default="{ row }">
                     <router-link
                       v-if="canDo('events', 'update')"
@@ -250,7 +255,7 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                     <span v-else>{{ (row as TEvent).name }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="Starts">
+                <el-table-column label="Starts" show-overflow-tooltip>
                   <template #default="{ row }">
                     {{ filters.formatDate((row as TEvent).startDate) }}
                   </template>
@@ -272,8 +277,13 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
               <h2 id="nearly-sold-out-heading" class="text-section-heading text-text-primary mb-3">
                 Tickets nearly sold out
               </h2>
-              <el-table :data="data.nearlySoldOutTickets" size="small" @row-click="onNearlySoldOutTicketRowClick">
-                <el-table-column label="Name">
+              <el-table
+                :data="data.nearlySoldOutTickets"
+                size="small"
+                :row-class-name="canDo('tickets', 'update') ? 'clickable-row' : ''"
+                @row-click="onNearlySoldOutTicketRowClick"
+              >
+                <el-table-column label="Name" show-overflow-tooltip>
                   <template #default="{ row }">
                     <router-link
                       v-if="canDo('tickets', 'update')"
@@ -285,12 +295,12 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                     <span v-else>{{ (row as TTicket).name }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="Quantity">
+                <el-table-column label="Quantity" show-overflow-tooltip>
                   <template #default="{ row }">
                     <span class="tabular-nums">{{ (row as TTicket).quantity }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="eventName" label="Event" />
+                <el-table-column prop="eventName" label="Event" show-overflow-tooltip />
                 <template #empty>
                   No tickets are running low.
                 </template>
@@ -337,5 +347,9 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
   font-size: var(--text-caption);
   line-height: var(--text-caption--line-height);
   font-weight: var(--text-caption--font-weight);
+}
+
+:deep(.clickable-row) {
+  cursor: pointer;
 }
 </style>

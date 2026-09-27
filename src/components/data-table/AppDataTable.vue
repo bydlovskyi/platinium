@@ -10,7 +10,7 @@ import type {
   TDataTableEmptyReason
 } from './data-table.types'
 
-const SKELETON_ROW_COUNT = 5
+const SKELETON_ROW_COUNT = 20
 const MOBILE_PAGER_COUNT = 5
 const DESKTOP_PAGER_COUNT = 7
 
@@ -312,6 +312,11 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
       <p v-if="selectable && !isSkeleton" class="px-1 text-caption text-text-muted">
         Selecting applies to this page only ({{ pageRowKeys.length }} row{{ pageRowKeys.length === 1 ? '' : 's' }}).
       </p>
+      <el-skeleton v-else-if="selectable" animated class="px-1 text-caption" aria-hidden="true">
+        <template #template>
+          <el-skeleton-item variant="text" class="!h-3 !w-72 max-w-full align-middle" />
+        </template>
+      </el-skeleton>
 
       <div v-if="isSkeleton && isCompact" class="flex flex-col gap-2" aria-busy="true">
         <el-card
@@ -363,6 +368,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
             :label="column.label"
             :align="column.align ?? 'left'"
             :sortable="column.sortable ? 'custom' : false"
+            :show-overflow-tooltip="!isSkeleton"
           >
             <template #default="{ row }">
               <el-skeleton-item v-if="isSkeleton" variant="text" class="!w-4/5" />

@@ -165,7 +165,8 @@ map are in [`ELEMENT-PLUS.md`](docs/prd/ELEMENT-PLUS.md). The audit found no raw
 ### Smaller decisions worth naming
 
 - **Refuse, never cascade.** Deleting an event or category that tickets still reference
-  returns `409` with the blocking count. Deleting an unknown number of tickets silently
+  returns `409` with the blocking count. The toast and the bulk result dialog link to the
+  ticket list filtered to those tickets. Deleting an unknown number of tickets silently
   behind one confirmation is the wrong default.
 - **No client-side uniqueness pre-check.** Check-then-write is a race, and the server has to
   enforce uniqueness anyway.
@@ -353,8 +354,8 @@ The common lessons: assert on the content, not the envelope; run date tests in m
 author's own timezone; and exercise the real browser at least once per form, because jsdom
 skips what the browser enforces.
 
-1. **Extract `useEntityListPage` from the three list views.** `Tickets.vue` has 501 lines,
-   `Events.vue` 378 and `Categories.vue` 241. The following blocks are near-verbatim copies:
+1. **Extract `useEntityListPage` from the three list views.** `Tickets.vue` has 504 lines,
+   `Events.vue` 434 and `Categories.vue` 272. The following blocks are near-verbatim copies:
    - `dataTableSort`, `rowKey` and the capability-filtered `rowActions`;
    - bulk delete with "step back a page if everything visible was deleted";
    - bulk archive;
@@ -364,10 +365,10 @@ skips what the browser enforces.
    - the bulk action bar;
    - `BulkResultDialog`.
 
-   The dependency-conflict toast appears three times. The CSV handler also rebuilds the
-   filter-to-request mapping that the list composable already computes, which is how the
-   empty-export bug above got in. After the refactor, each view declares its columns, filters and
-   service, and nothing else.
+   The dependency-conflict toast with its "View N tickets" action appears three times. The
+   CSV handler also rebuilds the filter-to-request mapping that the list composable already
+   computes, which is how the empty-export bug above got in. After the refactor, each view
+   declares its columns, filters and service, and nothing else.
 2. **Extract `useEntityForm` from `EventForm`, `TicketForm` and `CategoryModal`.** The shared
    logic is:
    - the clone and baseline model with a dirty check;
