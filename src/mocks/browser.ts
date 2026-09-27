@@ -19,7 +19,7 @@ export function warnOnUnhandledApiRequest (request: Request, print: { warning: (
   }
 }
 
-/** Dev only. Chaos `path` args are MSW route patterns (`'/events/:id'`); a concrete `'/events/123'` matches nothing. */
+/** Whenever the mock API runs. Chaos `path` args are MSW route patterns (`'/events/:id'`); a concrete `'/events/123'` matches nothing. */
 export function installChaosDebugSurface (): void {
   window.__mockChaos = chaos
 }

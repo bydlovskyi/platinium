@@ -23,9 +23,7 @@ async function enableMockingIfNeeded (): Promise<void> {
 
   const { worker, installChaosDebugSurface, warnOnUnhandledApiRequest } = await import('@/mocks/browser')
 
-  if (import.meta.env.DEV) {
-    installChaosDebugSurface()
-  }
+  installChaosDebugSurface()
 
   await worker.start({ onUnhandledRequest: warnOnUnhandledApiRequest })
 }
