@@ -69,7 +69,7 @@ export function useTicketsList () {
   })
 
   const query = computed(() => ({
-    search: listQuery.search.value || undefined,
+    search: listQuery.appliedSearch.value || undefined,
     eventId: listQuery.filters.eventId || undefined,
     categoryId: listQuery.filters.categoryId || undefined,
     status: listQuery.filters.status === 'all' ? undefined : listQuery.filters.status,
@@ -85,7 +85,7 @@ export function useTicketsList () {
   const listResource = useListResource(query, (currentQuery, signal) => ticketsService.list(currentQuery, signal))
 
   const hasActiveFiltersOrSearch = computed(() => (
-    listQuery.search.value !== '' ||
+    listQuery.appliedSearch.value !== '' ||
     listQuery.filters.eventId !== '' ||
     listQuery.filters.categoryId !== '' ||
     listQuery.filters.status !== 'all' ||

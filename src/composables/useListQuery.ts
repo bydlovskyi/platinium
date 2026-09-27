@@ -93,6 +93,8 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
   const persistedPerPage = useStorage(`list-query:${key}:per-page`, defaultPerPage)
 
   const search = ref(readString(route.query, 'search') ?? '')
+  // Committed (debounced) search — use this for requests, not the per-keystroke `search`.
+  const appliedSearch = computed(() => readString(route.query, 'search') ?? '')
 
   const filters = reactive<TFilters>({} as TFilters) as TFilters
   const sort = ref<IListQuerySort | undefined>(parseSort(route.query, sortFields, defaultSort))
@@ -161,8 +163,8 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     return query
   }
 
-  async function pushQuery (overrides: Parameters<typeof buildQuery>[0]): Promise<void> {
-    await router.push({ query: buildQuery(overrides) })
+  async function pushQuery (overrides: Parameters<typeof buildQuery>[0], replace = false): Promise<void> {
+    await router.push({ query: buildQuery(overrides), replace })
   }
 
   // Serializes discrete setters so back-to-back calls each read post-push state (e.g. two setSort clicks = two toggles).
@@ -187,7 +189,8 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
         return
       }
 
-      void pushQuery({ search: value, page: DEFAULT_PAGE })
+      // Replace, so typing doesn't leave a history entry per settled term.
+      void pushQuery({ search: value, page: DEFAULT_PAGE }, true)
     },
     { debounce: debounceMs }
   )
@@ -221,7 +224,12 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
   function setPerPage (value: number): Promise<void> {
     persistedPerPage.value = value
 
-    return enqueueDiscrete(() => pushQuery({ perPage: value }))
+    // Keep the first visible row on screen; the old page may not exist at the new size.
+    return enqueueDiscrete(() => {
+      const firstRowIndex = (page.value - 1) * perPage.value
+
+      return pushQuery({ perPage: value, page: Math.floor(firstRowIndex / value) + 1 })
+    })
   }
 
   function resetFilters (): Promise<void> {
@@ -258,6 +266,7 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
 
   return {
     search,
+    appliedSearch,
     filters,
     sort,
     page,

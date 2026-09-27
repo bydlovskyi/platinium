@@ -124,6 +124,16 @@ describe('useListQuery', () => {
       expect(pushSpy).toHaveBeenCalledOnce()
     })
 
+    it('replaces the history entry for search instead of pushing a new one', async () => {
+      const { router, listQuery } = await setup()
+      const pushSpy = vi.spyOn(router, 'push')
+
+      listQuery.setSearch('hello')
+      await vi.advanceTimersByTimeAsync(300)
+
+      expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ replace: true }))
+    })
+
     it('supports a configurable debounce duration', async () => {
       const router = createRouter({
         history: createMemoryHistory(),
@@ -289,13 +299,24 @@ describe('useListQuery', () => {
       expect(listQuery.page.value).toBe(4)
     })
 
-    it('does not reset page when perPage changes', async () => {
-      const { listQuery } = await setup()
+    it('moves to the page that keeps the first visible row when perPage grows', async () => {
+      const { router, listQuery } = await setup('/list?page=2&perPage=20')
 
-      await listQuery.setPage(4)
+      await listQuery.setPerPage(100)
+
+      expect(listQuery.page.value).toBe(1)
+      expect(router.currentRoute.value.query.page).toBeUndefined()
+      expect(router.currentRoute.value.query.perPage).toBe('100')
+    })
+
+    it('moves to the page that keeps the first visible row when perPage changes mid-list', async () => {
+      const { listQuery } = await setup('/list?page=4&perPage=20')
+
       await listQuery.setPerPage(50)
+      expect(listQuery.page.value).toBe(2)
 
-      expect(listQuery.page.value).toBe(4)
+      await listQuery.setPerPage(10)
+      expect(listQuery.page.value).toBe(6)
     })
   })
 

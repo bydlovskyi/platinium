@@ -13,7 +13,7 @@ export function useCategoriesList () {
   })
 
   const query = computed(() => ({
-    search: listQuery.search.value || undefined,
+    search: listQuery.appliedSearch.value || undefined,
     sort: listQuery.sort.value?.field,
     order: listQuery.sort.value?.order,
     page: listQuery.page.value,
@@ -22,7 +22,7 @@ export function useCategoriesList () {
 
   const listResource = useListResource(query, (currentQuery, signal) => categoriesService.list(currentQuery, signal))
 
-  const hasActiveSearch = computed(() => listQuery.search.value !== '')
+  const hasActiveSearch = computed(() => listQuery.appliedSearch.value !== '')
 
   const emptyReason = computed<TDataTableEmptyReason>(() => {
     if (listResource.data.value.length > 0) {

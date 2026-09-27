@@ -38,7 +38,7 @@ export function useEventsList () {
   })
 
   const query = computed(() => ({
-    search: listQuery.search.value || undefined,
+    search: listQuery.appliedSearch.value || undefined,
     status: listQuery.filters.status === 'all' ? undefined : listQuery.filters.status,
     country: listQuery.filters.country || undefined,
     startDateFrom: listQuery.filters.startDateFrom || undefined,
@@ -52,7 +52,7 @@ export function useEventsList () {
   const listResource = useListResource(query, (currentQuery, signal) => eventsService.list(currentQuery, signal))
 
   const hasActiveFiltersOrSearch = computed(() => (
-    listQuery.search.value !== '' ||
+    listQuery.appliedSearch.value !== '' ||
     listQuery.filters.status !== 'all' ||
     listQuery.filters.country !== '' ||
     listQuery.filters.startDateFrom !== '' ||

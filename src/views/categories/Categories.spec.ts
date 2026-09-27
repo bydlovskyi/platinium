@@ -110,6 +110,27 @@ describe('Categories list screen', () => {
       })
     })
 
+    it('sends one request per settled search term, not one per keystroke', async () => {
+      const requests = captureCategoriesRequests()
+
+      const { wrapper, router } = await mountCategories()
+      const input = wrapper.find('input[aria-label="Search"]')
+
+      for (const partial of ['v', 'vi', 'vip']) {
+        await input.setValue(partial)
+      }
+      await flushPromises()
+
+      expect(requests.some(params => params.has('search'))).toBe(false)
+
+      await vi.waitFor(() => {
+        expect(router.currentRoute.value.query.search).toBe('vip')
+      })
+      await flushPromises()
+
+      expect(requests.filter(params => params.has('search')).map(params => params.get('search'))).toEqual(['vip'])
+    })
+
     it('searches by description as well as name', async () => {
       db.categories.insert(buildCategory({ id: 'c1', name: 'Zeta Tier', description: 'Includes a backstage tour.' }))
       const requests = captureCategoriesRequests()

@@ -10,7 +10,7 @@
       <el-card shadow="always" class="w-full" body-class="!p-8">
         <router-view #default="{ Component, route: current }">
           <Transition name="route-fade" mode="out-in">
-            <component :is="Component" :key="current.fullPath" />
+            <component :is="Component" :key="current.path" />
           </Transition>
         </router-view>
       </el-card>

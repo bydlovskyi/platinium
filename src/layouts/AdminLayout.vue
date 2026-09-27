@@ -77,10 +77,10 @@ watch(() => route.fullPath, () => {
 
       <el-main class="min-w-0">
         <div class="mx-auto w-full max-w-screen-2xl">
-          <!-- Keyed on `fullPath` so param-only changes (e.g. edit ids) still transition. -->
+          <!-- Keyed on `path`: param changes (edit ids) remount, query changes (list filters) must not. -->
           <router-view #default="{ Component, route: current }">
             <Transition name="route-fade" mode="out-in">
-              <component :is="Component" :key="current.fullPath" />
+              <component :is="Component" :key="current.path" />
             </Transition>
           </router-view>
         </div>
