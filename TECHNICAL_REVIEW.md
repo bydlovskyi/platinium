@@ -118,11 +118,16 @@ stores, because nothing else reads them.
 ### One configurable table instead of three
 
 [`AppDataTable`](src/components/data-table/AppDataTable.vue) is driven by column descriptors:
-key, label, sortable, alignment, responsive priority and cell slot. It emits intent (sort,
+key, label, sortable, alignment, card role and cell slot. It emits intent (sort,
 select, row action) and holds no fetching logic. Every list therefore shares one
-implementation of sorting, selection, skeleton, empty, error and retry states. Below tablet
-width the same descriptors render as `el-card` rows that show only high-priority columns,
-so the mobile layout is switched in one place instead of being a media query on each table.
+implementation of sorting, selection, skeleton, empty, error and retry states. Below 1024 px
+the same descriptors render as `el-card` rows. That covers tablets too: seven columns squeezed
+into 820 px broke words mid-way. A card shows every column: the first, or the one with
+`cardRole: 'title'`, is the heading, `cardRole: 'badge'` sits beside it, and the rest are
+label/value fields. Cards have no headers to click, so the same `sortable` flags feed a sort
+select and a direction toggle, and `ListToolbar` moves the filters into a drawer at the same
+threshold. The layout is therefore switched in one place instead of being a media query on
+each table.
 
 - **Rejected:** a table per entity. Each one would be defensible on its own, and together
   they would be incoherent.
@@ -187,35 +192,26 @@ The list is ranked. Correctness comes before structure, structure before feature
 cheap fix that prevents a whole class of bug comes before an expensive one that prevents a
 single bug.
 
-1. **Fix the two defects this review found, and the tests that missed them** (half a day).
-   - **Events CSV export returns an empty file unless a country filter is set.**
-     `Events.vue` sends `country: ''` because `?? undefined` does not replace an empty
-     string. The mock then matches nothing. `csv-export.spec.ts` checks the file name and
-     MIME type but not the rows, so the test passes.
-   - **Dates show one day early for anyone west of UTC.** `formatDate` parses `2026-09-27`
-     as UTC midnight, which is the evening of the 26th in New York.
-
-   Both are small fixes. The lesson is to assert on the content, not the envelope.
-2. **Build and smoke-test the Docker image in CI** (half a day). The production image did
+1. **Build and smoke-test the Docker image in CI** (half a day). The production image did
    not build for five days, and when it did, the bundle shipped without its mock API. The
    first problem only surfaced when I ran `docker compose up` by hand. CI builds with Vite
    but never builds the image or opens it in a browser. The fix is `docker build` plus one
    Playwright journey against the running container: sign in, open each list, create a
    ticket. It costs little and guards the path every reviewer takes first.
-3. **Extract the list-page and form composables** (one day). About 120–150 lines of each
+2. **Extract the list-page and form composables** (one day). About 120–150 lines of each
    list page are the same wiring: bulk delete and archive, single delete with page
    step-back, CSV export, row actions filtered by capability, and selection. The three forms
    also re-implement dirty tracking, server field errors, loading with a stale-id guard, and
    submit. A fourth entity would copy all of it again. See
    [section 4](#4-what-i-would-refactor-first).
-4. **Optimistic concurrency on updates.** Today two administrators who edit the same ticket
+3. **Optimistic concurrency on updates.** Today two administrators who edit the same ticket
    get last-write-wins with no warning. The brief names concurrent administrators, and the
    fix touches the contract, the mock and the form. It ranks below the refactor because it
    is much easier to add once, in a shared form composable, than three times. See
    [section 5.5](#55-concurrent-administrators).
-5. **Lint rules for the layering.** This stops the architecture from eroding as the team
+4. **Lint rules for the layering.** This stops the architecture from eroding as the team
    grows. It ranks here because nothing violates the rules today.
-6. **A query cache.** See [section 5.3](#53-caching-and-invalidation). It becomes worth doing
+5. **A query cache.** See [section 5.3](#53-caching-and-invalidation). It becomes worth doing
    only once real latency and multiple administrators exist.
 
 ---
@@ -281,9 +277,11 @@ production, and what would change my answer.
 - **What:** event dates are `YYYY-MM-DD` strings and are compared as strings.
 - **Why it is fine here:** an event occupies whole days, so a time component would raise
   timezone questions the domain does not need.
-- **Production cost:** the display bug in
-  [section 2](#2-what-i-would-improve-with-two-more-days). The dashboard's "today" is also
-  UTC, so "currently running" can be wrong for a few hours around midnight.
+- **Production cost:** a date-only string is easy to misread as a timestamp. Parsing
+  `2026-09-27` with `new Date()` gives UTC midnight, which is the 26th anywhere west of UTC.
+  This review caught exactly that in `formatDate`; it is fixed, with a test pinned to
+  `America/New_York`. The mock server's "today" is still UTC, so "currently running" and
+  "next events" can be off for a few hours around midnight.
 - **What changes the answer:** start times, doors-open times, or venues in several
   timezones. Dates would then be stored as UTC instants alongside the venue's IANA
   timezone, and shown in the venue's local time.
@@ -335,6 +333,26 @@ production, and what would change my answer.
 
 I identified these from the code as it exists now, not from the plan.
 
+Reading the code this critically, and walking through every flow in a browser against the
+Docker image, turned up three defects. All three are now fixed, each with a test that fails
+without the fix:
+
+- **A price with cents could not be saved.** `CurrencyInput` wraps `el-input-number`, which
+  renders `<input type="number">` with the default `step="1"`. The form submits natively,
+  so the browser rejected `45.50` as invalid before Element Plus validation even ran. jsdom
+  does not run native constraint validation on submit, so no test saw it. The step now
+  follows the currency's precision.
+- **The events CSV export was empty unless a country filter was set.** `Events.vue` sent
+  `country=` because `?? undefined` does not replace an empty string, and an empty filter
+  matches nothing. The export test checked the file name and MIME type but not the rows, so
+  it passed.
+- **Event dates showed one day early west of UTC.** See
+  [the dates item in section 3](#dates-are-whole-days-and-timezone-naive).
+
+The common lessons: assert on the content, not the envelope; run date tests in more than the
+author's own timezone; and exercise the real browser at least once per form, because jsdom
+skips what the browser enforces.
+
 1. **Extract `useEntityListPage` from the three list views.** `Tickets.vue` has 501 lines,
    `Events.vue` 378 and `Categories.vue` 241. The following blocks are near-verbatim copies:
    - `dataTableSort`, `rowKey` and the capability-filtered `rowActions`;
@@ -348,7 +366,7 @@ I identified these from the code as it exists now, not from the plan.
 
    The dependency-conflict toast appears three times. The CSV handler also rebuilds the
    filter-to-request mapping that the list composable already computes, which is how the
-   empty-export bug got in. After the refactor, each view declares its columns, filters and
+   empty-export bug above got in. After the refactor, each view declares its columns, filters and
    service, and nothing else.
 2. **Extract `useEntityForm` from `EventForm`, `TicketForm` and `CategoryModal`.** The shared
    logic is:
@@ -541,7 +559,10 @@ For a team, I would add the following, in this order:
    was never committed in the shape that passed. CI should run `eslint . --max-warnings 0`
    without `--fix`.
 2. **Build the Docker image in CI and run a smoke test against it**, as described in
-   [section 2](#2-what-i-would-improve-with-two-more-days).
+   [section 2](#2-what-i-would-improve-with-two-more-days). CI should also run the suite
+   under a second timezone west of UTC (`TZ=America/New_York`). That is one extra job, and
+   it would have caught the date bug in [section 4](#4-what-i-would-refactor-first) on the
+   day it was written.
 3. **Enforce the layering mechanically.** Auto-imports hide dependencies from
    `no-restricted-imports`. There are two options:
    - Turn off auto-imports for stores and services, so dependencies are visible again.

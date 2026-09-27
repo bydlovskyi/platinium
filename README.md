@@ -1,5 +1,7 @@
 # Ticket Management Admin Portal
 
+## Overview
+
 An administration portal for managing **Events**, **Ticket Categories** and **Tickets**,
 built with Vue 3, TypeScript, Pinia and Element Plus against a fully mocked,
 contract-typed backend.
@@ -19,16 +21,18 @@ Administrators sign in and then:
 - **Roles.** An administrator can read and write; a viewer is read-only. Permissions are
   enforced by the mock server, the router and the UI.
 - **Dark mode and responsive layout.** Everything works on desktop, tablet and mobile, in
-  both themes.
+  both themes. Below 1024 px lists become cards showing every column, filters move into a
+  drawer, and a sort control replaces the column headers, so a tablet never gets a squeezed
+  table.
 
 | Dashboard | Events list | Event form |
 |---|---|---|
 | ![Dashboard, desktop, light](docs/screenshots/dashboard-desktop-light.png) | ![Events list, desktop, light](docs/screenshots/events-list-desktop-light.png) | ![Event form, desktop, light](docs/screenshots/event-form-desktop-light.png) |
 | ![Dashboard, desktop, dark](docs/screenshots/dashboard-desktop-dark.png) | ![Events list, desktop, dark](docs/screenshots/events-list-desktop-dark.png) | ![Event form, desktop, dark](docs/screenshots/event-form-desktop-dark.png) |
 
-| Mobile | | | Forced API failure |
+| Mobile | | Tablet | Forced API failure |
 |---|---|---|---|
-| ![Dashboard, mobile, light](docs/screenshots/dashboard-mobile-light.png) | ![Events list, mobile, light](docs/screenshots/events-list-mobile-light.png) | ![Tickets list, mobile, dark](docs/screenshots/tickets-list-mobile-dark.png) | ![Events list with a forced 500](docs/screenshots/events-list-desktop-light-error.png) |
+| ![Dashboard, mobile, light](docs/screenshots/dashboard-mobile-light.png) | ![Tickets list, mobile, dark](docs/screenshots/tickets-list-mobile-dark.png) | ![Tickets list, tablet, light](docs/screenshots/tickets-list-tablet-light.png) | ![Events list with a forced 500](docs/screenshots/events-list-desktop-light-error.png) |
 
 More in [`docs/screenshots/`](docs/screenshots/).
 
@@ -52,7 +56,8 @@ below.
 
 ## Local installation
 
-Requires **Node.js `^20.19.0 || >=22.12.0`**. The pinned version is in [`.nvmrc`](.nvmrc).
+Requires **Node.js `^20.19.0 || >=22.12.0`** and **npm 10 or newer**. The pinned version is in
+[`.nvmrc`](.nvmrc). `.npmrc` enforces the engines field, so an older npm refuses to install.
 
 ```sh
 nvm use
@@ -234,7 +239,8 @@ component  →  composable  →  store  →  service  →  apiClient
   `useListResource` fetches, cancels superseded requests and recovers from errors, and
   each page composes them.
 - **Components** render and emit intent. `AppDataTable` is one descriptor-driven table
-  used by all three lists. Below tablet width it switches to cards.
+  used by all three lists. Below 1024 px (phones and tablets) it switches to cards, with a
+  sort control built from the sortable columns.
 
 **Views** are route-bound pages. **Features** are reusable, route-agnostic modules and
 never import from each other.

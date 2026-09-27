@@ -94,7 +94,7 @@ spec.
 | Refetch with rows on screen | `v-loading` on `el-table` | keeps rows visible instead of blanking |
 | Empty states | `el-empty` (`#image` for the token illustration, default slot for the `el-button` action) rendered in place of the table / cards | three variants: no-data, no-matches, load-failed; rendered outside `el-table` so the mobile card presentation shares them |
 | Load failed | `el-result` (or `el-empty` variant) + `el-button` retry | |
-| Mobile card presentation | `el-card shadow="never"` per row, `el-checkbox`, `el-dropdown` | same descriptors, high-priority columns only |
+| Mobile card presentation | `el-card shadow="never"` per row, `el-checkbox`, `el-dropdown` | same descriptors, every column (title, badge, label/value fields) |
 | Pagination | `el-pagination` `layout="total, sizes, prev, pager, next"`, `background`; `small` and a lower `pager-count` below tablet | renders the `PaginationMeta` envelope directly |
 | Toolbar search | `el-input clearable` with a search `#prefix` | debounced in the composable, not in the input |
 | Toolbar filters | `el-select` (`clearable`, `filterable`), `el-date-picker type="daterange"` | |

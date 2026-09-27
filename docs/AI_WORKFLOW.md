@@ -15,7 +15,7 @@ how that was caught.
 | Specifications | 10 PRDs → 41 vertical-slice issues ([#1–#51](https://github.com/bydlovskyi/platinum/issues)) |
 | Pull requests | 38, one per slice, stacked; every merge done by me |
 | Commits | 124 (83 excluding merges) |
-| Tests | 830 across 73 files, all passing |
+| Tests | 842 across 73 files, all passing |
 
 ## The trail
 
@@ -200,9 +200,15 @@ On 27 September I went through the output myself:
 - **`493acc2`** debounced list requests and stopped a component remounting on every query
   change.
 - **Review for the technical review.** While preparing `TECHNICAL_REVIEW.md` I had review
-  agents read the code critically. They found an empty events CSV export and a date shown a
-  day early west of UTC. Both are listed there as the first things to fix, with the tests
-  that missed them.
+  agents read the code critically. I also walked every flow in a real browser against the
+  Docker image. That turned up three defects that had all slipped past green tests:
+  - A price with cents could not be saved. The browser's native number-step validation
+    blocked the submit, and jsdom never runs it.
+  - The events CSV export was empty. The test checked the file name instead of the rows.
+  - Dates showed a day early west of UTC. The tests only ever ran in my own timezone.
+
+  I fixed all three. Before each fix, I made sure the new test failed on the old code. The
+  same walkthrough showed a squeezed seven-column table on tablets, which now render cards.
 
 ## Commit authorship
 
