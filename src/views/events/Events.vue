@@ -63,7 +63,7 @@ const activeFilters = computed(() => {
   if (listFilters.startDateFrom !== '' || listFilters.startDateTo !== '') {
     chips.push({
       key: 'dateRange',
-      label: `Dates: ${listFilters.startDateFrom ?? '…'} – ${listFilters.startDateTo ?? '…'}`
+      label: `Dates: ${listFilters.startDateFrom || '…'} – ${listFilters.startDateTo || '…'}`
     })
   }
 
@@ -209,9 +209,9 @@ function onExportCsvClicked (): void {
     params: {
       search: appliedSearch.value || undefined,
       status: listFilters.status === 'all' ? undefined : listFilters.status,
-      country: listFilters.country ?? undefined,
-      startDateFrom: listFilters.startDateFrom ?? undefined,
-      startDateTo: listFilters.startDateTo ?? undefined,
+      country: listFilters.country || undefined,
+      startDateFrom: listFilters.startDateFrom || undefined,
+      startDateTo: listFilters.startDateTo || undefined,
       sort: sort.value?.field,
       order: sort.value?.order
     },

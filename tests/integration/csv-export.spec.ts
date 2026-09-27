@@ -168,6 +168,7 @@ describe('CSV export', () => {
 
     it('triggers a real download from the MSW response', async () => {
       db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
+      db.events.insert(buildEvent({ id: 'e2', name: 'Harbour Food Fair', country: 'IE' }))
 
       const { wrapper } = await mountSignedIn(Events, '/events')
 
@@ -184,8 +185,12 @@ describe('CSV export', () => {
 
       expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
       const [blobArg] = createObjectUrlSpy.mock.calls[0] as [Blob]
-      expect(typeof blobArg.size).toBe('number')
       expect(blobArg.type).toContain('text/csv')
+
+      // With no filter set, every row must be exported — empty filter values used to match nothing.
+      const csv = await blobArg.text()
+      expect(csv).toContain('Rooftop Jazz Night')
+      expect(csv).toContain('Harbour Food Fair')
 
       const anchor = clickSpy.mock.contexts[0] as HTMLAnchorElement
       const today = new Date().toISOString().slice(0, 10)
