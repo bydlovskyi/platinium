@@ -68,9 +68,9 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
 
     <Transition name="skeleton-fade" mode="out-in">
       <div v-if="loading && !data" key="skeleton" class="flex flex-col gap-5">
-        <el-row :gutter="16">
-          <el-col v-for="n in 5" :key="n" :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+        <div class="stat-cards-row">
+          <div v-for="n in 5" :key="n" class="stat-card">
+            <el-card shadow="never" class="h-full">
               <el-skeleton animated :rows="0">
                 <template #template>
                   <el-skeleton-item variant="text" class="!w-2/3" />
@@ -78,8 +78,8 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 </template>
               </el-skeleton>
             </el-card>
-          </el-col>
-        </el-row>
+          </div>
+        </div>
 
         <el-row :gutter="16">
           <el-col :xs="24" :md="12" class="mb-4">
@@ -120,9 +120,9 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
       </div>
 
       <div v-else-if="data" key="content" class="flex flex-col gap-5">
-        <el-row :gutter="16">
-          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+        <div class="stat-cards-row">
+          <div class="stat-card">
+            <el-card shadow="never" class="h-full">
               <router-link :to="{ name: routeNames.events }" class="block hover:text-accent">
                 <el-statistic
                   title="Total events"
@@ -131,10 +131,10 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 />
               </router-link>
             </el-card>
-          </el-col>
+          </div>
 
-          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+          <div class="stat-card">
+            <el-card shadow="never" class="h-full">
               <router-link
                 :to="{ name: routeNames.events, query: { status: 'published' } }"
                 class="block hover:text-accent"
@@ -150,10 +150,10 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 </el-statistic>
               </router-link>
             </el-card>
-          </el-col>
+          </div>
 
-          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+          <div class="stat-card">
+            <el-card shadow="never" class="h-full">
               <router-link
                 :to="{ name: routeNames.events, query: { status: 'draft' } }"
                 class="block hover:text-accent"
@@ -165,10 +165,10 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 </el-statistic>
               </router-link>
             </el-card>
-          </el-col>
+          </div>
 
-          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+          <div class="stat-card">
+            <el-card shadow="never" class="h-full">
               <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
                 <el-statistic
                   title="Total tickets"
@@ -177,10 +177,10 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 />
               </router-link>
             </el-card>
-          </el-col>
+          </div>
 
-          <el-col :xs="24" :sm="12" :md="8" :lg="4" class="mb-4">
-            <el-card shadow="never">
+          <div class="stat-card">
+            <el-card shadow="never" class="h-full">
               <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
                 <el-statistic
                   title="Total available quantity"
@@ -189,8 +189,8 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
                 />
               </router-link>
             </el-card>
-          </el-col>
-        </el-row>
+          </div>
+        </div>
 
         <!-- Gross inventory value per currency — one labelled block, never summed across currencies. -->
         <el-row :gutter="16">
@@ -304,6 +304,25 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
 </template>
 
 <style scoped>
+@reference "@/assets/styles/main.css";
+
+/* Below `md` the stat cards become a swipeable row (bleeding past el-main's 20px padding) so five figures
+   don't take five screens; the next card peeks in to show the row scrolls. */
+.stat-cards-row {
+  @apply -mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1;
+  @apply md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-5;
+
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.stat-card {
+  @apply w-[72%] shrink-0 snap-start md:w-auto;
+}
+
 /* el-statistic uses Element Plus's own extra-large size step, not the screen-heading token, so size it via :deep(). */
 .headline-statistic :deep(.el-statistic__content) {
   font-size: var(--text-screen-heading);
