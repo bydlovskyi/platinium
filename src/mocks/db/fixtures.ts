@@ -51,6 +51,13 @@ const EVENT_START_OFFSET_DAYS_MIN = -200
 const EVENT_DURATION_DAYS_RANGE = 5
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
+// Separate stream so spreading timestamps doesn't reshuffle ids, names or prices.
+const CREATED_AT_SEED = 7331
+const CATEGORY_CREATED_DAYS_AGO_MIN = 400
+const CATEGORY_CREATED_DAYS_AGO_MAX = 730
+const EVENT_CREATED_LEAD_DAYS_MIN = 14
+const EVENT_CREATED_WINDOW_DAYS = 90
+
 export interface ISeedDataset {
   events: IEvent[]
   categories: ICategory[]
@@ -99,6 +106,43 @@ function createCategories (random: TSeededRandom): ICategory[] {
     createdAt: FIXED_NOW_ISO,
     updatedAt: FIXED_NOW_ISO
   }))
+}
+
+function randomTimestamp (random: TSeededRandom, fromMs: number, toMs: number): string {
+  return new Date(fromMs + Math.floor(random() * (toMs - fromMs))).toISOString()
+}
+
+function withCreatedAt<T extends { createdAt: string; updatedAt: string }> (item: T, createdAt: string): T {
+  return { ...item, createdAt, updatedAt: createdAt }
+}
+
+// Categories predate events, events predate their start, tickets follow their event.
+function spreadCreatedAt (dataset: Omit<ISeedDataset, 'users'>, referenceDate: string): Omit<ISeedDataset, 'users'> {
+  const random = createSeededRandom(CREATED_AT_SEED)
+  const referenceMs = new Date(referenceDate).getTime()
+  const daysAgo = (days: number): number => referenceMs - days * MILLISECONDS_PER_DAY
+
+  const categories = dataset.categories.map(category => withCreatedAt(
+    category,
+    randomTimestamp(random, daysAgo(CATEGORY_CREATED_DAYS_AGO_MAX), daysAgo(CATEGORY_CREATED_DAYS_AGO_MIN))
+  ))
+
+  const events = dataset.events.map((event) => {
+    const leadMs = EVENT_CREATED_LEAD_DAYS_MIN * MILLISECONDS_PER_DAY
+    const latestMs = Math.min(new Date(event.startDate).getTime() - leadMs, daysAgo(1))
+    const earliestMs = latestMs - EVENT_CREATED_WINDOW_DAYS * MILLISECONDS_PER_DAY
+
+    return withCreatedAt(event, randomTimestamp(random, earliestMs, latestMs))
+  })
+
+  const eventCreatedAtById = new Map(events.map(event => [event.id, new Date(event.createdAt).getTime()]))
+
+  const tickets = dataset.tickets.map(ticket => withCreatedAt(
+    ticket,
+    randomTimestamp(random, eventCreatedAtById.get(ticket.eventId) ?? daysAgo(1), referenceMs)
+  ))
+
+  return { categories, events, tickets }
 }
 
 // Day-granular so the dataset is stable within a day while event dates stay spread around the real now.
@@ -183,5 +227,5 @@ export function createSeedDataset (referenceDate: string = currentIsoDate()): IS
   const tickets = createTickets(random, events, categories)
   const users = createUsers(random)
 
-  return { events, categories, tickets, users }
+  return { ...spreadCreatedAt({ events, categories, tickets }, referenceDate), users }
 }

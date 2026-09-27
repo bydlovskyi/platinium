@@ -30,6 +30,17 @@ describe('createSeedDataset', () => {
     expect(events.some(event => event.startDate >= today)).toBe(true)
   })
 
+  it('spreads creation dates in the past, with tickets created after their event', () => {
+    const referenceDate = '2026-01-01'
+    const { categories, events, tickets } = createSeedDataset(referenceDate)
+    const records = [...categories, ...events, ...tickets]
+    const eventsById = new Map(events.map(event => [event.id, event]))
+
+    expect(new Set(records.map(record => record.createdAt)).size).toBe(records.length)
+    expect(records.every(record => record.createdAt < referenceDate)).toBe(true)
+    expect(tickets.every(ticket => ticket.createdAt >= eventsById.get(ticket.eventId)!.createdAt)).toBe(true)
+  })
+
   it('produces several dozen events, a handful of categories and several hundred tickets', () => {
     const { events, categories, tickets } = createSeedDataset()
 

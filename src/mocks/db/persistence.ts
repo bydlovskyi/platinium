@@ -5,7 +5,7 @@ import type { ICategory, IEvent, ITicket, IUser } from './types'
 export const PERSISTENCE_KEY = 'platinum:mock-db'
 
 // Bump whenever a persisted entity shape changes.
-export const PERSISTENCE_VERSION = 3
+export const PERSISTENCE_VERSION = 4
 
 interface IPersistenceEnvelope {
   version: number
