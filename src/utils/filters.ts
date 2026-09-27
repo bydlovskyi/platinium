@@ -31,17 +31,31 @@ const formatMoney = (amountMinorUnits: number, currency: TCurrency, locale = DEF
   return formatter.format(amount)
 }
 
-const formatDate = (value: string | Date, locale = DEFAULT_LOCALE): string => {
-  const date = typeof value === 'string' ? new Date(value) : value
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+// `new Date('YYYY-MM-DD')` is UTC midnight, which is the previous day west of UTC; a calendar date has no timezone.
+const toDate = (value: string | Date): Date => {
+  if (value instanceof Date) {
+    return value
+  }
+
+  const dateOnly = DATE_ONLY_PATTERN.exec(value)
+
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly
+
+    return new Date(Number(year), Number(month) - 1, Number(day))
+  }
+
+  return new Date(value)
+}
+
+const formatDate = (value: string | Date, locale = DEFAULT_LOCALE): string => {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(toDate(value))
 }
 
 const formatDateRange = (start: string | Date, end: string | Date, locale = DEFAULT_LOCALE): string => {
-  const startDate = typeof start === 'string' ? new Date(start) : start
-  const endDate = typeof end === 'string' ? new Date(end) : end
-
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).formatRange(startDate, endDate)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).formatRange(toDate(start), toDate(end))
 }
 
 export const filters = {

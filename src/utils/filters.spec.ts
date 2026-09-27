@@ -64,4 +64,28 @@ describe('filters', () => {
       expect(result).toContain('2027')
     })
   })
+
+  describe('date-only values west of UTC', () => {
+    const originalTimezone = process.env.TZ
+
+    beforeEach(() => {
+      process.env.TZ = 'America/New_York'
+    })
+
+    afterEach(() => {
+      process.env.TZ = originalTimezone
+    })
+
+    it('keeps the calendar day of a YYYY-MM-DD date', () => {
+      expect(filters.formatDate('2026-09-27')).toBe('Sep 27, 2026')
+    })
+
+    it('keeps both calendar days of a YYYY-MM-DD range', () => {
+      expect(filters.formatDateRange('2026-09-27', '2026-09-30').replace(/\s+/g, ' ')).toBe('Sep 27 – 30, 2026')
+    })
+
+    it('still shows a full timestamp in local time', () => {
+      expect(filters.formatDate('2026-09-27T02:00:00.000Z')).toBe('Sep 26, 2026')
+    })
+  })
 })
