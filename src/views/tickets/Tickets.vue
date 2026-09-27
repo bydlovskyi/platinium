@@ -42,39 +42,13 @@ const columns: IDataTableColumn<TTicket>[] = [
   { key: 'quantity', label: 'Quantity', sortable: true, responsivePriority: 'low', align: 'right', cellSlot: 'quantity' },
   { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cellSlot: 'status' },
   { key: 'eventName', label: 'Event', responsivePriority: 'low' },
-  { key: 'categoryName', label: 'Category', responsivePriority: 'low' }
+  { key: 'categoryName', label: 'Category', responsivePriority: 'low' },
+  { key: 'createdAt', label: 'Created', sortable: true, responsivePriority: 'low', cellSlot: 'createdAt' }
 ]
-
-// `createdAt` has no column; forwarding it would leave a stale header arrow in el-table.
-const TABLE_SORT_FIELDS = new Set<string>(['name', 'price', 'quantity', 'status'])
 
 const dataTableSort = computed(() => (
-  sort.value && TABLE_SORT_FIELDS.has(sort.value.field)
-    ? { field: sort.value.field, order: sort.value.order }
-    : undefined
+  sort.value ? { field: sort.value.field, order: sort.value.order } : undefined
 ))
-
-const NON_COLUMN_SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'createdAt:desc', label: 'Newest first' },
-  { value: 'createdAt:asc', label: 'Oldest first' }
-]
-
-const nonColumnSortValue = computed<string | undefined>(() => (
-  sort.value?.field === 'createdAt' ? `${sort.value.field}:${sort.value.order}` : undefined
-))
-
-function onNonColumnSortChange (value: string | undefined): void {
-  const query = { ...route.query, page: undefined }
-
-  if (value === undefined) {
-    void router.push({ query: { ...query, sort: undefined, order: undefined } })
-    return
-  }
-
-  const [field, order] = value.split(':')
-
-  void router.push({ query: { ...query, sort: field, order } })
-}
 
 const STATUS_FILTER_OPTIONS: { value: TTicketStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
@@ -448,26 +422,6 @@ const bulkResultVisible = computed({
           </div>
         </ListFilterField>
       </template>
-
-      <template #sort>
-        <ListFilterField label="Sort by" class="w-44">
-          <el-select
-            :model-value="nonColumnSortValue"
-            placeholder="Sort by"
-            clearable
-            class="!w-full"
-            aria-label="Sort by creation date"
-            @update:model-value="onNonColumnSortChange"
-          >
-            <el-option
-              v-for="option in NON_COLUMN_SORT_OPTIONS"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </ListFilterField>
-      </template>
     </ListToolbar>
 
     <AppDataTable
@@ -506,6 +460,10 @@ const bulkResultVisible = computed({
 
       <template #cell-status="{ row }">
         <StatusTag :status="(row as TTicket).status" />
+      </template>
+
+      <template #cell-createdAt="{ row }">
+        {{ filters.formatDate((row as TTicket).createdAt) }}
       </template>
     </AppDataTable>
 

@@ -466,23 +466,17 @@ describe('Tickets list screen', () => {
       })
     })
 
-    it('sorts by creation date through the non-column "Sort by" control', async () => {
+    it('sorts by creation date through the Created column header', async () => {
       db.events.insert(buildEvent({ id: 'event-1' }))
       db.categories.insert(buildCategory({ id: 'category-1' }))
       db.tickets.insert(buildTicket({ id: 't1' }))
       const requests = captureTicketsRequests()
 
       const { wrapper, router } = await mountTickets()
-
-      const sortBySelect = wrapper.find('[aria-label="Sort by creation date"]')
-      await sortBySelect.trigger('click')
       await flushPromises()
 
-      const option = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
-        .find(item => item.textContent?.trim() === 'Oldest first')
-      expect(option).toBeDefined()
-      option!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      await flushPromises()
+      const createdHeader = wrapper.findAll('th').find(header => header.text().includes('Created'))!
+      await createdHeader.trigger('click')
 
       await vi.waitFor(() => {
         expect(router.currentRoute.value.query.sort).toBe('createdAt')

@@ -3,9 +3,6 @@ import { DependencyConflictError } from '@/features/platform/api/interceptors/re
 
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
 
-const route = useRoute()
-const router = useRouter()
-
 const {
   search,
   appliedSearch,
@@ -39,37 +36,13 @@ const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const columns: IDataTableColumn<TCategory>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
-  { key: 'description', label: 'Description', responsivePriority: 'low' }
+  { key: 'description', label: 'Description', responsivePriority: 'low' },
+  { key: 'createdAt', label: 'Created', sortable: true, responsivePriority: 'low', cellSlot: 'createdAt' }
 ]
 
-// Only `name` is a column: passing a `createdAt` sort through would leave a stale header arrow in el-table.
 const dataTableSort = computed(() => (
-  sort.value?.field === 'name' ? { field: sort.value.field, order: sort.value.order } : undefined
+  sort.value ? { field: sort.value.field, order: sort.value.order } : undefined
 ))
-
-// `createdAt` has no column, so this select drives its sort instead of a header click.
-const NON_COLUMN_SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'createdAt:desc', label: 'Newest first' },
-  { value: 'createdAt:asc', label: 'Oldest first' }
-]
-
-const nonColumnSortValue = computed<string | undefined>(() => (
-  sort.value?.field === 'createdAt' ? `${sort.value.field}:${sort.value.order}` : undefined
-))
-
-// Writes sort/order to the URL directly: useListQuery's setSort only toggles, it can't set an exact order.
-function onNonColumnSortChange (value: string | undefined): void {
-  const query = { ...route.query, page: undefined }
-
-  if (value === undefined) {
-    void router.push({ query: { ...query, sort: undefined, order: undefined } })
-    return
-  }
-
-  const [field, order] = value.split(':')
-
-  void router.push({ query: { ...query, sort: field, order } })
-}
 
 function rowKey (row: TCategory): string {
   return row.id
@@ -211,27 +184,7 @@ const bulkResultVisible = computed({
       search-placeholder="Search by name or description…"
       @update:search="setSearch"
       @clear-all-requested="resetFilters"
-    >
-      <template #sort>
-        <ListFilterField label="Sort by" class="w-44">
-          <el-select
-            :model-value="nonColumnSortValue"
-            placeholder="Sort by"
-            clearable
-            class="!w-full"
-            aria-label="Sort by creation date"
-            @update:model-value="onNonColumnSortChange"
-          >
-            <el-option
-              v-for="option in NON_COLUMN_SORT_OPTIONS"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </ListFilterField>
-      </template>
-    </ListToolbar>
+    />
 
     <AppDataTable
       :columns="columns"
@@ -256,7 +209,11 @@ const bulkResultVisible = computed({
       @row-action-invoked="onRowAction"
       @create-requested="onCreateClicked"
       @selection-changed="onSelectionChanged"
-    />
+    >
+      <template #cell-createdAt="{ row }">
+        {{ filters.formatDate((row as TCategory).createdAt) }}
+      </template>
+    </AppDataTable>
 
     <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
       <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">

@@ -178,105 +178,35 @@ describe('Categories list screen', () => {
       })
     })
 
-    describe('non-column "Sort by creation date" control', () => {
-      it('reflects the selected option in the URL and the request MSW receives', async () => {
-        db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
-        db.categories.insert(buildCategory({ id: 'c2', name: 'Newer', createdAt: '2031-01-01T00:00:00.000Z' }))
-        const requests = captureCategoriesRequests()
+    it('shows each category\'s creation date in a Created column', async () => {
+      db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-15T12:00:00.000Z' }))
 
-        const { wrapper, router } = await mountCategories()
+      const { wrapper } = await mountCategories()
 
-        const sortSelect = wrapper.find('[aria-label="Sort by creation date"]')
-        await sortSelect.trigger('click')
-        await flushPromises()
+      await vi.waitFor(() => {
+        expect(wrapper.findAll('th').some(header => header.text().includes('Created'))).toBe(true)
+        expect(wrapper.text()).toContain('Jan 15, 2020')
+      })
+    })
 
-        const newestOption = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
-          .find(item => item.textContent?.trim() === 'Newest first')
-        expect(newestOption).toBeDefined()
-        newestOption!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-        await flushPromises()
+    it('sorts by creation date through the Created column header', async () => {
+      db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
+      db.categories.insert(buildCategory({ id: 'c2', name: 'Newer', createdAt: '2031-01-01T00:00:00.000Z' }))
+      const requests = captureCategoriesRequests()
 
-        await vi.waitFor(() => {
-          expect(router.currentRoute.value.query.sort).toBe('createdAt')
-          expect(router.currentRoute.value.query.order).toBe('desc')
-        })
+      const { wrapper, router } = await mountCategories()
+      await flushPromises()
 
-        await vi.waitFor(() => {
-          expect(requests.some(params => params.get('sort') === 'createdAt' && params.get('order') === 'desc')).toBe(true)
-        })
+      const createdHeader = wrapper.findAll('th').find(header => header.text().includes('Created'))!
+      await createdHeader.trigger('click')
+
+      await vi.waitFor(() => {
+        expect(router.currentRoute.value.query.sort).toBe('createdAt')
+        expect(router.currentRoute.value.query.order).toBe('asc')
       })
 
-      it('switches to the other order (oldest first) when re-selected', async () => {
-        db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
-        db.categories.insert(buildCategory({ id: 'c2', name: 'Newer', createdAt: '2031-01-01T00:00:00.000Z' }))
-        const requests = captureCategoriesRequests()
-
-        const { wrapper, router } = await mountCategories()
-
-        await router.push({ query: { sort: 'createdAt', order: 'desc' } })
-        await flushPromises()
-
-        const sortSelect = wrapper.find('[aria-label="Sort by creation date"]')
-        await sortSelect.trigger('click')
-        await flushPromises()
-
-        const oldestOption = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
-          .find(item => item.textContent?.trim() === 'Oldest first')
-        expect(oldestOption).toBeDefined()
-        oldestOption!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-        await flushPromises()
-
-        await vi.waitFor(() => {
-          expect(router.currentRoute.value.query.sort).toBe('createdAt')
-          expect(router.currentRoute.value.query.order).toBe('asc')
-        })
-
-        await vi.waitFor(() => {
-          expect(requests.some(params => params.get('sort') === 'createdAt' && params.get('order') === 'asc')).toBe(true)
-        })
-      })
-
-      it('clears the sort from the URL and the request when the selection is cleared', async () => {
-        db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
-        const requests = captureCategoriesRequests()
-
-        const { wrapper, router } = await mountCategories()
-
-        await router.push({ query: { sort: 'createdAt', order: 'desc' } })
-        await flushPromises()
-
-        // The clear icon only renders on hover (Element Plus's showClearBtn).
-        const selectWrapper = wrapper.find('[aria-label="Sort by creation date"]').element.closest('.el-select')!
-        selectWrapper.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
-        await flushPromises()
-
-        const clearIcon = wrapper.find('.el-select__clear')
-        expect(clearIcon.exists()).toBe(true)
-        await clearIcon.trigger('click')
-        await flushPromises()
-
-        await vi.waitFor(() => {
-          expect(router.currentRoute.value.query.sort).toBeUndefined()
-          expect(router.currentRoute.value.query.order).toBeUndefined()
-        })
-
-        await vi.waitFor(() => {
-          expect(requests.some(params => params.get('sort') === null)).toBe(true)
-        })
-      })
-
-      it('does not show a name-column sort indicator while sorted by creation date', async () => {
-        db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
-
-        const { wrapper, router } = await mountCategories()
-
-        await router.push({ query: { sort: 'createdAt', order: 'desc' } })
-        await flushPromises()
-
-        await vi.waitFor(() => {
-          const nameHeader = wrapper.findAll('th').find(header => header.text().includes('Name'))!
-          expect(nameHeader.find('.sort-caret.ascending.is-active, .sort-caret.descending.is-active').exists()).toBe(false)
-        })
+      await vi.waitFor(() => {
+        expect(requests.some(params => params.get('sort') === 'createdAt' && params.get('order') === 'asc')).toBe(true)
       })
     })
   })
