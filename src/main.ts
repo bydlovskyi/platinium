@@ -20,11 +20,11 @@ async function enableMockingIfNeeded (): Promise<void> {
     return
   }
 
-  const { worker, installChaosDebugSurface } = await import('@/mocks/browser')
+  const { worker, installChaosDebugSurface, warnOnUnhandledApiRequest } = await import('@/mocks/browser')
 
   installChaosDebugSurface()
 
-  await worker.start({ onUnhandledRequest: 'warn' })
+  await worker.start({ onUnhandledRequest: warnOnUnhandledApiRequest })
 }
 
 function redirectToLogin (): void {
