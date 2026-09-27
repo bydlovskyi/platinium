@@ -6,17 +6,7 @@ import { resetDatabase } from '../../../tests/support'
 const SEEDED_EMAIL = 'admin@platinium.test'
 const SEEDED_PASSWORD = 'admin123'
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient` and
- * not the raw `fetch` global — for the same reason `factory.spec.ts` does:
- * `apiClient`'s response interceptor unwraps a successful response and
- * discards the status code, which these tests need to assert on directly
- * (e.g. exact 400/401/204). Plain `axios` still goes through the same
- * XHR/http layer `msw/node`'s interceptor patches. No `baseURL` is set, so
- * requests resolve against jsdom's default origin, matching how `apiClient`
- * resolves a relative path in production and how the shared Node server
- * (`src/mocks/server.ts`, wired up by `tests/setup.ts`) is listening.
- */
+// Plain axios, not `apiClient`: its response interceptor drops the status code these tests assert on.
 async function requestFor (
   method: 'get' | 'post',
   path: string,

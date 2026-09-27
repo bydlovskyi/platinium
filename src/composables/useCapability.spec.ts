@@ -3,17 +3,6 @@ import { mount } from '@vue/test-utils'
 
 import type { TCapabilityEntity, TCapabilityOperation } from './useCapability'
 
-/**
- * `useCapability` unit tests (GitHub issue #37, PRD-007 "Testing boundary":
- * "Capability composable — unit tested for every role-and-operation
- * combination"). A trivial host component reads `role`/`canDo` from the
- * composable, matching this repo's `useConfirm.spec.ts` / `useListQuery.spec.ts`
- * convention of exercising a composable through a host rather than calling it
- * outside of Vue's reactivity. Pinia state is set directly on the auth store
- * (`route-guard.spec.ts`'s established pattern) rather than driven through a
- * real sign-in — this composable's only dependency is `authStore.user`.
- */
-
 const ENTITIES: TCapabilityEntity[] = ['events', 'categories', 'tickets']
 const OPERATIONS: TCapabilityOperation[] = ['create', 'update', 'delete']
 

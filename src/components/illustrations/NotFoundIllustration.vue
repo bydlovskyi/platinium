@@ -1,14 +1,5 @@
 <script lang="ts" setup>
-/**
- * Line illustration for the 404 "not found" page (GitHub issue #41, PRD
- * "Designed states"). Reads as a map pin off a broken/dashed path — "off the
- * map, lost" — distinct from `LoadFailedIllustration`'s connection motif and
- * `ForbiddenIllustration`'s barrier motif.
- *
- * Shares this family's visual language (rounded 1.5px strokes) with the
- * other four illustrations under this directory. Pure `currentColor` — the
- * consumer sets colour via a `text-*` Tailwind class.
- */
+// Colour comes from `currentColor`; set it with a `text-*` class.
 </script>
 
 <template>

@@ -1,18 +1,7 @@
 <script lang="ts" setup>
-/**
- * Shared bulk-operation result dialog (GitHub issue #39, PRD-007 "Bulk
- * operations"). Events, Categories and Tickets all need the identical
- * structure — an `el-result` summary plus a table of per-identifier
- * failures — for whatever `TBulkResult` their `useBulkOperations().lastResult`
- * comes back with, so this lives once under `src/components/` rather than
- * being copy-pasted three times. Purely presentational: it renders whatever
- * `result` it is given and emits `update:modelValue` on close, no service or
- * composable knowledge of its own.
- */
 const props = defineProps<{
   modelValue: boolean
   result?: TBulkResult
-  /** e.g. "event"/"category"/"ticket" — used only for the dialog title. */
   entityLabel: string
 }>()
 

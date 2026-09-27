@@ -1,14 +1,4 @@
-/**
- * `useModals` unit tests (issue #46 — every composable is covered).
- *
- * Orchestrates the modal host's registry (`architecture.md` "Modals":
- * `openModal`/`closeModal` against the auto-generated `Modals` registry).
- * Every real call site (`CategoryModal.vue`'s trigger, `Categories.vue`)
- * only exercises this indirectly through a mounted screen; these tests
- * drive the composable's own state machine directly. The module holds a
- * single shared `modals` ref (not per-call `ref()` inside the composable),
- * so each test clears it to stay independent of the others.
- */
+// `modals` is module-level shared state, so clear it between tests.
 describe('useModals', () => {
   afterEach(() => {
     const { modals } = useModals()

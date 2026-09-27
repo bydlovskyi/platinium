@@ -1,23 +1,5 @@
 <script lang="ts" setup>
-/**
- * Ticket form (GitHub issue #35, PRD-006 "Ticket form component"). One
- * component serving both `routeNames.ticketCreate` and `routeNames.ticketEdit`
- * — the route decides whether an existing record is loaded first
- * (`route.params.id`), everything else (field set, `:rules`, dirty tracking,
- * submission) is identical for both. Closely mirrors
- * `src/views/events/components/EventForm.vue`'s shape.
- *
- * No delete button here, unlike `EventForm.vue`: ticket deletion already
- * shipped on the list screen (GitHub issue #34, `Tickets.vue`'s row action)
- * and tickets are leaves with no dependency check, so there is no need for a
- * second delete affordance on this form (issue #35's acceptance criteria
- * list no delete-from-form requirement for tickets, unlike events).
- *
- * Status is deliberately independent of quantity (PRD-006 "Status" — "a
- * ticket with zero quantity is not automatically sold out, because an
- * administrator may be preparing stock"). Nothing in this component reads
- * `form.quantity` to derive or disable `form.status`.
- */
+// Status is deliberately independent of quantity: zero stock doesn't mean sold out.
 import { ValidationFieldError } from '@/features/platform/api/interceptors/response.interceptor'
 
 interface ITicketFormModel {
@@ -41,10 +23,7 @@ function emptyModel (): ITicketFormModel {
   return {
     name: '',
     price: 0,
-    // No default currency (PRD-006 "Money" — "Currency ... is required with
-    // no default"): `CurrencyInput` is not mounted until the administrator
-    // picks one (see the template), so an empty price never gets converted
-    // at the wrong precision.
+    // No default currency: CurrencyInput must not mount (and convert price) before one is picked.
     currency: undefined,
     quantity: 0,
     status: 'draft',
@@ -61,20 +40,12 @@ const route = useRoute()
 const router = useRouter()
 const { canDo } = useCapability()
 
-/** Present only on the edit route (`/tickets/:id/edit`); its absence is what distinguishes create from edit mode. */
 const ticketId = computed<string | undefined>(() => (
   typeof route.params.id === 'string' ? route.params.id : undefined
 ))
 const isEditMode = computed(() => ticketId.value !== undefined)
 
-/**
- * Where "back to list" returns to. Captured from `route.query.from` — the
- * list screen (`Tickets.vue`) passes its own `route.fullPath` when it
- * navigates here, so the administrator returns to the same filtered,
- * sorted, paginated page rather than a reset list. Falls back to the plain
- * list route when the form was opened directly (e.g. a bookmarked/typed
- * URL), since there is no prior list state to restore in that case.
- */
+// The list passes its fullPath as `from` so returning keeps its filters/sort/page.
 const returnTo = computed<string | { name: string }>(() => (
   typeof route.query.from === 'string' ? route.query.from : { name: routeNames.tickets }
 ))
@@ -83,30 +54,19 @@ function goToList (): void {
   void router.push(returnTo.value)
 }
 
-// --- Loading the existing record (edit mode only) --------------------------
-
 const loadingRecord = ref(isEditMode.value)
 const loadError = ref(false)
-
-// --- Form state --------------------------------------------------------------
 
 const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
 const form = useElFormModel<ITicketFormModel>(emptyModel())
 
-/** The last loaded/saved snapshot, compared against `form` to derive dirtiness. `undefined` while a record is still loading in edit mode. */
 const baseline = ref<ITicketFormModel | undefined>(isEditMode.value ? undefined : emptyModel())
 
 const isDirtyFromBaseline = computed(() => (
   baseline.value !== undefined && JSON.stringify(form) !== JSON.stringify(baseline.value)
 ))
 
-/**
- * `useUnsavedChangesGuard` needs a writable `Ref<boolean>` (`markClean` sets
- * it to `false` directly) — `isDirtyFromBaseline` is a read-only `computed`
- * derived from `baseline` vs `form`, so it's mirrored into a plain ref here
- * rather than handed to the guard directly, which would silently fail to
- * write and leave the dirty flag stuck after a save.
- */
+// Writable mirror for useUnsavedChangesGuard; handing it the computed would leave the flag stuck after a save.
 const isDirty = ref(false)
 watch(isDirtyFromBaseline, (value) => {
   isDirty.value = value
@@ -114,13 +74,11 @@ watch(isDirtyFromBaseline, (value) => {
 
 const { markClean: markGuardClean } = useUnsavedChangesGuard({ isDirty })
 
-/** Marks the current form values as the new clean baseline (e.g. right after a successful save), then clears the guard's dirty flag to match. */
 function markClean (): void {
   baseline.value = cloneModel(form)
   markGuardClean()
 }
 
-/** Server-side field errors from a 400, mapped onto each `el-form-item`'s `:error`. Cleared as soon as the administrator edits that field again. */
 const serverFieldErrors = ref<Partial<Record<keyof ITicketFormModel, string>>>({})
 
 function fieldError (field: keyof ITicketFormModel): string | undefined {
@@ -133,12 +91,7 @@ function clearServerError (field: keyof ITicketFormModel): void {
   }
 }
 
-// --- Event / category remote-select configuration ----------------------------
-// Local equivalents of `Tickets.vue`'s own `fetchEventOptions`/
-// `resolveEventOption`/`fetchCategoryOptions`/`resolveCategoryOption` — not
-// imported from there, since those are that component's own local scope.
-
-async function fetchEventOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
+function fetchEventOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
   return eventsService.list({ search: term, page: pageNumber })
 }
 
@@ -146,7 +99,7 @@ function resolveEventOption (id: string): Promise<TEvent> {
   return eventsService.get(id)
 }
 
-async function fetchCategoryOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
+function fetchCategoryOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
   return categoriesService.list({ search: term, page: pageNumber })
 }
 
@@ -161,8 +114,6 @@ const rules: IElementPlus['FormRules'] = {
   eventId: [useRequiredRule()],
   categoryId: [useRequiredRule()]
 }
-
-// --- Loading the record (edit mode) -------------------------------------------
 
 async function loadRecord (id: string): Promise<void> {
   loadingRecord.value = true
@@ -181,10 +132,7 @@ async function loadRecord (id: string): Promise<void> {
       categoryId: ticket.categoryId
     }
 
-    // Discard the response if the route has since moved on to a different
-    // id (e.g. the admin navigated from edit A to edit B before A's
-    // response arrived) — applying it here would silently overwrite the
-    // form and dirty-tracking baseline with the wrong record's data.
+    // Discard if the route moved to a different id while this was in flight.
     if (ticketId.value !== id) {
       return
     }
@@ -204,17 +152,12 @@ async function loadRecord (id: string): Promise<void> {
   }
 }
 
-// Watches `ticketId` (rather than a one-shot `onMounted`) so a param that
-// isn't available yet at mount time — e.g. the auth guard resolving an
-// async redirect back to this same route once a restored session confirms
-// the administrator is signed in — still triggers the load once it arrives.
+// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
 watch(ticketId, (id) => {
   if (id !== undefined) {
     void loadRecord(id)
   }
 }, { immediate: true })
-
-// --- Submission ----------------------------------------------------------------
 
 const submitting = ref(false)
 
@@ -222,9 +165,6 @@ function toPayload (): TTicketPayload {
   return {
     name: form.name,
     price: form.price,
-    // `currency`/`eventId`/`categoryId` are validated required before
-    // submission ever reaches here, so the non-null assertions reflect a
-    // state `:rules` has already guaranteed, not an unchecked assumption.
     currency: form.currency!,
     quantity: form.quantity,
     status: form.status,
@@ -275,9 +215,6 @@ async function onSubmit (): Promise<void> {
   <div class="flex flex-col gap-4">
     <PageHeader :title="isEditMode ? 'Edit ticket' : 'Create ticket'" />
 
-    <!-- Skeleton-to-content crossfade (GitHub issue #42, PRD-010 "Motion")
-         — mirrors `EventForm.vue`'s identical loading/error/form tri-state
-         `<Transition>` wrap. -->
     <Transition name="skeleton-fade" mode="out-in">
       <el-skeleton v-if="loadingRecord" key="skeleton" :rows="6" animated />
 
@@ -327,10 +264,6 @@ async function onSubmit (): Promise<void> {
         </el-form-item>
 
         <el-form-item label="Price" prop="price" :error="fieldError('price')">
-          <!-- `CurrencyInput` requires a non-empty `currency` prop and has no
-             "no currency selected" state (PRD-006 "Money") — it is not
-             mounted until `form.currency` is truthy, so a currency must be
-             chosen first. -->
           <CurrencyInput
             v-if="form.currency"
             v-model="form.price"

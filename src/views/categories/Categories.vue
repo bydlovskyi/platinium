@@ -1,15 +1,4 @@
 <script lang="ts" setup>
-/**
- * Categories list screen (GitHub issue #30, PRD-005 "Ticket Categories
- * Management" — the test of whether the shared list/modal machinery from
- * PRD-003/PRD-004 makes a simple, two-field entity cheap to build). Unlike
- * `Events.vue`, create/edit are not routes: they are one dialog
- * (`CategoryModal.vue`) opened through `useModals()`, per PRD-005's explicit
- * "a form with more than three fields... gets a route; anything smaller gets
- * a dialog" rule. This view therefore owns its own header/create button
- * (mirroring `PageHeader`'s established `#actions` slot pattern) rather than
- * delegating that to a separate create route the way events does.
- */
 import { DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
 
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
@@ -52,33 +41,12 @@ const columns: IDataTableColumn<TCategory>[] = [
   { key: 'description', label: 'Description', responsivePriority: 'low' }
 ]
 
-/**
- * Only `name` is a rendered column (per PRD-005, see `columns` below) —
- * `createdAt` is driven entirely by the "Sort by" `el-select` further down.
- * Passing `sort.value` through unchanged when it names `createdAt` would have
- * `AppDataTable`'s `syncSortFromProps` call the underlying `el-table.sort()`
- * with a `prop` that matches no column; Element Plus's column lookup for that
- * call fails silently, leaving whichever column's header arrow was last set
- * (e.g. "Name") stuck showing a sort that is no longer applied. Gating on
- * `field === 'name'` here means `AppDataTable` clears its own header
- * indicator instead — correct, since no column IS actually sorted in that
- * case — while the request itself is unaffected, as it comes from
- * `useCategoriesList`'s query, not from this computed.
- */
+// Only `name` is a column: passing a `createdAt` sort through would leave a stale header arrow in el-table.
 const dataTableSort = computed(() => (
   sort.value?.field === 'name' ? { field: sort.value.field, order: sort.value.order } : undefined
 ))
 
-/**
- * `createdAt` is a sortable field on the contract (`src/mocks/handlers/categories.ts`'s
- * `sortableFields`) but PRD-005's acceptance criteria only call for "name and
- * description" as list columns — there is no `createdAt` column to attach
- * `AppDataTable`'s header-click sort to. Rather than adding a hidden column
- * or a new shared "sort by" component (out of scope per the issue brief),
- * this small inline `el-select` drives `setSort` directly for the one field
- * with no column of its own; `name` stays sortable through its own column
- * header as usual.
- */
+// `createdAt` has no column, so this select drives its sort instead of a header click.
 const NON_COLUMN_SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'createdAt:desc', label: 'Newest first' },
   { value: 'createdAt:asc', label: 'Oldest first' }
@@ -88,18 +56,7 @@ const nonColumnSortValue = computed<string | undefined>(() => (
   sort.value?.field === 'createdAt' ? `${sort.value.field}:${sort.value.order}` : undefined
 ))
 
-/**
- * `useListQuery` only exposes `setSort(field)` (toggles asc → desc → off for
- * that field) — there is no "set this exact field/order" setter, because no
- * other list screen has needed to pick a sort *order* from a control other
- * than a column header click, which already encodes direction through which
- * edge/arrow was clicked. Rather than stretch `setSort`'s toggle semantics
- * to reach an exact order (fragile, and reads nothing like what it does),
- * this pushes the `sort`/`order` query params directly — the same two params
- * `useListQuery` itself reads back out of `route.query` on the very next
- * navigation, so this stays within "list state lives in the URL", just
- * without going through the one setter that doesn't fit this control.
- */
+// Writes sort/order to the URL directly: useListQuery's setSort only toggles, it can't set an exact order.
 function onNonColumnSortChange (value: string | undefined): void {
   const query = { ...route.query, page: undefined }
 
@@ -117,9 +74,6 @@ function rowKey (row: TCategory): string {
   return row.id
 }
 
-// `computed` rather than a static array (GitHub issue #37, PRD-007) so a
-// viewer never has "edit"/"delete" in the dropdown at all — mirrors
-// `Events.vue`'s `rowActions`.
 const rowActions = computed<IDataTableRowAction<TCategory>[]>(() => {
   const actions: IDataTableRowAction<TCategory>[] = []
 
@@ -134,11 +88,7 @@ const rowActions = computed<IDataTableRowAction<TCategory>[]>(() => {
   return actions
 })
 
-// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
-// Delete only, deliberately — categories have no status field, so a bulk
-// archive would always come back 100% failed (`archiveOne` in
-// `src/mocks/handlers/categories.ts` reports every id as
-// `UNSUPPORTED_OPERATION`). No archive button is rendered for this entity.
+// Delete only: categories have no status, so bulk archive would always fail.
 const canBulkDelete = computed(() => canDo('categories', 'delete'))
 
 function selectionSubject (): string {
@@ -146,15 +96,6 @@ function selectionSubject (): string {
   return `${count} categor${count === 1 ? 'y' : 'ies'}`
 }
 
-/**
- * Mirrors `deleteCategory`'s own page-back check below, generalized to
- * "every row currently on this page was deleted" rather than "the one row
- * was the last one on the page" — a bulk delete can wipe out the whole page
- * at once, not just its final row (GitHub issue #39 follow-up fix).
- *
- * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
- * every succeeded row before either step-back or refetch runs.
- */
 async function onBulkDeleteComplete (): Promise<void> {
   const succeededIds = bulkResult.value?.succeeded ?? []
   const allVisibleRowsDeleted = data.value.length > 0 &&
@@ -177,21 +118,6 @@ async function bulkDeleteCategories (): Promise<void> {
   })
 }
 
-/**
- * Deletes `category` after confirmation (PRD-005 "Deletion" — identical to
- * `Events.vue`'s `deleteEvent`). A 409 here is always a real
- * `DependencyConflictError` (tickets referencing the category,
- * `checkDependencyConflict` in `src/mocks/handlers/categories.ts`), never the
- * duplicate-name `ConflictError` (that only applies to create/update). There
- * is no tickets list route yet (PRD-006, issue #34, not yet started), so —
- * exactly like `Events.vue`/`EventForm.vue` already do for their own
- * tickets-reference conflict — this shows the count-bearing message only,
- * with no link to a tickets list. That is a known, accepted forward
- * dependency, not an oversight here.
- *
- * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") before
- * the page-adjustment/refetch, mirroring `Events.vue`'s `deleteEvent`.
- */
 async function deleteCategory (category: TCategory): Promise<void> {
   await confirm({
     subject: category.name,
@@ -222,14 +148,6 @@ async function deleteCategory (category: TCategory): Promise<void> {
   })
 }
 
-/**
- * The list refetches on save (via `refetch`, threaded into the modal as an
- * `onSaved` prop) rather than the modal touching this view's state directly
- * — keeps `CategoryModal.vue` reusable and ignorant of where it was opened
- * from, and preserves the current page/search exactly (PRD-005 "I want my
- * current page and search preserved after saving") since `refetch` re-runs
- * the same `useListResource` query without resetting `page`/`search`.
- */
 function onRowAction ({ action, row }: { action: string; row: TCategory }): void {
   if (action === 'edit') {
     openModal('CategoryModal', { category: row, onSaved: refetch })
@@ -242,16 +160,8 @@ function onCreateClicked (): void {
   openModal('CategoryModal', { category: undefined, onSaved: refetch })
 }
 
-/**
- * The export always covers the full filtered/sorted result, never one page
- * (GitHub issue #40, PRD-007) — the same `search`/`sort` the on-screen list
- * is currently using, just without `page`/`perPage`.
- */
 function onExportCsvClicked (): void {
-  // The response interceptor already toasts a failure (see
-  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
-  // to stop the rejection reaching here unhandled, not to add a second
-  // notification.
+  // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'categories',
     exportFn: (params, signal) => categoriesService.exportCsv(params, signal),

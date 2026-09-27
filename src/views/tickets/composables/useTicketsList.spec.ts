@@ -1,12 +1,3 @@
-/**
- * Price-range filter minor-unit conversion (GitHub issue #34, PRD-006 "a
- * simple decimal-to-minor-unit conversion at the boundary is fine, but do
- * the conversion consistently going in and out and cover it with a unit
- * test"). `Tickets.vue`'s price-range `el-input-number` pair displays a
- * whole/decimal currency amount; `priceMin`/`priceMax` on the URL and the
- * `GET /tickets` request are always integer minor units. These two pure
- * functions are the only place that conversion happens.
- */
 describe('priceFilterToMinorUnits', () => {
   it('converts a whole amount to minor units', () => {
     expect(priceFilterToMinorUnits(50)).toBe(5000)
@@ -21,8 +12,7 @@ describe('priceFilterToMinorUnits', () => {
   })
 
   it('rounds away floating-point drift instead of truncating/propagating it', () => {
-    // 19.99 * 100 === 1998.9999999999998 in IEEE-754 — this must still
-    // round to the exact cent amount, not truncate to 1998.
+    // 19.99 * 100 === 1998.9999999999998; must round, not truncate.
     expect(priceFilterToMinorUnits(19.99)).toBe(1999)
     expect(priceFilterToMinorUnits(0.1)).toBe(10)
   })

@@ -1,29 +1,4 @@
 <script lang="ts" setup generic="TRow extends Record<string, unknown>">
-/**
- * Global, descriptor-driven data table (GitHub issue #23, PRD-003 "Data
- * table component (deep module)"). Every future entity screen (events,
- * categories, tickets) configures this with column descriptors instead of
- * writing table markup three times.
- *
- * It wraps Element Plus rather than replacing it (docs/prd/ELEMENT-PLUS.md):
- * `el-table` owns the table presentation, the three-state sort cycle and
- * `aria-sort`, and the selection column; `el-skeleton`, `el-empty`,
- * `el-result`, `el-card`, `el-dropdown` and `el-pagination` cover the rest.
- * What this component adds is the descriptor vocabulary, the mobile card
- * switch and keeping `el-table`'s internal sort/selection state mirrored
- * from props, because the URL (via `useListQuery`) is the source of truth.
- *
- * This component holds no fetching logic and no entity knowledge — it
- * consumes `data`/`meta`/`loading`/`error` exactly as `useListResource`
- * exposes them, and emits intent only (`sort-requested`, `page-requested`,
- * `page-size-requested`, `row-action-invoked`, `selection-changed`).
- *
- * Pagination (GitHub issue #24, PRD-003 "Pagination") renders the shared
- * `PaginationMeta` envelope directly via `el-pagination`, including the
- * total count and a page-size selector (`layout="total, sizes, prev,
- * pager, next"`); persisting the chosen page size across sessions is
- * `useListQuery`'s job (`useStorage`), not this component's.
- */
 import en from 'element-plus/es/locale/lang/en'
 
 import type { TableInstance } from 'element-plus'
@@ -42,44 +17,20 @@ const DESKTOP_PAGER_COUNT = 7
 const props = withDefaults(defineProps<{
   columns: IDataTableColumn<TRow>[]
   rows: TRow[]
-  /** Must return a value unique per row on the current page — selection state is keyed by it, so two rows sharing a key are treated as one. */
+  /** Must be unique per row on the page — selection state is keyed by it. */
   rowKey: (row: TRow) => string
   meta?: TPaginationMeta
   loading?: boolean
   error?: unknown
-  /** Why the list is empty — the table has no notion of "filters" itself. */
   emptyReason?: TDataTableEmptyReason
   sort?: IDataTableSort
   rowActions?: IDataTableRowAction<TRow>[]
-  /** Opts into the checkbox column and page-scoped select-all. */
   selectable?: boolean
   selectedRowKeys?: string[]
   caption?: string
-  /** Choices offered by the page-size selector. Persisting the chosen value
-   *  across sessions is `useListQuery`'s job (it already does this via
-   *  `useStorage`) — this component only renders the control and emits intent. */
   pageSizes?: number[]
-  /**
-   * Whether the no-data empty state's own "Create" button renders (GitHub
-   * issue #37, PRD-007 — a viewer must not see a create affordance even in
-   * the empty state). This component knows nothing about roles or
-   * capabilities itself (see the file-level comment); the caller resolves
-   * that and passes a plain boolean, the same way `rowActions` is
-   * pre-filtered by the caller rather than by this component. Defaults to
-   * `true` so callers that never gate creation (or don't wire
-   * `create-requested` at all) are unaffected.
-   */
   canCreate?: boolean
-  /**
-   * Row keys (per `rowKey`) currently playing the row-leave animation
-   * (GitHub issue #42, PRD-010 "Motion" — "a deleted row animates out"). The
-   * caller (the entity list view) adds a key here, waits a beat for the CSS
-   * animation to play, then removes the row from `rows` and refetches — this
-   * component only turns the set into `el-table`'s `row-class-name` (table
-   * presentation) or a `<TransitionGroup>` leave class (card presentation);
-   * it owns no timing or deletion logic itself, matching how it already
-   * knows nothing about *why* rows are empty (`emptyReason`) or loading.
-   */
+  /** Keys animating out; the caller drops them from `rows` once the animation has played. */
   leavingRowKeys?: string[]
 }>(), {
   meta: undefined,
@@ -117,11 +68,8 @@ const hasActions = computed(() => props.rowActions.length > 0)
 type TPresentationMode = 'loading' | 'error' | 'empty' | 'table' | 'cards'
 
 const presentationMode = computed<TPresentationMode>(() => {
-  // `loading` is checked before `error` so a retry-in-flight (loading again
-  // while a previous attempt's error is still on the props, before the
-  // caller clears it) shows feedback instead of freezing on the stale error
-  // panel. With no rows yet that's the skeleton; with rows already on hand
-  // it's the same table/cards under a loading mask.
+  // `loading` before `error` so a retry-in-flight shows feedback instead of the stale error;
+  // with rows already on hand that's the table/cards under a loading mask.
   if (props.loading) {
     return props.rows.length === 0 ? 'loading' : (isMobile.value ? 'cards' : 'table')
   }
@@ -137,11 +85,7 @@ const presentationMode = computed<TPresentationMode>(() => {
   return isMobile.value ? 'cards' : 'table'
 })
 
-// --- Skeleton ----------------------------------------------------------------
-// The first-load skeleton is the real `el-table` fed placeholder rows whose
-// cells render `el-skeleton-item`, so it has exactly the columns and widths
-// the loaded table will have — no layout shift when content arrives.
-
+// The skeleton is the real `el-table` with placeholder rows, so columns match and nothing shifts on load.
 const SKELETON_KEY_PREFIX = '__skeleton-'
 
 const isSkeleton = computed(() => presentationMode.value === 'loading')
@@ -157,20 +101,13 @@ function tableRowKey (row: TRow): string {
   return isSkeleton.value ? `${SKELETON_KEY_PREFIX}${String(row[SKELETON_KEY_PREFIX])}` : props.rowKey(row)
 }
 
-// --- Row leave (issue #42) ----------------------------------------------------
-// `el-table`'s own `row-class-name` prop (`(row, rowIndex) => string`, see
-// `data.value` prop above) is how a per-row leaving class reaches the real
-// `<tr>` — there is no `<TransitionGroup>` here, `el-table` renders its own
-// body (PRD-010 "Motion"). `.app-table-row-leaving` (base.css) plays a short
-// CSS animation timed off the motion tokens.
+// `el-table` renders its own body, so the leave animation goes through `row-class-name`, not `<TransitionGroup>`.
 
 const leavingKeySet = computed(() => new Set(props.leavingRowKeys))
 
 function rowClassName ({ row }: { row: TRow }): string {
   return leavingKeySet.value.has(props.rowKey(row)) ? 'app-table-row-leaving' : ''
 }
-
-// --- Sort --------------------------------------------------------------------
 
 const EL_SORT_ORDER = { asc: 'ascending', desc: 'descending' } as const
 
@@ -209,8 +146,6 @@ function onSortChange ({ prop }: { prop: string | null }): void {
   emit('sort-requested', prop)
 }
 
-// --- Selection (page-scoped) ------------------------------------------------
-
 const pageRowKeys = computed(() => props.rows.map(row => props.rowKey(row)))
 const selectedSet = computed(() => new Set(props.selectedRowKeys))
 
@@ -221,10 +156,8 @@ const someOnPageSelected = computed(() => (
   pageRowKeys.value.some(key => selectedSet.value.has(key)) && !allOnPageSelected.value
 ))
 
-// `el-table` labels its header checkbox from the locale and `el-checkbox`
-// never forwards `aria-describedby` to its inner `<input>`, so the
-// page-scope caveat travels in the accessible name through a locale
-// override scoped to this table.
+// `el-checkbox` doesn't forward `aria-describedby`, so the page-scope caveat goes in the
+// select-all accessible name via a locale override scoped to this table.
 const selectAllAriaLabel = computed(() => (
   `Select all ${pageRowKeys.value.length} row${pageRowKeys.value.length === 1 ? '' : 's'} on this page`
 ))
@@ -282,8 +215,6 @@ function toggleCardSelectAll (value: IElementPlus['CheckboxValueType']): void {
   emitPageSelection(value ? pageRowKeys.value : [])
 }
 
-// --- Row actions -------------------------------------------------------------
-
 function isActionDisabled (action: IDataTableRowAction<TRow>, row: TRow): boolean {
   return action.disabled ? action.disabled(row) : false
 }
@@ -299,7 +230,6 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
 
 <template>
   <div class="flex flex-col gap-3">
-    <!-- Load failed: a condition with a way forward, not a crash. -->
     <div v-if="presentationMode === 'error'" role="alert" class="rounded-token-md border border-border">
       <el-result
         title="Something went wrong while loading this list."
@@ -319,7 +249,6 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
       </el-result>
     </div>
 
-    <!-- Empty states: distinct reasons, distinct affordances. -->
     <div v-else-if="presentationMode === 'empty'" class="rounded-token-md border border-border">
       <el-empty
         v-if="emptyReason === 'no-data'"
@@ -350,15 +279,11 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
     </div>
 
     <template v-else>
-      <!-- Selection hint: visible, not just an aria-label, so an
-           administrator never mistakes "select all" for "select every
-           filtered record" — the distinction PRD-007's bulk operations
-           depend on. -->
+      <!-- Visible (not just aria) so "select all" isn't mistaken for every filtered record. -->
       <p v-if="selectable && !isSkeleton" class="px-1 text-caption text-text-muted">
         Selecting applies to this page only ({{ pageRowKeys.length }} row{{ pageRowKeys.length === 1 ? '' : 's' }}).
       </p>
 
-      <!-- Table presentation: tablet and above, and the first-load skeleton. -->
       <el-config-provider v-if="presentationMode === 'table' || isSkeleton" :locale="tableLocale">
         <el-table
           ref="tableRef"
@@ -433,8 +358,6 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         </el-table>
       </el-config-provider>
 
-      <!-- Card presentation: below the tablet breakpoint. Same descriptors,
-           only `responsivePriority: 'high'` columns shown. -->
       <div
         v-else-if="presentationMode === 'cards'"
         v-loading="loading"
@@ -451,14 +374,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           </el-checkbox>
         </div>
 
-        <!-- Card presentation is a separate rendering path from `el-table`
-             (it never touches `el-table`'s own body), so — unlike the
-             table's `row-class-name` approach above — a real
-             `<TransitionGroup>` can own the leave animation here (PRD-010
-             "Motion": "mobile cards may use `<TransitionGroup>`"). The same
-             `.app-table-row-leaving` class/keyframe from base.css is reused
-             as the `leave-active-class` rather than duplicating the
-             animation under a second name. -->
+        <!-- Cards bypass `el-table`, so a real `<TransitionGroup>` can own the leave animation here. -->
         <TransitionGroup tag="div" class="contents" leave-active-class="app-table-row-leaving">
           <el-card
             v-for="row in rows"
@@ -511,9 +427,6 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         </TransitionGroup>
       </div>
 
-      <!-- Pagination: renders the `PaginationMeta` envelope directly, total
-           count and page-size selector included. The chosen page size is
-           persisted per administrator one layer up, in `useListQuery`. -->
       <div v-if="meta && meta.total > 0 && !isSkeleton" class="flex justify-end pt-1">
         <el-pagination
           background

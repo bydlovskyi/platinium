@@ -1,19 +1,6 @@
 import { ElNotification } from 'element-plus'
 
-/**
- * Thin wrapper over Element Plus's `ElNotification`. Everything in this app
- * that surfaces a toast notification goes through this service — nothing
- * else may call `ElNotification` directly (enforced by code review), so the
- * presentation can change in one place and tests can assert on notifications
- * without reaching into a UI library.
- *
- * Theming: `ElNotification`'s `type` prop resolves its color through Element
- * Plus's own `--el-color-{success,warning,info,danger}` CSS custom
- * properties, which `src/assets/styles/element-reset/theme.css` points at
- * this project's semantic design tokens (`--success`, `--warning`, `--info`,
- * `--danger` from `src/assets/styles/tokens.ts`) rather than Element Plus's
- * library defaults — so no inline color/class is needed here.
- */
+// The only allowed caller of ElNotification: toasts go through here so they can change in one place.
 interface INotifyOptions {
   message: string
   title?: string

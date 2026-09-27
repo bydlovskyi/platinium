@@ -2,17 +2,6 @@ import App from '@/App.vue'
 
 import { mountWithRouterAndPinia, setViewportToBreakpoint } from '../support'
 
-/**
- * Admin shell component tests (PRD-002 "Testing boundary" — "Shell —
- * component tested at each breakpoint for the correct navigation
- * presentation, and tested for drawer-closes-on-navigate"). Mounted behind
- * a real router (seeded with the app's actual route table, so `App.vue`'s
- * `route.meta.layout` resolution genuinely renders `AdminLayout` around
- * `Home`) and a real Pinia instance with the auth store's state set
- * directly to an authenticated session — matching `route-guard.spec.ts`'s
- * established pattern for driving store state without a live login
- * round-trip.
- */
 describe('AdminLayout — responsive navigation presentation', () => {
   function signIn (): void {
     const authStore = useAuthStore()
@@ -72,7 +61,6 @@ describe('AdminLayout — responsive navigation presentation', () => {
     const hamburger = wrapper.find('[aria-label="Open navigation"]')
     expect(hamburger.exists()).toBe(true)
 
-    // Closed: the drawer element isn't in an open state yet.
     expect(wrapper.find('.el-drawer.open').exists()).toBe(false)
 
     await hamburger.trigger('click')
@@ -95,9 +83,7 @@ describe('AdminLayout — responsive navigation presentation', () => {
       expect(wrapper.find('.el-drawer.open').exists()).toBe(true)
     })
 
-    // A genuinely different destination — pushing to the same route the
-    // drawer's link is already on wouldn't change `route.fullPath` and
-    // would give this assertion a false pass.
+    // Must be a different route: a same-route push doesn't change `route.fullPath` and would pass falsely.
     await router.push({ name: routeNames.notFound, params: { pathMatch: ['nowhere'] } })
 
     await vi.waitFor(() => {
@@ -117,9 +103,7 @@ describe('AdminLayout — responsive navigation presentation', () => {
       expect(wrapper.find('.el-drawer.open').exists()).toBe(true)
     })
 
-    // "Dashboard" is the current route (`/`) — clicking it doesn't change
-    // `route.fullPath`, so a close driven only by a route-change watcher
-    // would miss this. AppSidebar must emit `navigate` on click regardless.
+    // Same-route click doesn't change `route.fullPath`, so AppSidebar must emit `navigate` on click regardless.
     await wrapper.find('.el-drawer.open li.el-menu-item').trigger('click')
 
     await vi.waitFor(() => {

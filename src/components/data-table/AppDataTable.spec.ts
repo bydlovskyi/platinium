@@ -9,20 +9,6 @@ import LoadFailedIllustration from '../illustrations/LoadFailedIllustration.vue'
 
 import { setViewportToBreakpoint } from '../../../tests/support'
 
-/**
- * `AppDataTable` component tests (GitHub issue #23, PRD-003's testing
- * boundary for the data table slice): descriptor-driven rendering, sort
- * cycling through three states, each async/empty state, selection
- * behaviour (including the page-scoped select-all), and the presentation
- * switch at the tablet breakpoint. Assertions target user-visible roles,
- * text and ARIA attributes rather than internal component state, matching
- * this repo's testing convention.
- *
- * A trivial row shape stands in for any future entity (events, categories,
- * tickets) — the whole point of the component is that it carries no
- * entity-specific knowledge.
- */
-
 interface ITestRow extends Record<string, unknown> {
   id: string
   name: string
@@ -70,9 +56,7 @@ beforeEach(() => {
   setViewportToBreakpoint('desktop')
 })
 
-// `el-dropdown` teleports its menu to `document.body` regardless of
-// `attachTo`, so a menu left open by one test would otherwise bleed into
-// the next test's `document.querySelectorAll` lookups.
+// `el-dropdown` teleports its menu to `document.body`, so clear it between tests.
 afterEach(() => {
   document.body.innerHTML = ''
 })
@@ -129,8 +113,7 @@ describe('AppDataTable', () => {
       const wrapper = mountTable({ sort: undefined })
       await flushPromises()
 
-      // el-table renders an empty `aria-sort` on an unsorted column, which
-      // assistive technology treats as the default, "none".
+      // el-table renders an empty `aria-sort` on an unsorted column (treated as "none").
       expect(nameHeader(wrapper).attributes('aria-sort') ?? '').toBe('')
 
       await wrapper.setProps({ sort: { field: 'name', order: 'asc' } })
@@ -276,9 +259,7 @@ describe('AppDataTable', () => {
       const wrapper = mountTable({ selectable: true, rows: buildRows(3) })
       await flushPromises()
 
-      // `el-checkbox` never forwards attrs like `aria-describedby` to its
-      // inner `<input>` (only to the outer label), so the scope has to be
-      // in the label a screen reader announces for the focused control.
+      // `el-checkbox` doesn't forward `aria-describedby` to its `<input>`, so the scope lives in the label.
       const headerLabel = wrapper.find('thead label')
       expect(headerLabel.attributes('aria-label')).toBe('Select all 3 rows on this page')
     })
@@ -328,8 +309,7 @@ describe('AppDataTable', () => {
 
   describe('row actions', () => {
     it('emits row-action-invoked with the action key and row when an action is triggered', async () => {
-      // `el-dropdown`'s menu teleports to `document.body` when opened, so the
-      // wrapper needs to be attached to a real document to find it.
+      // The dropdown menu teleports to `document.body`, so the wrapper must be attached.
       const wrapper = mount(AppDataTable<ITestRow>, {
         props: {
           columns: buildColumns(),
@@ -357,7 +337,7 @@ describe('AppDataTable', () => {
     })
   })
 
-  describe('row-leave animation (GitHub issue #42, PRD-010 "Motion")', () => {
+  describe('row-leave animation', () => {
     it('applies the leaving class to the table row matching a leavingRowKeys entry, and not to any other row', async () => {
       const wrapper = mountTable({ leavingRowKeys: ['row-2'] })
       await flushPromises()
@@ -379,17 +359,7 @@ describe('AppDataTable', () => {
     })
 
     it('configures the mobile card list\'s TransitionGroup with the same leaving class the table presentation uses', async () => {
-      // `@vue/test-utils` stubs `<TransitionGroup>` (as `<transition-group-stub>`)
-      // rather than running Vue's real leave-transition timing, so the
-      // outgoing element is removed immediately with no leave-active-class
-      // ever attached to it in this environment — a real browser is what
-      // actually plays the leave animation (covered by the live/manual
-      // verification pass, not a jsdom component test). What IS honestly
-      // assertable here is that the `<TransitionGroup>` is wired with the
-      // correct `leave-active-class`, i.e. it WOULD play
-      // `.app-table-row-leaving` (the same class/keyframe the table
-      // presentation applies via `row-class-name`) once Vue's real leave
-      // logic runs it.
+      // Test utils stub `<TransitionGroup>`, so only its `leave-active-class` wiring is assertable in jsdom.
       setViewportToBreakpoint('mobile')
       const wrapper = mountTable({ leavingRowKeys: ['row-1'] })
       await flushPromises()
@@ -416,9 +386,7 @@ describe('AppDataTable', () => {
       await flushPromises()
 
       expect(wrapper.find('table').exists()).toBe(false)
-      // High-priority column content is present...
       expect(wrapper.text()).toContain('Row 1')
-      // ...but the low-priority column's label is not rendered on the card.
       expect(wrapper.text()).not.toContain('Status')
     })
 

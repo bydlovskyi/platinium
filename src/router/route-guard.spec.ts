@@ -2,29 +2,11 @@ import type { NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 
 import { routeGuard } from './route-guard'
 
-/**
- * `NavigationGuardNext`'s declared type is an overloaded call signature
- * (`next(): void`, `next(to: RouteLocationRaw): void`, `next(false): void`,
- * `next((vm) => void): void`, ...), which `vi.fn<T>()` cannot represent —
- * vitest's `Mock<T>` needs a single, plain function signature. `routeGuard`
- * itself only ever calls `next()` or `next(<a route location>)`, so a mock
- * typed as a plain, untyped `vi.fn()` and cast once here (rather than at
- * every call site) is both simplest and sufficient for every assertion
- * below.
- */
+// NavigationGuardNext is overloaded, which vi.fn<T>() can't represent, so cast an untyped mock once.
 function createNextMock (): NavigationGuardNext {
   return vi.fn() as unknown as NavigationGuardNext
 }
 
-/**
- * Route guard unit tests (PRD-002 "Testing boundary"): every
- * `meta.requiresAuth` / `meta.requiresAnonymous` combination, asserting the
- * exact redirect target and that the intended destination is preserved.
- *
- * Calls `routeGuard` directly with mock `to`/`from`/`next` — no router, no
- * component — and a real Pinia instance whose auth-store state is set
- * directly to drive each authenticated/unauthenticated branch.
- */
 describe('routeGuard', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -114,12 +96,6 @@ describe('routeGuard', () => {
     })
   })
 
-  /**
-   * `requiredCapability` (GitHub issue #37, PRD-007): the guard's third
-   * branch, run only once `requiresAuth` has already confirmed a signed-in
-   * user exists to ask `useCapability` about. Mirrors the `requiresAuth`/
-   * `requiresAnonymous` `describe` blocks above exactly.
-   */
   describe('requiredCapability', () => {
     it('redirects a viewer to the forbidden route when the required capability is missing', () => {
       signIn('viewer')

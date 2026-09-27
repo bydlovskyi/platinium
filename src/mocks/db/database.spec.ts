@@ -85,10 +85,6 @@ describe('createDatabase', () => {
   })
 
   it('writes nothing to localStorage under test', () => {
-    // The default, seam-driven path (`resetDatabase()` calls `createDatabase()`
-    // with no dataset) must stay silent towards localStorage during an
-    // ordinary test run. The matching read-side case — a persisted dataset
-    // present and still ignored — lives in persistence.spec.ts.
     localStorage.clear()
 
     createDatabase()

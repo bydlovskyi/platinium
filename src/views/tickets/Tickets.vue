@@ -1,19 +1,4 @@
 <script lang="ts" setup>
-/**
- * Tickets list screen (GitHub issue #34, PRD-006 "Tickets list —
- * cross-entity filters, deep-link entry, deletion"; extended by GitHub issue
- * #35 "Tickets form" with the create button and edit row action). This is
- * the slice where a filter spans two foreign keys (event, category) plus
- * status, currency and a price range, all funnelled into a single
- * `GET /tickets` request via `useTicketsList`'s `computed(() => ({...}))`
- * query — the same `useEventsList` pattern, just with more filters. Otherwise
- * mirrors `Categories.vue`/`Events.vue`'s thin-view shape.
- *
- * Deep links from PRD-004/PRD-005 (a blocked event/category deletion linking
- * here with a pre-applied filter) work by construction because
- * `useListQuery` reads `route.query` on mount — see this view's integration
- * spec for the explicit proof required by the issue.
- */
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
 
 const route = useRoute()
@@ -49,13 +34,7 @@ const {
   emptyReason
 } = useTicketsList()
 
-// Name, price, quantity, status, event name and category name — PRD-006's
-// column list. Event/category render the denormalised `eventName`/
-// `categoryName` the mock already joins onto every row (never `eventId`/
-// `categoryId`) so the list is readable without an identifier in sight.
-// `responsivePriority: 'high'` on name/price/status matches this issue's
-// explicit mobile-card requirement ("shows name, price and status") —
-// `AppDataTable`'s card presentation only renders `high` columns.
+// AppDataTable's mobile card only renders `high` columns.
 const columns: IDataTableColumn<TTicket>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
   { key: 'price', label: 'Price', sortable: true, responsivePriority: 'high', align: 'right', cellSlot: 'price' },
@@ -65,15 +44,7 @@ const columns: IDataTableColumn<TTicket>[] = [
   { key: 'categoryName', label: 'Category', responsivePriority: 'low' }
 ]
 
-/**
- * Only forwards the active sort to `AppDataTable` when it names one of the
- * table's own rendered columns. `createdAt` is sortable (PRD-006 "sort by
- * ... creation date") but has no column of its own — passing it straight
- * through would have `el-table.sort()` look up a `prop` that matches no
- * column and silently fail, leaving a previous column's header arrow stuck
- * showing a sort no longer applied. Same gate `Categories.vue` uses for its
- * own non-column `createdAt` sort.
- */
+// `createdAt` has no column; forwarding it would leave a stale header arrow in el-table.
 const TABLE_SORT_FIELDS = new Set<string>(['name', 'price', 'quantity', 'status'])
 
 const dataTableSort = computed(() => (
@@ -82,7 +53,6 @@ const dataTableSort = computed(() => (
     : undefined
 ))
 
-/** Mirrors `Categories.vue`'s `NON_COLUMN_SORT_OPTIONS`/`onNonColumnSortChange` for the one sortable field with no visible column. */
 const NON_COLUMN_SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'createdAt:desc', label: 'Newest first' },
   { value: 'createdAt:asc', label: 'Oldest first' }
@@ -118,11 +88,7 @@ const CURRENCY_FILTER_OPTIONS: { value: TCurrency; label: string }[] = [
   { value: 'GBP', label: 'GBP' }
 ]
 
-// --- Event / category remote-select filters -----------------------------
-// `RemoteSelect` (issue #33) backs both: `fetchOptions` pages/searches via
-// the entity's own `list`, `resolveOption` fetches a single record by id so
-// a deep-linked `eventId`/`categoryId` (arriving with no matching option
-// loaded yet) still resolves to a real name instead of a bare identifier.
+// resolveOption lets a deep-linked id show a name before any options are loaded.
 
 async function fetchEventOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
   return eventsService.list({ search: term, page: pageNumber })
@@ -154,12 +120,7 @@ const categoryFilterModel = computed<string | undefined>({
   }
 })
 
-// --- Price range filter ---------------------------------------------------
-// URL/request state stays in integer minor units throughout (`priceMin`/
-// `priceMax` on `ITicketsListFilters`); these two computeds are the only
-// place that ever converts to/from the whole-currency decimal amount the
-// `el-input-number` pair displays, mirroring `priceFilterToMinorUnits`/
-// `minorUnitsToPriceFilter`'s own single-boundary intent.
+// URL/request state is integer minor units; the inputs show whole-currency amounts.
 const priceMinModel = computed<number | undefined>({
   get: () => (listFilters.priceMin === undefined ? undefined : minorUnitsToPriceFilter(listFilters.priceMin)),
   set: (value) => {
@@ -202,10 +163,6 @@ const activeFilters = computed(() => {
   return chips
 })
 
-// The event/category filter chips need a human-readable name, not just the
-// id the URL carries — resolved the same way `RemoteSelect` resolves a
-// preselected value (fetch by id), cached per current filter value so the
-// chip doesn't refetch on every unrelated re-render.
 const eventChipLabel = ref('…')
 const categoryChipLabel = ref('…')
 
@@ -258,9 +215,6 @@ function rowKey (row: TTicket): string {
   return row.id
 }
 
-// `computed` rather than a static array (GitHub issue #37, PRD-007) so a
-// viewer never has "edit"/"delete" in the dropdown at all — mirrors
-// `Events.vue`'s `rowActions`.
 const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
   const actions: IDataTableRowAction<TTicket>[] = []
 
@@ -275,7 +229,6 @@ const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
   return actions
 })
 
-// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
 const canBulkDelete = computed(() => canDo('tickets', 'delete'))
 const canBulkArchive = computed(() => canDo('tickets', 'update'))
 
@@ -284,15 +237,6 @@ function selectionSubject (): string {
   return `${count} ticket${count === 1 ? '' : 's'}`
 }
 
-/**
- * Mirrors `deleteTicket`'s own page-back check below, generalized to "every
- * row currently on this page was deleted" rather than "the one row was the
- * last one on the page" — a bulk delete can wipe out the whole page at once,
- * not just its final row (GitHub issue #39 follow-up fix).
- *
- * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
- * every succeeded row before either step-back or refetch runs.
- */
 async function onBulkDeleteComplete (): Promise<void> {
   const succeededIds = bulkResult.value?.succeeded ?? []
   const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(ticket => succeededIds.includes(ticket.id))
@@ -325,15 +269,7 @@ async function bulkArchiveTickets (): Promise<void> {
   })
 }
 
-/**
- * Deletes `ticket` after confirmation. Unlike `Events.vue`'s/`Categories.vue`'s
- * delete, there is no `DependencyConflictError` handling here — PRD-006
- * "Tickets are leaves: nothing references them, so deletion has no
- * dependency check" — `ticketsService.delete` never rejects with one.
- * Page-adjustment on deleting the last row of a page beyond the first
- * mirrors `Events.vue`'s `deleteEvent` exactly, including the row-leave
- * animation (GitHub issue #42, PRD-010 "Motion") played before it.
- */
+// Tickets are leaves: no DependencyConflictError is possible here.
 async function deleteTicket (ticket: TTicket): Promise<void> {
   await confirm({
     subject: ticket.name,
@@ -365,19 +301,8 @@ function onCreateClicked (): void {
   void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
 
-/**
- * The export always covers the full filtered/sorted result, never one page
- * (GitHub issue #40, PRD-007) — the same `search`/`eventId`/`categoryId`/
- * `status`/`currency`/price-range/`sort` the on-screen list is currently
- * using, just without `page`/`perPage`. `priceMin`/`priceMax` are already in
- * integer minor units on `listFilters`, matching what `ticketsService.exportCsv`
- * expects (same as `useTicketsList`'s own request `query`).
- */
 function onExportCsvClicked (): void {
-  // The response interceptor already toasts a failure (see
-  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
-  // to stop the rejection reaching here unhandled, not to add a second
-  // notification.
+  // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'tickets',
     exportFn: (params, signal) => ticketsService.exportCsv(params, signal),
@@ -557,11 +482,7 @@ const bulkResultVisible = computed({
       </template>
 
       <template #cell-quantity="{ row }">
-        <!-- Zero quantity is flagged with both a distinct tag AND its own
-             "Sold out" text (never colour alone, greyscale-safe) rather than
-             just styling the number — a bare "0" is easy to misread as a
-             data-entry mistake, and PRD-006 explicitly calls for it to read
-             as a deliberate stock state instead. -->
+        <!-- Zero quantity reads as a stock state, not a data-entry mistake (never colour alone). -->
         <el-tag v-if="(row as TTicket).quantity === 0" type="danger" effect="light">
           Sold out (0)
         </el-tag>

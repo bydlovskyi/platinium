@@ -10,25 +10,6 @@ import { ForbiddenError } from '@/features/platform/api/interceptors/response.in
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Role-based permissions, integration tested end to end (GitHub issue #37,
- * PRD-007's testing boundary: "Permissions — integration tested: sign in as
- * a viewer and assert that write actions are absent, that a direct edit URL
- * renders the `el-result` 403, and that a forced write request is
- * rejected"). Mounted behind a real memory-history router (the app's actual
- * route table, including this slice's own `requiredCapability` meta and
- * `/403` route) and a real Pinia instance, against the shared MSW node
- * server answering every request for real — no mocked service layer, no
- * mocked `useCapability`. A session is seeded via `seedSession(role)` +
- * `authStore.restore()`, this repo's established pattern
- * (`tests/integration/events-form.spec.ts`) for exercising the real
- * persisted-token path a fresh navigation to a guarded route relies on.
- *
- * Each behaviour is asserted for both a viewer (refused) and an admin
- * (allowed) so the tests demonstrate the *difference*, not just the
- * viewer-refusal half.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,

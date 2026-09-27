@@ -2,23 +2,6 @@ import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { mount, flushPromises } from '@vue/test-utils'
 
-/**
- * `useBulkOperations` unit tests (GitHub issue #39, PRD-007 "Bulk
- * operations"). Driven through a real memory-history router with a trivial
- * host component, matching this repo's `useListQuery.spec.ts` /
- * `useConfirm.spec.ts` convention of exercising a composable through a host
- * rather than mocking its own dependencies (`useConfirm`, `useRoute`) — only
- * the caller-injected `bulk` function is a `vi.fn()`, since that boundary is
- * exactly what keeps this composable entity-agnostic (see the composable's
- * own file-level comment).
- *
- * `ElMessageBox.confirm` teleports to `document.body` regardless of where the
- * host is mounted, so the wrapper is `attachTo: document.body` and assertions
- * query the real rendered dialog/buttons there, per
- * `docs/prd/ELEMENT-PLUS.md`'s testing convention (also used by
- * `useConfirm.spec.ts`).
- */
-
 function buildResult (overrides: Partial<TBulkResult> = {}): TBulkResult {
   return { succeeded: [], failed: [], ...overrides }
 }
@@ -268,20 +251,15 @@ describe('useBulkOperations', () => {
         findMessageBoxButton('Delete').click()
         await flushPromises()
 
-        // The admin changes the filters/search/page while the request is
-        // still in flight — the query watcher already clears the
-        // (now-stale) selection.
         await router.push({ path: '/list', query: { search: 'zzz' } })
         expect(bulkOperations.selectedIds.value).toEqual([])
 
         resolveBulk(buildResult({ succeeded: ['a'], failed: [{ id: 'b', code: 'NOT_FOUND', reason: 'Not found.' }] }))
         await flushPromises()
 
-        // No stale result surfaced for the caller to render in a dialog.
         expect(bulkOperations.lastResult.value).toBeUndefined()
         expect(onComplete).not.toHaveBeenCalled()
 
-        // The admin still gets some signal the mutation completed.
         await vi.waitFor(() => {
           expect(document.querySelector('.el-notification')?.textContent).toContain('1 succeeded, 1 failed')
         })
@@ -323,20 +301,14 @@ describe('useBulkOperations', () => {
         await vi.waitFor(() => {
           expect(document.querySelector('.el-notification')?.textContent).toContain('could not be completed')
         })
-        // `notificationService.error`'s default title (see `notification.service.ts`).
         expect(document.querySelector('.el-notification')?.textContent).toContain('Error')
 
         expect(bulkOperations.lastResult.value).toBeUndefined()
         expect(onComplete).not.toHaveBeenCalled()
 
-        // `useConfirm`'s contract: a rejected `onConfirm` leaves the dialog
-        // open (no `done()` called) so the admin can retry — verified the
-        // same way `useConfirm.spec.ts` does, via the overlay still visible.
         expect(document.querySelector<HTMLElement>('.el-overlay.is-message-box')?.style.display)
           .not.toBe('none')
 
-        // Selection survives a failed request — nothing to clear yet, the
-        // admin may want to retry the same selection.
         expect(bulkOperations.selectedIds.value).toEqual(['a', 'b'])
       })
     })

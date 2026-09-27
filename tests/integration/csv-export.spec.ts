@@ -11,32 +11,6 @@ import { notificationService } from '@/services/notification.service'
 import { CSV_EXPORT_WARNING_THRESHOLD } from '@/composables/useCsvExport'
 import type { ICategory, IEvent } from '@/mocks/db'
 
-/**
- * Cross-view CSV export integration test (GitHub issue #40, PRD-007 "CSV
- * export" — the build phase's testing boundary deliberately left the
- * cross-view wiring for this slice: `useCsvExport.spec.ts` already covers
- * the composable's own confirm/download mechanics in isolation, and each
- * entity's `*.service.spec.ts` already covers its own `exportCsv` request
- * shape against MSW directly. What is NOT covered anywhere else is a real
- * list screen — with its own current filters/search/sort in the URL —
- * driving the "Export CSV" button through the real composable into a real
- * MSW response and a real (stubbed-browser-API) download. Events (the
- * richest filter set: search, status, country, date range, sort) and
- * Categories (search + sort only, no filter controls — PRD-005 "No
- * filters") together prove the pattern generalizes without re-testing every
- * entity's full filter surface a third time for tickets.
- *
- * Mounted exactly like `events-bulk-operations.spec.ts`: `Events.vue`/
- * `Categories.vue` directly (no `Modals`/`App.vue` dependency for this
- * flow), real router/Pinia/MSW, `mountSignedIn`, `resetDatabase` between
- * tests. The browser-only download primitives
- * (`URL.createObjectURL`/`revokeObjectURL`, anchor click) are stubbed the
- * exact same way `useCsvExport.spec.ts` stubs them, so this test's
- * assertions about "a download was triggered" stay consistent with the
- * composable's own unit test rather than inventing a second mocking
- * approach.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -99,12 +73,7 @@ function findExportButton (wrapper: Awaited<ReturnType<typeof mountSignedIn>>['w
   return button
 }
 
-/**
- * Captures every request's full URL seen by the shared MSW node server,
- * mirroring `events.service.spec.ts`'s `captureRequests` convention (a
- * `request:start` listener rather than a `server.use()` override, so the
- * real handler still answers).
- */
+// A `request:start` listener rather than `server.use()`, so the real handler still answers.
 function captureRequestUrls (): string[] {
   const captured: string[] = []
 
@@ -128,16 +97,8 @@ beforeEach(() => {
   const seededUsers = db.users.list({ perPage: Number.MAX_SAFE_INTEGER }).data
   resetDatabase({ events: [], categories: [], tickets: [], users: seededUsers })
 
-  // Matches `useCsvExport.spec.ts`'s exact mocking approach: `URL.createObjectURL`/
-  // `revokeObjectURL` do not exist in jsdom, and a real click on a `<a
-  // download>` would attempt an actual navigation. Unlike that unit test
-  // (which never exercises axios), this integration test's `mountSignedIn`
-  // goes through a real `POST /auth/login` via axios, and `seedSession` /
-  // this file's own `captureRequestUrls` both construct real `new URL(...)`
-  // instances — spreading `URL` into a plain object the way
-  // `useCsvExport.spec.ts` does would replace the constructor itself and
-  // break both, so `createObjectURL`/`revokeObjectURL` are spied directly on
-  // the real `URL` constructor instead, leaving `new URL(...)` intact.
+  // jsdom lacks createObjectURL/revokeObjectURL. Spy on the real `URL` rather than replacing it:
+  // axios and `new URL(...)` elsewhere in this file need the constructor intact.
   createObjectUrlSpy = vi.fn().mockReturnValue('blob:mock-url')
   revokeObjectUrlSpy = vi.fn()
 
@@ -268,30 +229,19 @@ describe('CSV export', () => {
 
       const notifySpy = vi.spyOn(notificationService, 'error')
 
-      // The collection route (`/events`) is shared by the list fetch and the
-      // export request (same path, `?format=csv` is what tells them apart)
-      // — the list fetch above has already settled by the time this forces
-      // the *next* `/events` request (the export) to fail one-shot.
+      // List fetch and export share `/events` (`?format=csv` differs); the list fetch has settled, so this fails only the export.
       chaos.failNextRequest({ path: '/events', status: 500 })
 
       const exportButton = findExportButton(wrapper)
       await exportButton.trigger('click')
       await flushPromises()
 
-      // If `useCsvExport`/the view's click handler ever regresses to an
-      // un-caught rejection (GitHub issue #40 fix), this `await` would
-      // itself throw — Vitest fails a test on an unhandled rejection raised
-      // during it, so a passing test here is direct proof there is none, not
-      // just that the button eventually stops spinning.
+      // Vitest fails on unhandled rejections, so passing here proves the failed export is caught.
       await vi.waitFor(() => {
         expect(exportButton.classes()).not.toContain('is-loading')
       })
 
-      // The shared response interceptor's generic-failure branch already
-      // toasts — this is the only user-facing feedback for a failed export;
-      // asserting it fired once (not swallowed, not doubled) locks in that
-      // this catch is a "stop the unhandled rejection" guard, not a second
-      // notification path.
+      // The interceptor's toast is the only feedback; exactly once proves the catch doesn't double-notify.
       expect(notifySpy).toHaveBeenCalledOnce()
       expect(createObjectUrlSpy).not.toHaveBeenCalled()
 
@@ -325,7 +275,6 @@ describe('CSV export', () => {
         expect(document.querySelector('.el-message-box')?.textContent)
           .toContain(String(CSV_EXPORT_WARNING_THRESHOLD + 1))
 
-        // No export request sent yet — still waiting on confirmation.
         expect(requests.some(url => new URL(url).searchParams.get('format') === 'csv')).toBe(false)
 
         findMessageBoxButton('Export').click()

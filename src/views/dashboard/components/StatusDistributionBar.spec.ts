@@ -3,15 +3,6 @@ import type { IStatusDistributionEntry } from './status-distribution-bar.types'
 
 import { mountWithRouterAndPinia } from '../../../../tests/support'
 
-/**
- * `StatusDistributionBar`, unit tested in isolation (GitHub issue #43,
- * PRD-010 "Dashboard presentation") — the single stacked proportional bar
- * replacing the dashboard's former per-status `el-progress` rows.
- * `Dashboard.spec.ts` already covers the end-to-end navigation behaviour
- * (clicking a segment/legend row lands on the right filtered list); this
- * file covers the component's own rendering logic: segment widths, colour
- * mapping and the accessible legend.
- */
 function buildEntries (): IStatusDistributionEntry[] {
   return [
     { status: 'draft', count: 1, to: { name: routeNames.events, query: { status: 'draft' } } },

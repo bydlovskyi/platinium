@@ -8,12 +8,6 @@ export interface IMountWithRouterAndPiniaOptions<T extends Component> extends Co
   initialRoute?: string
 }
 
-/**
- * Mounts a component or view behind a real memory-history router (seeded
- * with the app's actual route table) and a fresh Pinia instance, matching
- * how PRD-008 wants integration tests built: real router, real store, no
- * stubs standing in for either.
- */
 export async function mountWithRouterAndPinia<T extends Component> (
   component: T,
   options: IMountWithRouterAndPiniaOptions<T> = {}

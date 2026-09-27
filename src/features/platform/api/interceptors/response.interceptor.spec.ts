@@ -161,7 +161,7 @@ describe('errorInterceptor', () => {
   })
 
   describe('409', () => {
-    it('rejects with a DependencyConflictError carrying the parsed entity/count and raises no generic toast (PRD-004 "Deletion")', async () => {
+    it('rejects with a DependencyConflictError carrying the parsed entity/count and raises no generic toast', async () => {
       const error = buildError({
         status: 409,
         data: { code: 'CONFLICT', message: '3 tickets reference this event.', entity: 'ticket', count: 3 }
@@ -182,7 +182,7 @@ describe('errorInterceptor', () => {
       expect(notifyError).not.toHaveBeenCalled()
     })
 
-    it('rejects with a ConflictError (not a DependencyConflictError) when the body carries no entity/count, defaulting code to CONFLICT when the body omits it too (PRD-005 "Uniqueness" fix — a 409 without entity/count is not a dependency conflict)', async () => {
+    it('rejects with a ConflictError (not a DependencyConflictError) when the body carries no entity/count, defaulting code to CONFLICT when the body omits it too', async () => {
       const error = buildError({ status: 409, data: { message: 'Cannot delete.' } })
 
       await expect(errorInterceptor(error)).rejects.toBeInstanceOf(ConflictError)
@@ -200,7 +200,7 @@ describe('errorInterceptor', () => {
       expect(notifyError).not.toHaveBeenCalled()
     })
 
-    it('rejects with a ConflictError carrying the DUPLICATE_NAME code for a coded, non-dependency 409 body (PRD-005 "Uniqueness")', async () => {
+    it('rejects with a ConflictError carrying the DUPLICATE_NAME code for a coded, non-dependency 409 body', async () => {
       const error = buildError({
         status: 409,
         data: { code: 'DUPLICATE_NAME', message: 'A category named "VIP" already exists.' }

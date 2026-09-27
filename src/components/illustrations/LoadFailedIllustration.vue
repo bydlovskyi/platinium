@@ -1,15 +1,5 @@
 <script lang="ts" setup>
-/**
- * Line illustration for the data table's (and any other screen's) load-error
- * state (GitHub issue #41, PRD "Designed states"). Reads as an interrupted
- * connection between two nodes — "a condition with a way forward" — rather
- * than a generic warning triangle, matching the retry affordance that always
- * accompanies it (`AppDataTable.vue`'s error `el-result`).
- *
- * Shares this family's visual language (rounded 1.5px strokes) with the
- * other four illustrations under this directory. Pure `currentColor` — the
- * consumer sets colour via a `text-*` Tailwind class.
- */
+// Colour comes from `currentColor`; set it with a `text-*` class.
 </script>
 
 <template>

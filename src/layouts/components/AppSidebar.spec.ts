@@ -27,8 +27,7 @@ describe('AppSidebar', () => {
   it('renders every declared nav entry and highlights the current route', async () => {
     const { wrapper, router } = await mountWithRouterAndPinia(AppSidebar, { initialRoute: '/' })
 
-    // `/` requires auth; sign in and re-navigate so the guard actually
-    // lands on `home` rather than bouncing to `login`.
+    // `/` requires auth; sign in and re-navigate so the guard lands on `home`.
     signIn()
     await router.push('/')
 

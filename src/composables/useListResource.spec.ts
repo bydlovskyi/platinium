@@ -16,17 +16,6 @@ interface IDeferred<T> {
   reject: (reason?: unknown) => void
 }
 
-/**
- * `useListResource` unit tests (GitHub issue #22): binds a reactive list
- * query to an entity fetcher, refetching on change while guarding against
- * the classic fast-typing-administrator race — a superseded request must
- * never overwrite state set by a newer one. Driven through a trivial host
- * component (matching `useListQuery.spec.ts`) since `useAbortController`
- * registers an `onUnmounted` hook and needs a real component instance. The
- * fetcher itself is a hand-rolled deferred-promise stub so each test
- * controls resolve/reject order explicitly instead of racing real timers.
- */
-
 function buildPaginationMeta (overrides: Partial<TPaginationMeta> = {}): TPaginationMeta {
   return { page: 1, perPage: 20, total: 0, totalPages: 1, ...overrides }
 }
@@ -114,15 +103,12 @@ describe('useListResource', () => {
     expect(signals[0]!.aborted).toBe(true)
     expect(signals[1]!.aborted).toBe(false)
 
-    // Newer request settles first.
     secondRequest.resolve({ data: [{ id: 2, name: 'page-2' }], meta: buildPaginationMeta({ page: 2 }) })
     await flushPromises()
 
     expect(listResource.data.value).toEqual([{ id: 2, name: 'page-2' }])
     expect(listResource.meta.value).toEqual(buildPaginationMeta({ page: 2 }))
 
-    // The superseded (older) request resolves late, simulating a real abort
-    // signal rejecting it — it must not overwrite the newer state above.
     firstRequest.reject(buildAbortError())
     await flushPromises()
 
@@ -158,8 +144,6 @@ describe('useListResource', () => {
     shouldFail = false
     const refetchPromise = listResource.refetch()
 
-    // `error` is cleared synchronously as part of calling `refetch`, before
-    // the retried fetch even settles.
     expect(listResource.error.value).toBeUndefined()
 
     await refetchPromise
@@ -208,8 +192,6 @@ describe('useListResource', () => {
     query.value = { page: 2 }
     await flushPromises()
 
-    // The second page's fetch is in flight: loading is true, but the first
-    // page's data must remain visible rather than being cleared to `[]`.
     expect(listResource.loading.value).toBe(true)
     expect(listResource.data.value).toEqual([{ id: 1, name: 'page-1' }])
 

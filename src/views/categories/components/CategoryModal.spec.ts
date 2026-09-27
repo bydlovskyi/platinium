@@ -6,28 +6,6 @@ import { mountWithRouterAndPinia } from '../../../../tests/support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory } from '@/mocks/db'
 
-/**
- * `CategoryModal` unit/component tests (GitHub issue #30, PRD-005's testing
- * boundary: "Category form validation — unit tested through the `el-form`
- * ref: required name, length bounds on both fields, optional description,
- * trimming" and "Dialog behaviour — component tested against the real
- * `el-dialog`: focus on open, focus restored on close, Escape closes a clean
- * form, Escape prompts on a dirty one"). Mounted behind a real router (the
- * component calls `useUnsavedChangesGuard`, which needs a matched route to
- * register itself, mirroring `EventForm.spec.ts`) with real Element Plus
- * components throughout — no stubs. `el-dialog` (via `useModals()`'s
- * `append-to-body` in `Modals.vue`) and `ElMessageBox` both teleport to
- * `document.body`, so this mounts with `attachTo: document.body` and queries
- * dialog content there, matching every other spec in this repo that deals
- * with teleported Element Plus content (`Events.spec.ts`,
- * `tests/integration/events-form.spec.ts`).
- *
- * `useModals()`'s `isOpen` is a module-level singleton (`useModals.ts`), not
- * per-component-instance state — exactly like the production `Modals.vue`
- * host renders it — so each test drives the dialog open/closed through the
- * real `openModal`/`closeModal` API rather than any component-internal prop.
- */
-
 function buildCategory (overrides: Partial<ICategory> = {}): ICategory {
   return {
     id: overrides.id ?? 'category-1',
@@ -45,15 +23,7 @@ async function mountModal (category?: ICategory) {
   const result = await mountWithRouterAndPinia(CategoryModal, {
     props: { category, onSaved: undefined },
     attachTo: document.body,
-    // `el-dialog`'s focus-on-open (`@opened`, fired from its own `<Transition>`'s
-    // `onAfterEnter` hook — see `use-dialog.mjs`) and focus-trap-restore-on-close
-    // never fire under `@vue/test-utils`' default behaviour, which auto-stubs
-    // Vue's built-in `<transition>`/`<transition-group>` (`DEFAULT_STUBS` in
-    // `@vue/test-utils`) — a stub renders no transition hooks at all. Disabling
-    // that one default stub (real teleport stays as-is; this component's own
-    // `el-dialog` doesn't set `append-to-body` itself, only `Modals.vue` does)
-    // is required for any assertion on dialog open/close side effects, not a
-    // one-off test quirk.
+    // Unstub <transition>: VTU's default stub skips the hooks that drive el-dialog's focus-on-open/restore.
     global: { stubs: { transition: false } }
   })
 
@@ -105,11 +75,7 @@ afterEach(() => {
   }
   mountedWrappers = []
 
-  // `useModals()`'s `isOpen`/`modals` maps are module-level singletons that
-  // outlive any single component instance (mirrors production: `Modals.vue`
-  // keeps one instance alive per modal name across every `openModal` call) —
-  // close it explicitly so a leftover "open" state doesn't leak into the
-  // next test in this file.
+  // useModals state is module-level; close explicitly so it doesn't leak into the next test.
   const { closeModal } = useModals()
   closeModal('CategoryModal')
 
@@ -191,9 +157,6 @@ describe('CategoryModal', () => {
       form?.dispatchEvent(new Event('submit', { cancelable: true }))
       await flushPromises()
 
-      // Give the (successful) submit request a chance to settle; the
-      // create request itself is exercised by the integration suite — this
-      // test only asserts no validation error appears against `description`.
       await flushPromises()
 
       const descriptionItem = Array.from(document.querySelectorAll('.el-dialog .el-form-item'))
@@ -294,7 +257,6 @@ describe('CategoryModal', () => {
       findMessageBoxButton('Stay').click()
       await flushPromises()
 
-      // The dialog remains open.
       expect(document.querySelector('.el-dialog')).toBeTruthy()
       expect((nameInput()).value).toBe('Unsaved Name')
     })

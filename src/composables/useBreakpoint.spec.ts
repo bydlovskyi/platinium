@@ -1,13 +1,5 @@
 import { setViewportToBreakpoint } from '../../tests/support'
 
-/**
- * `useBreakpoint` unit tests — the single source of the shell's responsive
- * tier (PRD-002 "Responsive strategy"), backed by VueUse's `useBreakpoints`
- * rather than an ad-hoc `window.innerWidth` listener. Driven through
- * `setViewportToBreakpoint` (`tests/support/viewport.ts`) and the
- * `matchMedia` polyfill (`tests/support/match-media.ts`) jsdom itself
- * doesn't provide.
- */
 describe('useBreakpoint', () => {
   it('reports desktop at a desktop viewport', () => {
     setViewportToBreakpoint('desktop')

@@ -22,7 +22,6 @@ function seedWidgets (): IWidget[] {
   ]
 }
 
-/** A record shape with its own `[start, end]` range, used only by the `overlapFilters` tests below. */
 interface IBooking {
   id: string
   label: string
@@ -56,16 +55,7 @@ function setupBookingHandlerUnderTest (): IEntityCollection<IBooking> {
   return collection
 }
 
-/**
- * Registers a fresh set of `createEntityHandlers()` handlers onto the
- * shared node server (`src/mocks/server.ts`, already listening for the
- * whole suite via `tests/setup.ts`) via `server.use(...)`, rather than
- * standing up a second, independently-listening `setupServer` — MSW's node
- * interceptor is process-global, so two concurrently-listening servers in
- * the same process step on each other. `server.resetHandlers()` runs after
- * every test (`tests/setup.ts`), so each test starts from a clean handler
- * list regardless of prior overrides.
- */
+// Extends the shared server via `server.use()`: MSW's node interceptor is process-global, so a second server would conflict.
 function setupHandlerUnderTest (
   overrides: Partial<IEntityHandlerOptions<IWidget>> = {}
 ): IEntityCollection<IWidget> {
@@ -88,25 +78,8 @@ function setupHandlerUnderTest (
   return collection
 }
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient`
- * and not the raw `fetch` global. `apiClient`'s response interceptor
- * (`response.interceptor.ts`) deliberately unwraps a successful response to
- * `response.data` and discards the status code, which is convenient for
- * application code but means these handler-factory tests (which assert on
- * exact status codes like 201/204/409) need the untouched response. Plain
- * `axios` still goes through the same XHR/http layer `msw`'s interceptor
- * patches, exactly like `apiClient` — unlike jsdom's own `fetch` polyfill,
- * which is not one of the runtime layers `msw/node`'s interceptor patches,
- * and would silently miss every handler if used here instead.
- *
- * No `baseURL` is set: the request URL stays relative (`/widgets`), so it
- * resolves against jsdom's own default origin (`http://localhost:3000`),
- * matching how `apiClient` resolves it in production. Pointing it at an
- * explicit absolute origin like `http://localhost` (no port) resolves to a
- * different origin than the one MSW's path-only handlers are registered
- * against in this test environment, and the request goes unintercepted.
- */
+// Plain axios, not `apiClient` (drops status codes) or jsdom's `fetch` (not intercepted by msw/node).
+// No `baseURL`: an explicit origin like `http://localhost` misses MSW's path-only handlers here.
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
@@ -191,10 +164,6 @@ describe('createEntityHandlers', () => {
 
       const { body } = await requestFor('get', '/bookings')
 
-      // No `startFrom`/`startTo` on the request: `parseOverlap()` finds no
-      // matching query params for the declared filter and returns `undefined`,
-      // so `query.overlap` is never set and every record passes through
-      // unfiltered, exactly as an entity with no overlap filter declared at all.
       expect((body as { data: IBooking[] }).data.map(b => b.id).sort()).toEqual(['x', 'y', 'z'])
     })
 

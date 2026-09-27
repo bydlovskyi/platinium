@@ -7,31 +7,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory } from '@/mocks/db'
 
-/**
- * Categories list screen, integration tested end to end (GitHub issue #30,
- * PRD-005's testing boundary: "List behaviour — integration tested: search
- * and sort reflected in the URL and in the request the mock receives").
- * Mirrors `src/views/events/Events.spec.ts`'s structure exactly — mounted
- * behind a real memory-history router and a real Pinia instance, against the
- * shared MSW node server answering `GET /categories` for real. Assertions
- * target `route.query`, the actual request MSW received (via a
- * `request:start` life-cycle listener over the shared node server, per
- * `TESTING.md`'s worked example) and user-visible DOM, never internal
- * component state.
- *
- * Also covers the "Sort by creation date" `el-select` (`NON_COLUMN_SORT_OPTIONS`
- * in `Categories.vue`) — a bespoke, non-column sort control unique to this
- * screen (there is no `createdAt` list column to attach a header-click sort
- * to, per PRD-005's acceptance criteria), on top of the name-column-header
- * sort the events pattern already covers.
- *
- * Signs a session in directly by writing to the auth store, matching
- * `Events.spec.ts`'s established pattern, since this slice is only
- * responsible for the list screen behind the guard, not the login flow —
- * and unlike `categories-crud.spec.ts`, nothing here needs the modal/`App.vue`
- * shell, since no dialog is opened in these tests.
- */
-
 function buildCategory (overrides: Partial<ICategory> = {}): ICategory {
   return {
     id: overrides.id ?? `category-${Math.random().toString(36).slice(2)}`,
@@ -43,7 +18,6 @@ function buildCategory (overrides: Partial<ICategory> = {}): ICategory {
   }
 }
 
-/** Captures the query params of every `GET /categories` request MSW receives, without replacing the real handler's behaviour. */
 function captureCategoriesRequests (): URLSearchParams[] {
   const captured: URLSearchParams[] = []
 
@@ -183,13 +157,6 @@ describe('Categories list screen', () => {
       })
     })
 
-    /**
-     * The bespoke "Sort by" `el-select` unique to categories (PRD-005 —
-     * `createdAt` has no dedicated list column to attach a header-click sort
-     * to). Exercises `Categories.vue`'s `onNonColumnSortChange`, which pushes
-     * `sort`/`order` query params directly rather than going through
-     * `useListQuery`'s `setSort` toggle.
-     */
     describe('non-column "Sort by creation date" control', () => {
       it('reflects the selected option in the URL and the request MSW receives', async () => {
         db.categories.insert(buildCategory({ id: 'c1', name: 'Older', createdAt: '2020-01-01T00:00:00.000Z' }))
@@ -257,9 +224,7 @@ describe('Categories list screen', () => {
         await router.push({ query: { sort: 'createdAt', order: 'desc' } })
         await flushPromises()
 
-        // The clear icon only renders while focused/hovered (Element Plus's
-        // `showClearBtn` — `useSelect.mjs`), so the wrapper is hovered first
-        // to reveal it, matching how an administrator would actually clear it.
+        // The clear icon only renders on hover (Element Plus's showClearBtn).
         const selectWrapper = wrapper.find('[aria-label="Sort by creation date"]').element.closest('.el-select')!
         selectWrapper.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
         await flushPromises()

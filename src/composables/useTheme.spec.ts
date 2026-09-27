@@ -1,14 +1,5 @@
 import { setPreferredColorScheme } from '../../tests/support'
 
-/**
- * `useTheme` unit tests (PRD-002 "Testing boundary" — "Theme composable —
- * unit tested for default-from-system, explicit override and persistence").
- *
- * Driven through the `matchMedia` polyfill (`tests/support/match-media.ts`,
- * `setPreferredColorScheme`) for the system preference and through
- * `localStorage` directly for the persisted-choice cases — the same
- * `THEME_STORAGE_KEY` `useColorMode` itself reads and writes.
- */
 describe('useTheme', () => {
   afterEach(() => {
     document.documentElement.classList.remove('dark')

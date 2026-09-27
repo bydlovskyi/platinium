@@ -2,15 +2,7 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { parseDynamicKeys } from '../helpers'
 import { getPersistedAuthToken } from '../auth-token'
 
-/**
- * Attaches the persisted bearer token (see `../auth-token.ts`) to every
- * outgoing request, unless the caller already set an explicit
- * `Authorization` header on this request — that override always wins. No
- * auth store exists yet (it lands in issue #19), so the token is read
- * directly from `localStorage` rather than from Pinia state: this module
- * sits below the store layer in the dependency direction and must never
- * import one.
- */
+// An explicit Authorization header set by the caller wins.
 const requestInterceptor = (requestConfig: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   if (requestConfig.headers && requestConfig.headers.Authorization === undefined) {
     const token = getPersistedAuthToken()

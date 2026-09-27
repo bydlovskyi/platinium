@@ -38,8 +38,7 @@ describe('csv serialisation', () => {
     )
 
     it('neutralises a DDE-style formula field, keeping the apostrophe inside the RFC-4180 quoting', () => {
-      // The value also contains a comma, so it must be quoted; the neutralising
-      // apostrophe must land inside the quotes, before the original `=`.
+      // Also contains a comma, so it's quoted, with the apostrophe inside the quotes.
       expect(escapeCsvField('=1+2,3')).toBe('"\'=1+2,3"')
     })
 
@@ -111,8 +110,6 @@ describe('csv serialisation', () => {
 
       const rows = serialiseCsv(records, columns).split('\r\n')
 
-      // The price field is a bare decimal ("12.34"), not "12.34 GBP" or "GBP 12.34" —
-      // currency lives only in its own column, so the value stays spreadsheet-summable.
       expect(rows[1]).toBe('Standard,12.34,GBP,2026-01-01T00:00:00.000Z')
     })
 

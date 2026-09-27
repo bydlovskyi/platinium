@@ -1,11 +1,6 @@
 import { createSeededId, createSeededRandom, type TSeededRandom } from './random'
 import type { ICategory, IEvent, ITicket, IUser, TCurrency, TEventStatus, TTicketStatus } from './types'
 
-/**
- * Fixed seed for the deterministic PRNG. Never `Math.random()` — the same
- * seed and reference date must produce the identical dataset on every run,
- * in every environment.
- */
 const SEED = 1337
 
 const EVENT_COUNT = 48
@@ -56,7 +51,6 @@ const EVENT_START_OFFSET_DAYS_MIN = -200
 const EVENT_DURATION_DAYS_RANGE = 5
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
-/** The full deterministic seed dataset: events, categories, tickets and users. */
 export interface ISeedDataset {
   events: IEvent[]
   categories: ICategory[]
@@ -79,7 +73,7 @@ function intBetween (random: TSeededRandom, min: number, range: number): number 
   return min + Math.floor(random() * range)
 }
 
-/** Picks the item at `index % items.length` — used to guarantee every enum value is covered by rotation. */
+// Rotation guarantees every enum value appears in the seed.
 function cycle<T> (items: readonly T[], index: number): T {
   const item = items[index % items.length]
 
@@ -92,12 +86,7 @@ function cycle<T> (items: readonly T[], index: number): T {
 
 const ISO_DATE_LENGTH = 10
 
-/**
- * Adds `days` to `isoDate` and returns a date-only string (`YYYY-MM-DD`, no
- * time component) — event dates are date-only per the OpenAPI contract
- * (`startDate`/`endDate` on `Event`, `format: date`), unlike `createdAt`/
- * `updatedAt`, which stay full ISO date-time strings.
- */
+// Event dates are date-only (`YYYY-MM-DD`) per the contract; `createdAt`/`updatedAt` stay full date-times.
 function addDays (isoDate: string, days: number): string {
   return new Date(new Date(isoDate).getTime() + days * MILLISECONDS_PER_DAY).toISOString().slice(0, ISO_DATE_LENGTH)
 }
@@ -112,12 +101,7 @@ function createCategories (random: TSeededRandom): ICategory[] {
   }))
 }
 
-/**
- * Today's UTC date as `YYYY-MM-DD` — the default anchor for event dates.
- * Day-granular on purpose: the dataset stays identical for every call on the
- * same day, and event dates stay spread around the real "now" instead of
- * drifting into the past as the calendar moves on.
- */
+// Day-granular so the dataset is stable within a day while event dates stay spread around the real now.
 function currentIsoDate (): string {
   return new Date().toISOString().slice(0, ISO_DATE_LENGTH)
 }
@@ -166,20 +150,7 @@ function createTickets (random: TSeededRandom, events: IEvent[], categories: ICa
   })
 }
 
-/**
- * The two seeded accounts, one per {@link TUserRole}. Passwords are not part
- * of this fixture or of {@link IUser} — they are checked directly by the login
- * handler (`src/mocks/handlers/auth.ts`), matching the "credentials are
- * defined in the mock auth handler" note in PRD-002. `sessionActive` starts
- * `false` on both: a fresh dataset has no active session until a successful
- * `POST /auth/login`.
- *
- * Documented credentials (a later doc slice surfaces these in the README):
- * - Administrator — `admin@platinium.test` / `admin123` — may perform every
- *   operation.
- * - Viewer — `viewer@platinium.test` / `viewer123` — read-only; every write
- *   endpoint rejects this account's token with `403` (PRD-007).
- */
+// Passwords are not stored here; the login handler (`handlers/auth.ts`) checks them.
 function createUsers (random: TSeededRandom): IUser[] {
   return [
     {
@@ -203,20 +174,7 @@ function createUsers (random: TSeededRandom): IUser[] {
   ]
 }
 
-/**
- * Builds the deterministic seed dataset: several dozen events spanning
- * multiple countries and every {@link TEventStatus}, a handful of
- * categories, several hundred tickets spread across events, categories,
- * every {@link TTicketStatus} and every {@link TCurrency}, and the single
- * seeded administrator user. Every ticket references a real event id and a
- * real category id from the same generation.
- *
- * Seeded from a fixed integer via {@link createSeededRandom} — no
- * `Math.random()` — so two calls with the same `referenceDate` produce
- * byte-for-byte identical output. Event start dates are offsets from
- * `referenceDate` (today by default), so the portal always has past, running
- * and upcoming events; tests pass a fixed date to pin the output.
- */
+// Event dates are offsets from `referenceDate` (today by default); tests pass a fixed date to pin the output.
 export function createSeedDataset (referenceDate: string = currentIsoDate()): ISeedDataset {
   const random = createSeededRandom(SEED)
 

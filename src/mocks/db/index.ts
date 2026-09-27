@@ -1,10 +1,3 @@
-/**
- * Public surface of the mock database module. A future MSW handler factory
- * (slice #15) wraps `createCollection`/`IEntityCollection` for every entity
- * and reuses the domain types and query shapes declared here, so filtering
- * behaviour cannot diverge between entities.
- */
-
 export { createCollection } from './collection'
 export type { ICollectionOptions, IEntityCollection } from './collection'
 

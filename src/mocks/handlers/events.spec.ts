@@ -4,16 +4,7 @@ import { db } from '../db/singleton'
 import { resetDatabase } from '../../../tests/support'
 import type { IEvent, ITicket } from '../db'
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient` —
- * for the same reason `auth.spec.ts` and `factory.spec.ts` do: `apiClient`'s
- * response interceptor unwraps a successful response and discards the
- * status code, which these tests need to assert on directly (e.g. exact
- * 201/400/404/409). Plain `axios` still goes through the same XHR/http layer
- * `msw/node`'s interceptor patches. No `baseURL` is set, so requests resolve
- * against jsdom's default origin, matching how `apiClient` resolves a
- * relative path in production.
- */
+// Plain axios, not `apiClient`: its response interceptor drops the status code these tests assert on.
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
@@ -31,7 +22,6 @@ async function requestFor (
   return { status: response.status, body: response.data }
 }
 
-/** Logs in as the seeded account for the given role, returning its bearer token — used by the viewer-403 tests below. */
 async function loginAs (email: string, password: string): Promise<string> {
   const { data } = await axios.request({
     method: 'post',
@@ -405,10 +395,7 @@ describe('events handlers', () => {
 
   describe('DELETE /events/{id}', () => {
     it('deletes a freshly created event with no tickets referencing it: 204, and it is actually gone', async () => {
-      // Created fresh (rather than picked from seed data) so the test's premise —
-      // "no ticket references this event" — is explicit and does not depend on
-      // incidental seed shape (every seeded event happens to have a ticket, given
-      // 400 seeded tickets spread across only 48 seeded events).
+      // Created fresh: every seeded event happens to have a ticket.
       const target = (await requestFor('post', '/events', validEventPayload())).body as IEvent
 
       const { status, body } = await requestFor('delete', `/events/${target.id}`)
@@ -579,8 +566,7 @@ describe('events handlers', () => {
     })
 
     it('accepts an ids array exactly at the 100-item cap (not rejected for size)', async () => {
-      // The ids need not be real — a size check must pass at exactly the limit,
-      // so unknown ids come back as per-identifier failures, never a 400.
+      // Ids need not exist: at the limit they come back as per-id failures, not a 400.
       const atCapIds = Array.from({ length: 100 }, (_, index) => `bulk-cap-${index}`)
 
       const { status, body } = await requestFor('post', '/events/bulk', { ids: atCapIds, operation: 'delete' })
@@ -593,7 +579,7 @@ describe('events handlers', () => {
     })
   })
 
-  describe('viewer permissions (PRD-007)', () => {
+  describe('viewer permissions', () => {
     it('rejects POST /events for a viewer with 403', async () => {
       const token = await loginAsViewer()
 
@@ -635,7 +621,7 @@ describe('events handlers', () => {
       expect(db.events.get(created.id)).toBeDefined()
     })
 
-    it('regression: an admin can still create/update/delete after this slice', async () => {
+    it('an admin can still create/update/delete', async () => {
       const token = await loginAsAdmin()
 
       const created = (await requestFor('post', '/events', validEventPayload({ name: 'Admin Regression Event' }), { token })).body as IEvent

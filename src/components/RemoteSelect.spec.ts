@@ -2,17 +2,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 
 import RemoteSelect from './RemoteSelect.vue'
 
-/**
- * `RemoteSelect` component tests (GitHub issue #33, PRD-006's testing
- * boundary — "component tested against the real `el-select`: debounced
- * search, incremental load triggered by scrolling the dropdown
- * `el-scrollbar`, resolution of a preselected value absent from the first
- * page, `#empty` and `#loading` states"). Mounts the real `el-select` (never
- * stubbed, per `docs/prd/ELEMENT-PLUS.md`) and drives/reads the teleported
- * dropdown in `document.body`, the same pattern `AppDataTable.spec.ts` uses
- * for `el-dropdown`.
- */
-
 interface IOption {
   id: string
   name: string
@@ -42,7 +31,6 @@ function paginate (search: string, page: number): IPage {
   }
 }
 
-/** A promise this test controls the resolution of, to pin down an in-flight moment deterministically instead of racing the real microtask queue. */
 function createDeferred<T> () {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((res) => {
@@ -74,8 +62,7 @@ function mountRemoteSelect (options: {
       optionValue: (option: IOption) => option.id,
       optionLabel: (option: IOption) => option.name
     },
-    // The selected-value display isn't teleported (only the dropdown is),
-    // so `document.querySelector` can't reach it without a connected tree.
+    // The selected-value display isn't teleported, so the tree must be connected.
     attachTo: document.body
   })
 
@@ -118,7 +105,6 @@ describe('RemoteSelect', () => {
       await vi.advanceTimersByTimeAsync(100)
     }
 
-    // Still within the debounce window since the last keystroke — nothing fetched yet.
     expect(fetchOptions).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(300)
@@ -184,13 +170,7 @@ describe('RemoteSelect', () => {
     expect(document.body.textContent).toContain('Alpha')
     expect(document.body.textContent).not.toContain('Charlie')
 
-    // jsdom performs no real layout (scrollHeight/clientHeight are always
-    // 0), so VueUse's `useInfiniteScroll` treats the dropdown as already at
-    // its scroll boundary the moment the scroll target is observed — this
-    // environment can't meaningfully simulate an actual scroll gesture.
-    // What's under test here is the real wiring this component owns (the
-    // located `el-scrollbar__wrap`, `useInfiniteScroll`, and the page-merge
-    // logic), not the literal browser scroll event.
+    // jsdom has no layout, so `useInfiniteScroll` sees the dropdown at its boundary as soon as it opens.
     await openDropdown(wrapper)
 
     await vi.waitFor(() => {

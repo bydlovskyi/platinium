@@ -1,14 +1,4 @@
 <script lang="ts" setup>
-/**
- * Events list screen (GitHub issue #26, PRD-004 "Events list — columns,
- * filters, sorting, pagination" — the first entity screen, and the proof
- * that the shared list machinery from PRD-003 actually holds). This view is
- * deliberately thin: it composes `useEventsList` (URL-driven query +
- * fetching) and renders `ListToolbar` + `AppDataTable` from column/filter
- * descriptors. Any list-state logic that would belong here instead belongs
- * one layer down, in the shared composables — see the composable's own
- * comment.
- */
 import { DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
 
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
@@ -72,7 +62,7 @@ const activeFilters = computed(() => {
   if (listFilters.startDateFrom !== '' || listFilters.startDateTo !== '') {
     chips.push({
       key: 'dateRange',
-      label: `Dates: ${listFilters.startDateFrom || '…'} – ${listFilters.startDateTo || '…'}`
+      label: `Dates: ${listFilters.startDateFrom ?? '…'} – ${listFilters.startDateTo ?? '…'}`
     })
   }
 
@@ -112,16 +102,7 @@ function rowKey (row: TEvent): string {
   return row.id
 }
 
-// Uses `AppDataTable`'s existing `rowActions` / `row-action-invoked`
-// vocabulary (GitHub issue #23) rather than adding anything new to that
-// shared component — this issue's file scope is this view and the events
-// form only.
-//
-// `rowActions` is a `computed` (GitHub issue #37, PRD-007) rather than a
-// static array so a viewer never has "edit"/"delete" in the dropdown at
-// all — `AppDataTable` only ever renders `hasActions`/`rowActions` as
-// given, so filtering here is what keeps the control out of the DOM
-// instead of merely disabling it.
+// Filtered, not disabled: AppDataTable renders rowActions as given, so this keeps viewer-forbidden actions out of the DOM.
 const rowActions = computed<IDataTableRowAction<TEvent>[]>(() => {
   const actions: IDataTableRowAction<TEvent>[] = []
 
@@ -136,10 +117,6 @@ const rowActions = computed<IDataTableRowAction<TEvent>[]>(() => {
   return actions
 })
 
-// --- Bulk operations (GitHub issue #39, PRD-007) ---------------------------
-// Mirrors `rowActions` above: whether the bulk bar can delete/archive at all
-// is gated by the same `canDo` capability check as the row-level actions, so
-// a viewer never sees an affordance that would just 403.
 const canBulkDelete = computed(() => canDo('events', 'delete'))
 const canBulkArchive = computed(() => canDo('events', 'update'))
 
@@ -148,18 +125,6 @@ function selectionSubject (): string {
   return `${count} event${count === 1 ? '' : 's'}`
 }
 
-/**
- * Mirrors `deleteEvent`'s own page-back check below, generalized to "every
- * row currently on this page was deleted" rather than "the one row was the
- * last one on the page" — a bulk delete can wipe out the whole page at once,
- * not just its final row. Only relevant to `delete`; `archive` never removes
- * a row from the list via this check (GitHub issue #39 follow-up fix).
- *
- * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") on
- * every succeeded row before either step-back or refetch runs, so the
- * administrator sees which records were removed rather than the list
- * silently shrinking.
- */
 async function onBulkDeleteComplete (): Promise<void> {
   const succeededIds = bulkResult.value?.succeeded ?? []
   const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(event => succeededIds.includes(event.id))
@@ -192,22 +157,7 @@ async function bulkArchiveEvents (): Promise<void> {
   })
 }
 
-/**
- * Deletes `event` after confirmation (GitHub issue #28, PRD-004
- * "Deletion"). A 409 (`DependencyConflictError`, thrown by the response
- * interceptor) means tickets still reference the event — that gets its own
- * actionable notification here rather than the interceptor's generic toast
- * (suppressed for 409), and `onConfirm` rejecting keeps the `ElMessageBox`
- * open so the administrator sees it instead of the dialog closing silently.
- * A successful delete keeps the page in place unless the deleted row was the
- * last one on a page beyond the first — `useListResource` has no automatic
- * page-adjustment, so that's handled explicitly here.
- *
- * Plays the row-leave animation (GitHub issue #42, PRD-010 "Motion") before
- * the page-adjustment/refetch, so the administrator sees the deleted row
- * animate out rather than the table jump-cutting straight to the refetched
- * result.
- */
+// Re-throws on 409 so useConfirm keeps the dialog open; useListResource doesn't adjust the page itself.
 async function deleteEvent (event: TEvent): Promise<void> {
   await confirm({
     subject: event.name,
@@ -250,25 +200,17 @@ function onCreateClicked (): void {
   void router.push({ name: routeNames.eventCreate, query: { from: route.fullPath } })
 }
 
-/**
- * The export always covers the full filtered/sorted result, never one page
- * (GitHub issue #40, PRD-007) — the same `search`/`status`/`country`/date-range/
- * `sort` the on-screen list is currently using, just without `page`/`perPage`.
- */
 function onExportCsvClicked (): void {
-  // The response interceptor already toasts a failure (see
-  // `useCsvExport`'s own rejected-export test) — this `.catch` exists only
-  // to stop the rejection reaching here unhandled, not to add a second
-  // notification.
+  // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'events',
     exportFn: (params, signal) => eventsService.exportCsv(params, signal),
     params: {
-      search: search.value || undefined,
+      search: search.value ?? undefined,
       status: listFilters.status === 'all' ? undefined : listFilters.status,
-      country: listFilters.country || undefined,
-      startDateFrom: listFilters.startDateFrom || undefined,
-      startDateTo: listFilters.startDateTo || undefined,
+      country: listFilters.country ?? undefined,
+      startDateFrom: listFilters.startDateFrom ?? undefined,
+      startDateTo: listFilters.startDateTo ?? undefined,
       sort: sort.value?.field,
       order: sort.value?.order
     },

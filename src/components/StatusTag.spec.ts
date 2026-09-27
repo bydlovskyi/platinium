@@ -2,17 +2,6 @@ import { mount } from '@vue/test-utils'
 
 import StatusTag from './StatusTag.vue'
 
-/**
- * `StatusTag` component tests (GitHub issue #24, PRD-003 "Formatters and
- * status tag — unit tested"). Mounts the real `el-tag` (never stubbed, per
- * `docs/prd/ELEMENT-PLUS.md`'s testing section) with every `TEventStatus`
- * and `TTicketStatus` value and asserts both the rendered text label (the
- * "identical statuses look identical" / "distinguishable in greyscale"
- * acceptance criterion — colour is never the only signal) and the tag's
- * `type` prop reaching the DOM as an `el-tag--<type>` class, so a
- * colour-only regression (e.g. two different statuses silently sharing one
- * type) would also be caught, not just a label typo.
- */
 interface IStatusCase {
   status: TEventStatus | TTicketStatus
   label: string
@@ -38,9 +27,7 @@ describe('StatusTag', () => {
     it(`renders the "${label}" label with the ${type} tag type`, () => {
       const wrapper = mount(StatusTag, { props: { status } })
 
-      // `el-tag`'s component root is a `<transition>`, not the `<span
-      // class="el-tag">` itself, so the type/colour class is asserted on
-      // the rendered DOM element rather than `findComponent(...).classes()`.
+      // `el-tag`'s root is a `<transition>`, so assert on the rendered `.el-tag` element.
       const tag = wrapper.find('.el-tag')
       expect(tag.exists()).toBe(true)
       expect(wrapper.text()).toContain(label)
@@ -71,24 +58,17 @@ describe('StatusTag', () => {
     const allCases = [...EVENT_STATUS_CASES, ...TICKET_STATUS_CASES]
     const uniqueLabels = new Set(allCases.map(({ label }) => label))
 
-    // draft is the only literal overlap between the two status universes
-    // (event draft + ticket draft), so 8 cases collapse to 7 unique labels.
+    // draft is the only overlap between event and ticket statuses: 8 cases, 7 labels.
     expect(uniqueLabels.size).toBe(7)
   })
 
   it('never renders colour as the only signal — the text label is always present in the DOM', () => {
     const wrapper = mount(StatusTag, { props: { status: 'sold_out' as TTicketStatus } })
 
-    // Asserting on rendered text (not a `type`/colour prop alone) is what
-    // makes this greyscale-safe: a screen reader or a printed page with no
-    // colour still gets "Sold out".
     expect(wrapper.text().trim()).toBe('Sold out')
   })
 
-  it('renders nothing rather than throwing for a status outside the known set (GitHub issue #26)', () => {
-    // Defensive handling for an unrecognised/undefined status value (e.g. a
-    // backend value this component hasn't been taught yet) — `StatusTag`
-    // must tolerate it instead of crashing the render.
+  it('renders nothing rather than throwing for a status outside the known set', () => {
     const wrapper = mount(StatusTag, { props: { status: 'unknown-status' as TEventStatus } })
 
     expect(wrapper.find('.el-tag').exists()).toBe(false)

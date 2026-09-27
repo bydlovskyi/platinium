@@ -7,19 +7,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Tickets list screen, integration tested end to end (GitHub issue #34,
- * PRD-006's testing boundary: "Cross-entity filtering — integration tested:
- * filter by event and category together, assert the request the mock
- * receives and the rendered result" and "Deep-link entry — integration
- * tested: arriving with an event filter in the URL applies it and shows it
- * as an active `el-tag` chip"). Mounted behind a real memory-history router
- * (seeded with the app's actual route table) and a real Pinia instance,
- * against the shared MSW node server answering `GET /tickets` for real — no
- * mocked `ticketsService`, no mocked composables. Mirrors
- * `src/views/events/Events.spec.ts`'s shape and conventions exactly.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -62,7 +49,6 @@ function buildTicket (overrides: Partial<ITicket> = {}): ITicket {
   }
 }
 
-/** Captures the query params of every `GET /tickets` request MSW receives, without replacing the real handler's behaviour. */
 function captureTicketsRequests (): URLSearchParams[] {
   const captured: URLSearchParams[] = []
 
@@ -286,11 +272,7 @@ describe('Tickets list screen', () => {
 
       const { wrapper, router } = await mountTickets()
 
-      // Drives the composable's setter directly through the URL, the same
-      // observable surface the real `el-input-number` pair produces
-      // (`Tickets.vue`'s `priceMinModel`/`priceMaxModel` write `setFilter`
-      // with the converted minor-unit amount) — matches `Events.spec.ts`'s
-      // own date-range filter test, which does the same for el-date-picker.
+      // Drives the filter through the URL, the same surface the price inputs write to.
       await router.push({ query: { priceMin: '1000', priceMax: '9999' } })
       await flushPromises()
 
@@ -317,7 +299,7 @@ describe('Tickets list screen', () => {
       })
     })
 
-    it('combines event and category filters into a single request and renders only the matching result (GitHub issue #34)', async () => {
+    it('combines event and category filters into a single request and renders only the matching result', async () => {
       db.events.insert(buildEvent({ id: 'event-berlin', name: 'Berlin Show' }))
       db.events.insert(buildEvent({ id: 'event-paris', name: 'Paris Show' }))
       db.categories.insert(buildCategory({ id: 'category-vip', name: 'VIP' }))
@@ -352,8 +334,6 @@ describe('Tickets list screen', () => {
       await router.push({ query: { eventId: 'event-berlin', categoryId: 'category-vip' } })
       await flushPromises()
 
-      // A single combined request carries both filters together, not two
-      // separate requests.
       await vi.waitFor(() => {
         expect(requests.some(params => (
           params.get('eventId') === 'event-berlin' && params.get('categoryId') === 'category-vip'
@@ -371,14 +351,13 @@ describe('Tickets list screen', () => {
         expect(wrapper.text()).not.toContain('Paris VIP Ticket')
       })
 
-      // Both filters show as removable chips.
       expect(wrapper.findAll('.el-tag').some(tag => tag.text().includes('Event: Berlin Show'))).toBe(true)
       expect(wrapper.findAll('.el-tag').some(tag => tag.text().includes('Category: VIP'))).toBe(true)
     })
   })
 
   describe('deep-link entry', () => {
-    it('arriving at /tickets?eventId=X applies the filter on load, shows an active chip, and sends it in the request (GitHub issue #34)', async () => {
+    it('arriving at /tickets?eventId=X applies the filter on load, shows an active chip, and sends it in the request', async () => {
       db.events.insert(buildEvent({ id: 'event-berlin', name: 'Berlin Show' }))
       db.events.insert(buildEvent({ id: 'event-paris', name: 'Paris Show' }))
       db.categories.insert(buildCategory({ id: 'category-1' }))

@@ -1,33 +1,11 @@
 /*
-  The design system's Tailwind surface: it names Element Plus's themed custom
-  properties as semantic utilities (`bg-surface`, `text-text-muted`,
-  `border-border`, `text-status-published`, …) and defines the non-colour
-  scales — typography, radius, elevation, density, motion — per issue #12.
-
-  Colour itself is not redefined here. Element Plus's `theme-chalk` ships a
-  designed light and dark scale and this project overrides only five hues
-  inside it (see element-reset/theme.css, the single place a literal colour
-  appears). Because every utility below resolves through an `--el-*` variable,
-  a Tailwind class and an Element Plus component cannot disagree about what a
-  surface, a border or the accent is, and both follow the theme automatically.
-
-  Dark mode is the `dark` class on <html> — the same hook Element Plus and
-  Tailwind v4's `dark:` variant use, so one class flips all three. A later
-  slice (#20, admin shell) wires the UI toggle.
+  Tailwind utilities over Element Plus's `--el-*` variables; literal colours live only in element-reset/theme.css.
+  Dark mode is the `dark` class on <html>, shared by Element Plus and Tailwind's `dark:` variant.
 */
 
 @theme {
-  /* ============================================================
-     COLOR — semantic names over Element Plus's themed variables, exposed
-     as utilities (bg-surface, text-accent, border-border, …). Components
-     must never reference a literal hex, nor an `--el-*` name directly;
-     these utilities are the whole vocabulary.
-
-     `surface` is the page ground and `surface-raised` the elevated plane.
-     In dark mode Element Plus's values lighten with elevation
-     (#0a0a0a page -> #141414 raised -> #1d1e1f overlay), which is how
-     elevation reads there instead of a drop shadow.
-     ============================================================ */
+  /* COLOR — components use these utilities, never a hex or an `--el-*` name directly.
+     Dark surfaces lighten with elevation (#0a0a0a page -> #141414 raised -> #1d1e1f overlay) instead of shadows. */
   --color-surface: var(--el-bg-color-page);
   --color-surface-raised: var(--el-bg-color);
   --color-border: var(--el-border-color);
@@ -39,26 +17,13 @@
   --color-accent: var(--el-color-primary);
   --color-accent-hover: var(--el-color-primary-light-3);
   --color-danger: var(--el-color-danger);
-  /* Event/ticket statuses ride Element Plus's semantic slots — see the
-     mapping and contrast table in element-reset/theme.css. */
   --color-status-published: var(--el-color-success);
   --color-status-draft: var(--el-color-warning);
   --color-status-cancelled: var(--el-color-danger);
   --color-status-completed: var(--el-color-info);
 
-  /* ============================================================
-     TYPOGRAPHY — self-hosted Inter Variable (see base.css @font-face
-     import) plus the semantic type scale. Each step defines size, line
-     height and a paired weight so `text-screen-heading` etc. are complete
-     utilities. The weight rides on the `--text-*--font-weight` modifier, not
-     on a `--font-weight-*` entry: the latter would generate a *separate*
-     `font-screen-heading` utility and leave `text-screen-heading` weightless.
-
-     Tabular figures / slashed zero: Tailwind v4 already ships this as a
-     built-in `font-variant-numeric` utility set (`tabular-nums`,
-     `slashed-zero`, composable as `class="tabular-nums slashed-zero"`) — do
-     not add a custom `.tabular-nums` class, just use the Tailwind utility.
-     ============================================================ */
+  /* TYPOGRAPHY — weight rides `--text-*--font-weight`; a `--font-weight-*` entry would create a separate utility.
+     For figures use Tailwind's `tabular-nums slashed-zero`, not a custom class. */
   --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
 
   --text-screen-heading: 1.875rem;
@@ -81,75 +46,33 @@
   --text-caption--line-height: 1rem;
   --text-caption--font-weight: var(--font-weight-normal);
 
-  /* ============================================================
-     RADIUS — exactly three steps per issue #12. Components should only
-     ever use these three; Tailwind's own default radius scale
-     (--radius-xs/sm/md/lg/xl/…) is left untouched because element-reset
-     already maps some of those defaults to Element Plus (see
-     element-reset/theme.css) and other libraries may rely on it.
-     ============================================================ */
+  /* RADIUS — use only these three; Tailwind's default radius scale stays intact for Element Plus mappings. */
   --radius-token-sm: 4px;
   --radius-token-md: 8px;
   --radius-token-lg: 12px;
 
-  /* ============================================================
-     ELEVATION — exactly three shadow levels. Light-mode values are
-     conventional soft shadows; the dark-mode overrides below are much more
-     subtle, because in dark mode elevation is carried by Element Plus's
-     surface scale lightening with height (#0a0a0a page -> #141414 raised)
-     rather than by a drop shadow. The dark shadow is a faint separator, not
-     a copy of the light one.
-     ============================================================ */
+  /* ELEVATION — dark overrides below are faint separators; dark elevation comes from surface lightness. */
   --shadow-token-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06);
   --shadow-token-md: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-token-lg: 0 12px 24px -6px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.06);
 
-  /* ============================================================
-     DENSITY — row/table/tap-target tokens consumed by later data-table
-     and mobile-layout slices (#13/#23). Tailwind's default spacing scale
-     (--spacing: 0.25rem = 4px) already produces the 4/8/12/16/24/32/48
-     step values via p-1/p-2/p-3/p-4/p-6/p-8/p-12 — no custom spacing
-     scale is needed for that requirement.
-     ============================================================ */
+  /* DENSITY */
   --row-height: 36px;
   --table-cell-padding-y: 8px;
   --tap-target-min: 44px;
 
-  /* ============================================================
-     MOTION — duration/easing tokens for slice #42 (motion &
-     micro-interactions). Named with a `-token` suffix so they don't
-     collide with Tailwind's own `--ease-out`/`--ease-in-out` theme
-     variables (which power the `ease-out`/`ease-in-out` utilities with
-     different curves) — this project's semantic motion tokens are
-     consumed via `var(--duration-fast)` etc., not as Tailwind utilities.
-     ============================================================ */
+  /* MOTION — `-token` suffix avoids clashing with Tailwind's own `--ease-*` variables. */
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --ease-out-token: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-token: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ============================================================
-     FOCUS RING — single treatment applied globally via :focus-visible in
-     base.css. Expressed as outline rather than box-shadow: a box-shadow ring
-     replaces whatever shadow the element already carries (so a focusable
-     card would drop its elevation on focus) and its inner offset ring has to
-     hard-code one surface colour, which then mismatches on surface-raised.
-     `outline` composes with box-shadow and follows the element's own
-     background. The ring uses the accent, which clears the 3:1 UI-component
-     threshold against both surfaces in both themes (see the contrast table
-     in element-reset/theme.css).
-     ============================================================ */
+  /* FOCUS RING — outline, not box-shadow, so it keeps the element's elevation and follows its background. */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--el-color-primary);
 }
 
-/*
-  Dark-mode shadow treatment: shadows replaced by surface separation — the
-  box-shadow becomes a low-spread hint rather than the light-mode drop
-  shadow, since elevation is communicated instead by the surface-raised
-  background contrast against the near-black base surface.
-*/
 html.dark {
   --shadow-token-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-token-md: 0 2px 4px 0 rgb(0 0 0 / 0.35);

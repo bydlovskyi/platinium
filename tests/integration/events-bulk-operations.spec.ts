@@ -6,17 +6,6 @@ import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Events bulk delete/archive, integration tested end to end (GitHub issue
- * #39, PRD-007 "Bulk operations" — its testing boundary calls for driving at
- * least one entity's full bulk flow through the real router/Pinia/MSW: real
- * `el-table` selection checkboxes, the real `ElMessageBox` confirmation, and
- * a partial-failure case asserting the result dialog's blocking count).
- * Mounted the same way `tests/integration/events-form.spec.ts`'s delete
- * suite mounts `Events.vue` directly — no `Modals`/`App.vue` dependency here,
- * unlike `tests/integration/categories-crud.spec.ts`.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -49,14 +38,7 @@ async function mountSignedIn<T extends Component> (component: T, initialRoute: s
   return result
 }
 
-/**
- * Inserts a ticket referencing `eventId` so the mock's bulk `delete`
- * applier (`deleteOne` in `src/mocks/handlers/events.ts`, reusing
- * `checkEventConflict`) reports this identifier as a per-id `CONFLICT`
- * failure carrying the blocking count — mirrors
- * `events-form.spec.ts`'s `seedBlockingTicket` fixture for the single-delete
- * 409 case.
- */
+// Makes the bulk delete report a per-id CONFLICT for `eventId`, carrying the blocking count.
 function seedBlockingTicket (eventId: string): void {
   const category: ICategory = {
     id: 'events-bulk-spec-category',
@@ -93,7 +75,6 @@ function findMessageBoxButton (text: string): HTMLButtonElement {
   return button
 }
 
-/** Checks the row-selection checkbox for the row containing `rowText`. */
 async function selectRow (
   wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
   rowText: string
@@ -164,7 +145,6 @@ describe('Events bulk operations', () => {
       expect(db.events.get('e1')).toBeUndefined()
       expect(db.events.get('e2')).toBeUndefined()
 
-      // Selection is cleared and the bulk bar is gone once the operation completes.
       expect(wrapper.text()).not.toContain('selected on this page')
     })
   })
@@ -204,7 +184,6 @@ describe('Events bulk operations', () => {
       const dialogText = document.querySelector('.el-dialog')?.textContent ?? ''
       expect(dialogText).toContain('e2')
       expect(dialogText).toContain('reference this event')
-      // The blocking count column.
       expect(dialogText).toContain('1')
 
       expect(db.events.get('e1')).toBeUndefined()
@@ -250,12 +229,9 @@ describe('Events bulk operations', () => {
     })
   })
 
-  describe('bulk delete, page-back on an emptied page (GitHub issue #39 follow-up fix)', () => {
+  describe('bulk delete, page-back on an emptied page', () => {
     it('steps back a page when every row on a page beyond the first is bulk-deleted', async () => {
-      // perPage=2 with 3 events puts exactly one row ("e3") on page 2 — mirrors
-      // `deleteEvent`'s own single-delete page-back scenario, generalized to
-      // "every visible row was deleted" rather than "the one row was the last
-      // one on the page".
+      // perPage=2 with 3 events puts only "e3" on page 2.
       db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
       db.events.insert(buildEvent({ id: 'e2', name: 'Harbourside Market' }))
       db.events.insert(buildEvent({ id: 'e3', name: 'Lakeside Book Fair' }))
@@ -281,10 +257,7 @@ describe('Events bulk operations', () => {
       findMessageBoxButton('Delete').click()
       await flushPromises()
 
-      // Stepped back to page 1 rather than refetching into an empty page 2 —
-      // `useListQuery` omits `page` from the URL entirely at the default
-      // page (1), so "no page param" is the observable signal here, not
-      // `page=1` literally.
+      // `useListQuery` omits `page` from the URL at the default page, so no param means page 1.
       await vi.waitFor(() => {
         expect(router.currentRoute.value.query.page).toBeUndefined()
       })
@@ -298,9 +271,7 @@ describe('Events bulk operations', () => {
     })
 
     it('does not step back when only some of the page\'s rows are bulk-deleted (still on the same page)', async () => {
-      // Four events, perPage=2: page 2 holds "e3" and "e4". Only "e3" is
-      // selected and deleted, so page 2 still has a surviving row ("e4") —
-      // the admin should stay put, not be bounced back to page 1.
+      // Page 2 keeps "e4" after "e3" is deleted, so no page-back should happen.
       db.events.insert(buildEvent({ id: 'e1', name: 'Rooftop Jazz Night' }))
       db.events.insert(buildEvent({ id: 'e2', name: 'Harbourside Market' }))
       db.events.insert(buildEvent({ id: 'e3', name: 'Lakeside Book Fair' }))
@@ -331,7 +302,6 @@ describe('Events bulk operations', () => {
         expect(wrapper.text()).not.toContain('Lakeside Book Fair')
       })
 
-      // Still on page 2 — the surviving row is visible, no page-back happened.
       expect(router.currentRoute.value.query.page).toBe('2')
       expect(wrapper.text()).toContain('Hilltop Comedy Night')
       expect(db.events.get('e3')).toBeUndefined()

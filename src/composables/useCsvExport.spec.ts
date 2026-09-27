@@ -1,23 +1,6 @@
 import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 
-/**
- * `useCsvExport` unit tests (GitHub issue #40, PRD-007 "CSV export").
- * Mirrors `useBulkOperations.spec.ts`'s convention of exercising the
- * composable through a trivial host component mounted with `attachTo:
- * document.body`, since `ElMessageBox.confirm` (invoked via `useConfirm`)
- * teleports there regardless of where the host is mounted. Only the
- * caller-injected `exportFn` is a `vi.fn()` — that boundary is exactly what
- * keeps this composable entity-agnostic (see the composable's own file-level
- * comment).
- *
- * `URL.createObjectURL`/`URL.revokeObjectURL` do not exist in jsdom, and
- * clicking a real `<a download>` would attempt an actual navigation — both
- * are stubbed here so the download-trigger mechanics (object URL created,
- * anchor clicked with the right `download` filename, object URL revoked) can
- * be asserted without a real browser.
- */
-
 function setup () {
   let csvExport!: ReturnType<typeof useCsvExport>
 
@@ -63,8 +46,7 @@ beforeEach(() => {
     revokeObjectURL: revokeObjectUrlSpy
   })
 
-  // A real click on a `<a download>` would attempt an actual jsdom
-  // navigation — stubbed out to a no-op so only the call itself is asserted.
+  // Clicking a real `<a download>` would trigger a jsdom navigation.
   clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
 })
 

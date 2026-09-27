@@ -1,39 +1,16 @@
-/**
- * jsdom (this project's Vitest `environment`) does not implement
- * `window.matchMedia` at all — VueUse's `useBreakpoints`/`useMediaQuery`
- * (backing `useBreakpoint`, `src/composables/useBreakpoint.ts`),
- * `useColorMode`'s `usePreferredDark` (backing `useTheme`,
- * `src/composables/useTheme.ts`) and `usePreferredReducedMotion` (backing
- * `useCountUp`, GitHub issue #42) call it unconditionally, so every shell
- * responsive/theme/motion test would throw without this polyfill. Imported
- * once, globally, from `tests/setup.ts`.
- *
- * Only supports the query shapes this app's VueUse composables actually
- * generate — `(min-width: Npx)` / `(max-width: Npx)` (from `useBreakpoints`),
- * `(prefers-color-scheme: dark|light)` (from `usePreferredDark`) and
- * `(prefers-reduced-motion: reduce|no-preference)` (from
- * `usePreferredReducedMotion`) — this is a test seam, not a general
- * matchMedia implementation.
- *
- * Each `MediaQueryList` re-evaluates `matches` against the *current*
- * `window.innerWidth` / `setPreferredColorScheme` / `setPreferredReducedMotion`
- * value and fires a `change` event when any of them changes, which is what
- * `useMediaQuery`'s `change` listener (not a `resize` listener — see VueUse
- * source) needs to pick up the new value.
- */
+// jsdom lacks matchMedia and VueUse calls it unconditionally. Handles only min/max-width,
+// prefers-color-scheme and prefers-reduced-motion; notifies via `change`, which useMediaQuery listens to.
 
 type TChangeListener = (event: MediaQueryListEvent) => void
 
 let preferredColorScheme: 'light' | 'dark' = 'light'
 let preferredReducedMotion: 'reduce' | 'no-preference' = 'no-preference'
 
-/** Drives `usePreferredDark`/`usePreferredColorScheme` for theme tests. */
 export function setPreferredColorScheme (scheme: 'light' | 'dark'): void {
   preferredColorScheme = scheme
   registeredMediaQueryLists.forEach(mql => mql.__notify())
 }
 
-/** Drives `usePreferredReducedMotion` for motion tests (GitHub issue #42). */
 export function setPreferredReducedMotion (preference: 'reduce' | 'no-preference'): void {
   preferredReducedMotion = preference
   registeredMediaQueryLists.forEach(mql => mql.__notify())
@@ -88,7 +65,6 @@ function createMediaQueryList (query: string): MediaQueryList {
     addListener: (listener: TChangeListener) => listeners.add(listener),
     removeListener: (listener: TChangeListener) => listeners.delete(listener),
     dispatchEvent: () => true,
-    /** Not part of the DOM interface — the notify hooks below call this directly. */
     __notify: () => {
       const event = { matches: evaluateQuery(query), media: query } as MediaQueryListEvent
       listeners.forEach(listener => listener(event))

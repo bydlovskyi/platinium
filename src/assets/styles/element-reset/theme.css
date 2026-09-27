@@ -1,54 +1,20 @@
-/* UPDATE DEPENDING ON YOUR PROJECT NEEDS */
+/* Element Plus root variables: node_modules/element-plus/theme-chalk/el-var.css */
 
 /*
-  You can check element plus root css variables here:
-  node_modules/element-plus/theme-chalk/el-var.css
+  Only the five hues are overridden. Element Plus's neutrals (bg/fill/border/text/mask/shadow) are used as-is —
+  overriding them left dialogs and inputs white in dark mode.
+  `html.dark` is required: dark/css-vars.css re-declares `--el-color-*` above `:root` specificity.
 
-  Component based variables are defined in the respective components css files
-*/
+  WCAG contrast vs page / raised surface (AA text = 4.5:1):
+                             light         dark
+    primary  (accent)       5.66 / 6.29   6.64 / 6.18
+    success  (published)    4.52 / 5.02  11.36 / 10.57
+    warning  (draft)        6.39 / 7.09  11.86 / 11.04
+    danger   (cancelled)    5.83 / 6.47   5.26 / 4.90
+    info     (completed)    5.34 / 5.93   9.24 / 8.60
+    text-primary 11.73 / 16.40, text-regular 5.50 / 13.20; text-secondary ~2.8:1 fails, so muted maps to regular.
 
-/*
-  This file is the whole colour layer of the design system.
-
-  Element Plus already ships a complete, designed light *and* dark scale
-  (`theme-chalk/base.css` and `theme-chalk/dark/css-vars.css`, both loaded
-  first — see index.css): surfaces, fills, masks, shadows, borders and text,
-  with `color-scheme: dark` set for the UA widgets. Those are this project's
-  neutrals, used as-is. Overriding them is what previously left dialogs,
-  inputs and overlays white in dark mode, so `--el-bg-color-*`,
-  `--el-fill-color-*`, `--el-border-color-*`, `--el-text-color-*`,
-  `--el-mask-color-*` and `--el-box-shadow-*` are deliberately untouched.
-
-  What is left are the five hues this project actually decides — the brand
-  accent and the four event/ticket statuses — which map onto Element Plus's
-  own semantic slots (primary / success / warning / danger / info). They are
-  the only literal colour values in the codebase; `theme.css` exposes them to
-  Tailwind as `bg-accent`, `text-status-published` and so on, so components
-  never touch a hex or an `--el-*` name directly.
-
-  The `html.dark` block is required, not optional: `dark/css-vars.css`
-  re-declares every `--el-color-*` at a higher specificity than `:root`, so
-  without it Element Plus's stock blue would win back in dark mode.
-
-  Contrast (WCAG, against `--el-bg-color-page` / `--el-bg-color` of the same
-  theme; AA normal text needs 4.5:1):
-
-                                light         dark
-    primary  (accent)        5.66 / 6.29   6.64 / 6.18
-    success  (published)     4.52 / 5.02  11.36 / 10.57
-    warning  (draft)         6.39 / 7.09  11.86 / 11.04
-    danger   (cancelled)     5.83 / 6.47   5.26 / 4.90
-    info     (completed)     5.34 / 5.93   9.24 / 8.60
-
-  Element Plus's own neutrals clear it too: text-primary 11.73 / 16.40,
-  text-regular (used for muted copy) 5.50 / 13.20. `--el-text-color-secondary`
-  does not (~2.8:1 on white), so muted text maps to `regular` in theme.css.
-
-  Note on greyscale: four status hues that all clear 4.5:1 against the same
-  surface necessarily sit in a narrow luminance band — the best achievable
-  separation between any two is ~1.2:1, which is not perceptible. Colour
-  cannot carry status alone here; the status components in later slices pair
-  it with the label text and a differing weight/shape.
+  The status hues sit in a narrow luminance band, so colour must never carry status alone.
 */
 
 :root {
@@ -108,45 +74,20 @@
   /* LINE HEIGHT */
   --el-font-line-height-primary: var(--text-body--line-height);
 
-  /* BORDER RADIUS — restricted to this project's three-step radius scale.
-     `circle` stays a literal percentage: Tailwind v4 has no `--radius-full`
-     theme variable (`rounded-full` is a static utility), so the previous
-     `var(--radius-full)` resolved to nothing. */
+  /* BORDER RADIUS — `circle` is literal: Tailwind v4 has no `--radius-full` variable. */
   --el-border-radius-base: var(--radius-token-sm);
   --el-border-radius-small: var(--radius-token-sm);
   --el-border-radius-round: var(--radius-token-lg);
   --el-border-radius-circle: 100%;
 
-  /* MOTION (issue #42, PRD-010 "Motion") — the two duration and two easing
-     tokens from theme.css, mapped onto Element Plus's own transition
-     variables so `el-dialog`/`el-drawer`/`el-notification`/`el-dropdown`/
-     `el-message-box`'s *built-in* transitions (dialog-fade, el-drawer-fade,
-     el-notification-fade, el-zoom-in-*, el-fade-in, …) run on this design
-     system's timing instead of theme-chalk's own 0.3s/0.2s defaults. This is
-     duration/easing, not colour, so — unlike the five hues above — a single
-     `:root` mapping covers both themes; see the `prefers-reduced-motion`
-     override at the bottom of this file for the one place it does split. */
+  /* MOTION — design-system timing for Element Plus's built-in transitions; one mapping covers both themes. */
   --el-transition-duration: var(--duration-base);
   --el-transition-duration-fast: var(--duration-fast);
   --el-transition-function-ease-in-out-bezier: var(--ease-in-out-token);
   --el-transition-function-fast-bezier: var(--ease-out-token);
 }
 
-/*
-  Reduced motion (PRD-010 "Motion" — non-negotiable): the duration tokens
-  themselves resolve to `0s` under the preference, not just a `!important`
-  transition-duration override — this is what lets a component test assert
-  `getComputedStyle(el).getPropertyValue('--el-transition-duration')` (or the
-  `--duration-*` tokens directly) reads `0s`, per PRD-010's testing boundary.
-  base.css's global `@media (prefers-reduced-motion: reduce)` block already
-  forces every *actual* `transition-duration`/`animation-duration` near-zero
-  via `!important`, which covers CSS-driven transitions unconditionally; this
-  block covers the token values Element Plus's own transitions and any
-  future `var(--duration-*)` consumer read their duration from, and is also
-  what `useDashboardHeadlineFigures`/`usePreferredReducedMotion` in
-  Dashboard.vue checks to bypass the JS-driven `useTransition` count-up,
-  since a CSS override alone cannot stop a JS animation loop.
-*/
+/* The tokens themselves go to 0s (not just an !important override) so JS consumers can read and honour them. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-fast: 0s;
@@ -156,13 +97,7 @@
   }
 }
 
-/*
-  Dark theme: the five hues are lightened so they still clear AA against the
-  near-black surfaces, and the derived ladders are re-derived because Element
-  Plus's dark convention inverts the scale — `light-N` steps mix *towards* the
-  page background so they stay usable as fills, and `dark-2` becomes the
-  lighter hover step.
-*/
+/* Dark: lighter hues to keep AA; ladders invert — `light-N` mixes toward black, `dark-2` is the lighter hover step. */
 html.dark {
   --el-color-primary: #818CF8;
   --el-color-success: #4ADE80;
