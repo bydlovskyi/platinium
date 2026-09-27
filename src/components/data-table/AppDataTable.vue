@@ -62,8 +62,20 @@ const { isMobile } = useBreakpoint()
 
 const tableRef = ref<TableInstance>()
 
-const cardColumns = computed(() => props.columns.filter(column => column.responsivePriority === 'high'))
+const cardLayout = computed(() => {
+  const highColumns = props.columns.filter(column => column.responsivePriority === 'high')
+  const title = highColumns.find(column => column.cardRole === 'title') ?? highColumns[0]
+  const badge = highColumns.find(column => column.cardRole === 'badge' && column !== title)
+  const fields = highColumns.filter(column => column !== title && column !== badge)
+
+  return { title, badge, fields }
+})
 const hasActions = computed(() => props.rowActions.length > 0)
+
+// One row doesn't fit a phone, so mobile splits it into two rows.
+const paginationLayouts = computed(() => (
+  isMobile.value ? ['prev, pager, next', 'total, sizes'] : ['total, sizes, prev, pager, next']
+))
 
 type TPresentationMode = 'loading' | 'error' | 'empty' | 'table' | 'cards'
 
@@ -284,7 +296,31 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         Selecting applies to this page only ({{ pageRowKeys.length }} row{{ pageRowKeys.length === 1 ? '' : 's' }}).
       </p>
 
-      <el-config-provider v-if="presentationMode === 'table' || isSkeleton" :locale="tableLocale">
+      <div v-if="isSkeleton && isMobile" class="flex flex-col gap-2" aria-busy="true">
+        <el-card
+          v-for="n in SKELETON_ROW_COUNT"
+          :key="n"
+          shadow="never"
+          class="!rounded-token-lg"
+          body-class="flex flex-col gap-2 !px-4 !py-3"
+        >
+          <div class="flex h-6 items-center gap-3">
+            <el-skeleton-item variant="text" class="!w-3/5" />
+            <el-skeleton-item v-if="cardLayout.badge" variant="text" class="ml-auto !h-5 !w-14" />
+          </div>
+          <div
+            v-if="cardLayout.fields.length > 0"
+            class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-subtle pt-2"
+          >
+            <div v-for="column in cardLayout.fields" :key="column.key" class="flex flex-col gap-1">
+              <el-skeleton-item variant="text" class="!h-3 !w-1/3" />
+              <el-skeleton-item variant="text" class="!w-4/5" />
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <el-config-provider v-else-if="presentationMode === 'table' || isSkeleton" :locale="tableLocale">
         <el-table
           ref="tableRef"
           v-loading="loading && !isSkeleton"
@@ -380,57 +416,100 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
             v-for="row in rows"
             :key="rowKey(row)"
             shadow="never"
-            body-class="flex items-start justify-between gap-2 !p-3"
+            class="!rounded-token-lg transition-colors duration-(--duration-fast)"
+            :class="{ '!border-accent !bg-(--el-color-primary-light-9)': isRowSelected(row) }"
+            body-class="flex items-start gap-3 !px-4 !py-3"
           >
             <el-checkbox
               v-if="selectable"
               :model-value="isRowSelected(row)"
               aria-label="Select this row"
+              class="!h-6"
               @change="(value: IElementPlus['CheckboxValueType']) => toggleCardRow(row, value)"
             />
 
-            <div class="flex flex-1 flex-col gap-1">
-              <div v-for="column in cardColumns" :key="column.key" class="flex flex-col">
-                <span class="text-caption text-text-muted">{{ column.label }}</span>
-                <span class="text-body text-text-primary">
-                  <slot v-if="column.cellSlot" :name="`cell-${column.cellSlot}`" :row="row" :column="column">
-                    {{ row[column.key] }}
-                  </slot>
-                  <template v-else>{{ row[column.key] }}</template>
-                </span>
-              </div>
-            </div>
-
-            <el-dropdown v-if="hasActions" trigger="click" placement="bottom-end">
-              <el-button text circle aria-label="Row actions">
-                <template #icon>
-                  <Icon name="more" />
-                </template>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item
-                    v-for="action in rowActions"
-                    :key="action.key"
-                    :disabled="isActionDisabled(action, row)"
-                    :divided="action.danger"
-                    :class="{ '!text-danger': action.danger }"
-                    @click="onRowAction(action, row)"
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <div class="flex items-start gap-3">
+                <div
+                  v-if="cardLayout.title"
+                  class="min-w-0 flex-1 break-words text-base/6 font-semibold text-text-primary"
+                >
+                  <slot
+                    v-if="cardLayout.title.cellSlot"
+                    :name="`cell-${cardLayout.title.cellSlot}`"
+                    :row="row"
+                    :column="cardLayout.title"
                   >
-                    <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
-                    {{ action.label }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+                    {{ row[cardLayout.title.key] }}
+                  </slot>
+                  <template v-else>{{ row[cardLayout.title.key] }}</template>
+                </div>
+
+                <div v-if="cardLayout.badge" class="flex h-6 shrink-0 items-center">
+                  <slot
+                    v-if="cardLayout.badge.cellSlot"
+                    :name="`cell-${cardLayout.badge.cellSlot}`"
+                    :row="row"
+                    :column="cardLayout.badge"
+                  >
+                    {{ row[cardLayout.badge.key] }}
+                  </slot>
+                  <template v-else>{{ row[cardLayout.badge.key] }}</template>
+                </div>
+
+                <el-dropdown v-if="hasActions" trigger="click" placement="bottom-end" class="-my-1 -mr-2">
+                  <el-button text circle aria-label="Row actions">
+                    <template #icon>
+                      <Icon name="more" />
+                    </template>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-for="action in rowActions"
+                        :key="action.key"
+                        :disabled="isActionDisabled(action, row)"
+                        :divided="action.danger"
+                        :class="{ '!text-danger': action.danger }"
+                        @click="onRowAction(action, row)"
+                      >
+                        <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
+                        {{ action.label }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+
+              <dl
+                v-if="cardLayout.fields.length > 0"
+                class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-subtle pt-2"
+              >
+                <div v-for="column in cardLayout.fields" :key="column.key" class="min-w-0">
+                  <dt class="text-caption text-text-muted">{{ column.label }}</dt>
+                  <dd class="text-body font-medium tabular-nums text-text-primary">
+                    <slot v-if="column.cellSlot" :name="`cell-${column.cellSlot}`" :row="row" :column="column">
+                      {{ row[column.key] }}
+                    </slot>
+                    <template v-else>{{ row[column.key] }}</template>
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </el-card>
         </TransitionGroup>
       </div>
 
-      <div v-if="meta && meta.total > 0 && !isSkeleton" class="flex justify-end pt-1">
+      <div
+        v-if="meta && meta.total > 0 && !isSkeleton"
+        class="flex pt-1"
+        :class="isMobile ? 'flex-col items-center gap-3' : 'justify-end'"
+      >
         <el-pagination
+          v-for="layout in paginationLayouts"
+          :key="layout"
           background
-          layout="total, sizes, prev, pager, next"
+          :layout="layout"
           :size="isMobile ? 'small' : 'default'"
           :pager-count="isMobile ? MOBILE_PAGER_COUNT : DESKTOP_PAGER_COUNT"
           :current-page="meta.page"

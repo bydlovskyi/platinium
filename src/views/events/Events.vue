@@ -42,7 +42,7 @@ const columns: IDataTableColumn<TEvent>[] = [
   { key: 'country', label: 'Country', responsivePriority: 'high', cellSlot: 'country' },
   { key: 'venue', label: 'Venue', responsivePriority: 'low' },
   { key: 'startDate', label: 'Dates', sortable: true, responsivePriority: 'high', cellSlot: 'dates' },
-  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cellSlot: 'status' }
+  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cardRole: 'badge', cellSlot: 'status' }
 ]
 
 const dataTableSort = computed(() => (

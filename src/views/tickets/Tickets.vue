@@ -40,7 +40,7 @@ const columns: IDataTableColumn<TTicket>[] = [
   { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
   { key: 'price', label: 'Price', sortable: true, responsivePriority: 'high', align: 'right', cellSlot: 'price' },
   { key: 'quantity', label: 'Quantity', sortable: true, responsivePriority: 'low', align: 'right', cellSlot: 'quantity' },
-  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cellSlot: 'status' },
+  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cardRole: 'badge', cellSlot: 'status' },
   { key: 'eventName', label: 'Event', responsivePriority: 'low' },
   { key: 'categoryName', label: 'Category', responsivePriority: 'low' },
   { key: 'createdAt', label: 'Created', sortable: true, responsivePriority: 'low', cellSlot: 'createdAt' }

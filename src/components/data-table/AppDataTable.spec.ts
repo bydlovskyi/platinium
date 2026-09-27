@@ -156,6 +156,16 @@ describe('AppDataTable', () => {
       expect(wrapper.text()).not.toContain('Row 1')
     })
 
+    it('renders a card-shaped skeleton instead of a table while loading below the tablet breakpoint', async () => {
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({ rows: [], loading: true })
+      await flushPromises()
+
+      expect(wrapper.find('table').exists()).toBe(false)
+      expect(wrapper.findAll('.el-card').length).toBeGreaterThan(0)
+      expect(wrapper.findAll('.el-skeleton__item').length).toBeGreaterThan(0)
+    })
+
     it('dims rather than removes existing rows while a later page loads', async () => {
       const wrapper = mountTable({ loading: true })
       await flushPromises()
