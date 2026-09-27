@@ -8,6 +8,7 @@ const router = useRouter()
 
 const {
   search,
+  appliedSearch,
   sort,
   page,
   setSearch,
@@ -166,7 +167,7 @@ function onExportCsvClicked (): void {
     entity: 'categories',
     exportFn: (params, signal) => categoriesService.exportCsv(params, signal),
     params: {
-      search: search.value || undefined,
+      search: appliedSearch.value || undefined,
       sort: sort.value?.field,
       order: sort.value?.order
     },
@@ -192,6 +193,10 @@ const bulkResultVisible = computed({
   <div class="flex flex-col gap-4">
     <PageHeader title="Categories">
       <template #actions>
+        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+          Export CSV
+        </el-button>
+
         <el-button v-if="canDo('categories', 'create')" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
@@ -207,26 +212,24 @@ const bulkResultVisible = computed({
       @update:search="setSearch"
       @clear-all-requested="resetFilters"
     >
-      <template #actions>
-        <el-select
-          :model-value="nonColumnSortValue"
-          placeholder="Sort by"
-          clearable
-          class="!w-44"
-          aria-label="Sort by creation date"
-          @update:model-value="onNonColumnSortChange"
-        >
-          <el-option
-            v-for="option in NON_COLUMN_SORT_OPTIONS"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
-        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
-          Export CSV
-        </el-button>
+      <template #sort>
+        <ListFilterField label="Sort by" class="w-44">
+          <el-select
+            :model-value="nonColumnSortValue"
+            placeholder="Sort by"
+            clearable
+            class="!w-full"
+            aria-label="Sort by creation date"
+            @update:model-value="onNonColumnSortChange"
+          >
+            <el-option
+              v-for="option in NON_COLUMN_SORT_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
       </template>
     </ListToolbar>
 

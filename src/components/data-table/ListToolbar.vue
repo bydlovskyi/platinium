@@ -25,6 +25,8 @@ const slots = useSlots()
 const isFilterDrawerOpen = ref(false)
 
 const hasFilterControls = computed(() => slots.filters !== undefined)
+const hasSortControl = computed(() => slots.sort !== undefined)
+const hasDrawerControls = computed(() => hasFilterControls.value || hasSortControl.value)
 const activeFilterCount = computed(() => props.activeFilters.length)
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
@@ -35,12 +37,12 @@ function onSearchInput (value: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <div class="flex flex-wrap items-center gap-3">
+  <div class="flex flex-col gap-3 rounded-token-lg border border-border bg-surface-raised p-3 shadow-token-sm">
+    <div class="flex items-center gap-2">
       <el-input
         :model-value="search"
         clearable
-        class="!w-full sm:!w-72"
+        class="min-w-0 flex-1 md:max-w-sm"
         :placeholder="searchPlaceholder"
         aria-label="Search"
         @update:model-value="onSearchInput"
@@ -50,39 +52,35 @@ function onSearchInput (value: string): void {
         </template>
       </el-input>
 
-      <div v-if="!isMobile" class="flex flex-wrap items-center gap-2">
-        <slot name="filters" />
+      <div v-if="!isMobile && hasSortControl" class="ml-auto flex items-center gap-2">
+        <slot name="sort" />
       </div>
 
-      <!-- Only when filter controls exist, so the button never opens an empty drawer. -->
-      <template v-else-if="hasFilterControls">
-        <el-badge :value="activeFilterCount" :hidden="!hasActiveFilters" type="primary">
-          <el-button aria-label="Open filters" @click="isFilterDrawerOpen = true">
-            <template #icon>
-              <Icon name="filter-off" />
-            </template>
-            Filters
-          </el-button>
-        </el-badge>
-
-        <el-drawer
-          v-model="isFilterDrawerOpen"
-          title="Filters"
-          direction="btt"
-          size="auto"
-        >
-          <div class="flex flex-col gap-3">
-            <slot name="filters" />
-          </div>
-        </el-drawer>
-      </template>
-
-      <div class="ml-auto flex items-center gap-2">
-        <slot name="actions" />
-      </div>
+      <el-badge
+        v-else-if="isMobile && hasDrawerControls"
+        :value="activeFilterCount"
+        :hidden="!hasActiveFilters"
+        type="primary"
+      >
+        <el-button aria-label="Open filters" @click="isFilterDrawerOpen = true">
+          <template #icon>
+            <Icon name="filter" />
+          </template>
+          Filters
+        </el-button>
+      </el-badge>
     </div>
 
-    <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+    <div
+      v-if="!isMobile && hasFilterControls"
+      class="flex flex-wrap items-center gap-2"
+      role="group"
+      aria-label="Filters"
+    >
+      <slot name="filters" />
+    </div>
+
+    <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
       <el-tag
         v-for="chip in activeFilters"
         :key="chip.key"
@@ -92,9 +90,33 @@ function onSearchInput (value: string): void {
         {{ chip.label }}
       </el-tag>
 
-      <el-button link @click="emit('clear-all-requested')">
+      <el-button link type="primary" @click="emit('clear-all-requested')">
         Clear all
       </el-button>
     </div>
+
+    <el-drawer
+      v-if="isMobile && hasDrawerControls"
+      v-model="isFilterDrawerOpen"
+      title="Filters"
+      direction="btt"
+      size="auto"
+    >
+      <div class="flex flex-col gap-4">
+        <slot name="filters" />
+        <slot name="sort" />
+      </div>
+
+      <template #footer>
+        <div class="flex gap-2">
+          <el-button class="flex-1" :disabled="!hasActiveFilters" @click="emit('clear-all-requested')">
+            Clear all
+          </el-button>
+          <el-button type="primary" class="!ml-0 flex-1" @click="isFilterDrawerOpen = false">
+            Show results
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>

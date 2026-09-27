@@ -11,7 +11,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+  <div class="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
     <div>
       <nav
         v-if="breadcrumbs && breadcrumbs.length > 0"
@@ -37,7 +37,14 @@ defineProps<{
       </h1>
     </div>
 
-    <div v-if="$slots.actions" class="flex items-center gap-2">
+    <!-- Below `sm` the actions take their own full-width row of equal buttons. -->
+    <div
+      v-if="$slots.actions"
+      class="
+        flex w-full items-center gap-2 sm:w-auto
+        [&>.el-button]:flex-1 sm:[&>.el-button]:flex-none [&>.el-button+.el-button]:ml-0
+      "
+    >
       <slot name="actions" />
     </div>
   </div>

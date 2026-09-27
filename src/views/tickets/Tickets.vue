@@ -17,6 +17,7 @@ const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
+  appliedSearch,
   filters: listFilters,
   sort,
   page,
@@ -307,7 +308,7 @@ function onExportCsvClicked (): void {
     entity: 'tickets',
     exportFn: (params, signal) => ticketsService.exportCsv(params, signal),
     params: {
-      search: search.value || undefined,
+      search: appliedSearch.value || undefined,
       eventId: listFilters.eventId || undefined,
       categoryId: listFilters.categoryId || undefined,
       status: listFilters.status === 'all' ? undefined : listFilters.status,
@@ -337,111 +338,8 @@ const bulkResultVisible = computed({
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeader title="Tickets" />
-
-    <ListToolbar
-      :search="search"
-      :active-filters="activeFilters"
-      search-placeholder="Search by name…"
-      @update:search="setSearch"
-      @filter-removed="onFilterRemoved"
-      @clear-all-requested="resetFilters"
-    >
-      <template #filters>
-        <RemoteSelect
-          v-model="eventFilterModel"
-          :fetch-options="fetchEventOptions"
-          :resolve-option="resolveEventOption"
-          :option-value="(event: TEvent) => event.id"
-          :option-label="(event: TEvent) => event.name"
-          placeholder="Event"
-          class="!w-48"
-          aria-label="Filter by event"
-        />
-
-        <RemoteSelect
-          v-model="categoryFilterModel"
-          :fetch-options="fetchCategoryOptions"
-          :resolve-option="resolveCategoryOption"
-          :option-value="(category: TCategory) => category.id"
-          :option-label="(category: TCategory) => category.name"
-          placeholder="Category"
-          class="!w-48"
-          aria-label="Filter by category"
-        />
-
-        <el-select
-          :model-value="listFilters.status"
-          placeholder="Status"
-          class="!w-40"
-          aria-label="Filter by status"
-          @update:model-value="(value: TTicketStatus | 'all') => setFilter('status', value)"
-        >
-          <el-option label="All statuses" value="all" />
-          <el-option
-            v-for="option in STATUS_FILTER_OPTIONS"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
-        <el-select
-          :model-value="listFilters.currency"
-          placeholder="Currency"
-          class="!w-36"
-          aria-label="Filter by currency"
-          @update:model-value="(value: TCurrency | 'all') => setFilter('currency', value)"
-        >
-          <el-option label="All currencies" value="all" />
-          <el-option
-            v-for="option in CURRENCY_FILTER_OPTIONS"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
-        <div class="flex items-center gap-1" role="group" aria-label="Filter by price range">
-          <el-input-number
-            v-model="priceMinModel"
-            :min="0"
-            :precision="2"
-            :controls="false"
-            placeholder="Min price"
-            aria-label="Minimum price"
-            class="!w-28"
-          />
-          <span class="text-text-muted">–</span>
-          <el-input-number
-            v-model="priceMaxModel"
-            :min="0"
-            :precision="2"
-            :controls="false"
-            placeholder="Max price"
-            aria-label="Maximum price"
-            class="!w-28"
-          />
-        </div>
-      </template>
-
+    <PageHeader title="Tickets">
       <template #actions>
-        <el-select
-          :model-value="nonColumnSortValue"
-          placeholder="Sort by"
-          clearable
-          class="!w-44"
-          aria-label="Sort by creation date"
-          @update:model-value="onNonColumnSortChange"
-        >
-          <el-option
-            v-for="option in NON_COLUMN_SORT_OPTIONS"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
         <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
           Export CSV
         </el-button>
@@ -452,6 +350,123 @@ const bulkResultVisible = computed({
           </template>
           Create ticket
         </el-button>
+      </template>
+    </PageHeader>
+
+    <ListToolbar
+      :search="search"
+      :active-filters="activeFilters"
+      search-placeholder="Search by name…"
+      @update:search="setSearch"
+      @filter-removed="onFilterRemoved"
+      @clear-all-requested="resetFilters"
+    >
+      <template #filters>
+        <ListFilterField label="Event" class="w-48">
+          <RemoteSelect
+            v-model="eventFilterModel"
+            :fetch-options="fetchEventOptions"
+            :resolve-option="resolveEventOption"
+            :option-value="(event: TEvent) => event.id"
+            :option-label="(event: TEvent) => event.name"
+            placeholder="Event"
+            class="!w-full"
+            aria-label="Filter by event"
+          />
+        </ListFilterField>
+
+        <ListFilterField label="Category" class="w-48">
+          <RemoteSelect
+            v-model="categoryFilterModel"
+            :fetch-options="fetchCategoryOptions"
+            :resolve-option="resolveCategoryOption"
+            :option-value="(category: TCategory) => category.id"
+            :option-label="(category: TCategory) => category.name"
+            placeholder="Category"
+            class="!w-full"
+            aria-label="Filter by category"
+          />
+        </ListFilterField>
+
+        <ListFilterField label="Status" class="w-40">
+          <el-select
+            :model-value="listFilters.status"
+            placeholder="Status"
+            class="!w-full"
+            aria-label="Filter by status"
+            @update:model-value="(value: TTicketStatus | 'all') => setFilter('status', value)"
+          >
+            <el-option label="All statuses" value="all" />
+            <el-option
+              v-for="option in STATUS_FILTER_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
+
+        <ListFilterField label="Currency" class="w-36">
+          <el-select
+            :model-value="listFilters.currency"
+            placeholder="Currency"
+            class="!w-full"
+            aria-label="Filter by currency"
+            @update:model-value="(value: TCurrency | 'all') => setFilter('currency', value)"
+          >
+            <el-option label="All currencies" value="all" />
+            <el-option
+              v-for="option in CURRENCY_FILTER_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
+
+        <ListFilterField label="Price" class="w-60">
+          <div class="flex items-center gap-1" role="group" aria-label="Filter by price range">
+            <el-input-number
+              v-model="priceMinModel"
+              :min="0"
+              :precision="2"
+              :controls="false"
+              placeholder="Min price"
+              aria-label="Minimum price"
+              class="!w-auto min-w-0 flex-1"
+            />
+            <span class="text-text-muted">–</span>
+            <el-input-number
+              v-model="priceMaxModel"
+              :min="0"
+              :precision="2"
+              :controls="false"
+              placeholder="Max price"
+              aria-label="Maximum price"
+              class="!w-auto min-w-0 flex-1"
+            />
+          </div>
+        </ListFilterField>
+      </template>
+
+      <template #sort>
+        <ListFilterField label="Sort by" class="w-44">
+          <el-select
+            :model-value="nonColumnSortValue"
+            placeholder="Sort by"
+            clearable
+            class="!w-full"
+            aria-label="Sort by creation date"
+            @update:model-value="onNonColumnSortChange"
+          >
+            <el-option
+              v-for="option in NON_COLUMN_SORT_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
       </template>
     </ListToolbar>
 

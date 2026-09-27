@@ -19,6 +19,7 @@ const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
+  appliedSearch,
   filters: listFilters,
   sort,
   page,
@@ -206,7 +207,7 @@ function onExportCsvClicked (): void {
     entity: 'events',
     exportFn: (params, signal) => eventsService.exportCsv(params, signal),
     params: {
-      search: search.value ?? undefined,
+      search: appliedSearch.value || undefined,
       status: listFilters.status === 'all' ? undefined : listFilters.status,
       country: listFilters.country ?? undefined,
       startDateFrom: listFilters.startDateFrom ?? undefined,
@@ -234,64 +235,7 @@ const bulkResultVisible = computed({
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex items-center justify-between gap-2">
-      <h1 class="text-heading text-text-primary">
-        Events
-      </h1>
-    </div>
-
-    <ListToolbar
-      :search="search"
-      :active-filters="activeFilters"
-      search-placeholder="Search by name or venue…"
-      @update:search="setSearch"
-      @filter-removed="onFilterRemoved"
-      @clear-all-requested="resetFilters"
-    >
-      <template #filters>
-        <el-select
-          :model-value="listFilters.status"
-          placeholder="Status"
-          class="!w-40"
-          aria-label="Filter by status"
-          @update:model-value="(value: TEventStatus | 'all') => setFilter('status', value)"
-        >
-          <el-option label="All statuses" value="all" />
-          <el-option
-            v-for="option in statusFilterOptions"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
-        <el-select
-          :model-value="listFilters.country || undefined"
-          placeholder="Country"
-          clearable
-          class="!w-48"
-          aria-label="Filter by country"
-          @update:model-value="(value: string | undefined) => setFilter('country', value ?? '')"
-        >
-          <el-option
-            v-for="option in countries.options"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-
-        <el-date-picker
-          v-model="dateRangeModel"
-          type="daterange"
-          value-format="YYYY-MM-DD"
-          start-placeholder="Start date"
-          end-placeholder="End date"
-          aria-label="Filter by date range"
-          class="!w-72"
-        />
-      </template>
-
+    <PageHeader title="Events">
       <template #actions>
         <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
           Export CSV
@@ -303,6 +247,65 @@ const bulkResultVisible = computed({
           </template>
           Create event
         </el-button>
+      </template>
+    </PageHeader>
+
+    <ListToolbar
+      :search="search"
+      :active-filters="activeFilters"
+      search-placeholder="Search by name or venue…"
+      @update:search="setSearch"
+      @filter-removed="onFilterRemoved"
+      @clear-all-requested="resetFilters"
+    >
+      <template #filters>
+        <ListFilterField label="Status" class="w-40">
+          <el-select
+            :model-value="listFilters.status"
+            placeholder="Status"
+            class="!w-full"
+            aria-label="Filter by status"
+            @update:model-value="(value: TEventStatus | 'all') => setFilter('status', value)"
+          >
+            <el-option label="All statuses" value="all" />
+            <el-option
+              v-for="option in statusFilterOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
+
+        <ListFilterField label="Country" class="w-48">
+          <el-select
+            :model-value="listFilters.country || undefined"
+            placeholder="Country"
+            clearable
+            class="!w-full"
+            aria-label="Filter by country"
+            @update:model-value="(value: string | undefined) => setFilter('country', value ?? '')"
+          >
+            <el-option
+              v-for="option in countries.options"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </ListFilterField>
+
+        <ListFilterField label="Dates" class="w-72">
+          <el-date-picker
+            v-model="dateRangeModel"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            start-placeholder="Start date"
+            end-placeholder="End date"
+            aria-label="Filter by date range"
+            class="!w-full"
+          />
+        </ListFilterField>
       </template>
     </ListToolbar>
 

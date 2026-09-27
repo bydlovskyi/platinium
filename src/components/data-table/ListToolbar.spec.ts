@@ -1,5 +1,7 @@
+import { h } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 
+import ListFilterField from './ListFilterField.vue'
 import ListToolbar from './ListToolbar.vue'
 
 import { setViewportToBreakpoint } from '../../../tests/support'
@@ -96,6 +98,20 @@ describe('ListToolbar', () => {
       expect(wrapper.find('.entity-filter').exists()).toBe(true)
       expect(wrapper.find('.el-drawer').exists()).toBe(false)
     })
+
+    it('renders the sort slot inline and keeps ListFilterField width without a label', async () => {
+      const wrapper = mountToolbar({}, {
+        slots: {
+          filters: () => h(ListFilterField, { label: 'Status', class: 'w-40' }, () => h('div', { class: 'entity-filter' })),
+          sort: '<div class="entity-sort">Sort</div>'
+        }
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.entity-sort').exists()).toBe(true)
+      expect(wrapper.find('.entity-filter').element.parentElement?.classList.contains('w-40')).toBe(true)
+      expect(wrapper.text()).not.toContain('Status')
+    })
   })
 
   describe('below the tablet breakpoint', () => {
@@ -142,6 +158,36 @@ describe('ListToolbar', () => {
       await flushPromises()
 
       expect(wrapper.find('button[aria-label="Open filters"]').exists()).toBe(false)
+    })
+
+    it('offers the drawer for a sort-only toolbar and renders sort inside it', async () => {
+      const wrapper = mountToolbar({}, {
+        slots: { sort: '<div class="entity-sort">Sort</div>' },
+        attachTo: document.body
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.entity-sort').exists()).toBe(false)
+
+      await wrapper.find('button[aria-label="Open filters"]').trigger('click')
+      await flushPromises()
+
+      expect(document.querySelector('.el-drawer .entity-sort')).toBeTruthy()
+    })
+
+    it('stacks ListFilterField controls under a visible label inside the drawer', async () => {
+      const wrapper = mountToolbar({}, {
+        slots: { filters: () => h(ListFilterField, { label: 'Status', class: 'w-40' }, () => h('div', { class: 'entity-filter' })) },
+        attachTo: document.body
+      })
+      await flushPromises()
+
+      await wrapper.find('button[aria-label="Open filters"]').trigger('click')
+      await flushPromises()
+
+      const field = document.querySelector('.el-drawer .entity-filter')?.parentElement
+      expect(field?.textContent).toContain('Status')
+      expect(field?.classList.contains('w-40')).toBe(false)
     })
 
     it('renders the filter slot inside the el-drawer once opened', async () => {
