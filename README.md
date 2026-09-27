@@ -82,6 +82,11 @@ docker compose up --build   # build the image and start the container
 
 The portal is then available at [http://localhost:8080](http://localhost:8080).
 
+There is no real backend, so the image is built with `VITE_ENABLE_MOCKS=true` and the
+production bundle starts the same MSW worker used in development. Data lives in the
+browser's `localStorage`. Once a real API exists, build with
+`--build-arg VITE_ENABLE_MOCKS=false` and set `VITE_API_URL`.
+
 nginx is configured (see [`nginx.conf`](nginx.conf)) to fall back to `index.html`
 for unknown paths, so refreshing a nested client-side route doesn't 404. Hashed
 assets under `/assets/` are served with a long, immutable cache lifetime;

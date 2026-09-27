@@ -16,13 +16,16 @@ app
   .use(VueGlobalPropertiesPlugin)
 
 async function enableMockingIfNeeded (): Promise<void> {
-  if (!import.meta.env.DEV) {
+  // No real backend exists, so the production image opts into the mock API at build time.
+  if (!import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCKS !== 'true') {
     return
   }
 
   const { worker, installChaosDebugSurface, warnOnUnhandledApiRequest } = await import('@/mocks/browser')
 
-  installChaosDebugSurface()
+  if (import.meta.env.DEV) {
+    installChaosDebugSurface()
+  }
 
   await worker.start({ onUnhandledRequest: warnOnUnhandledApiRequest })
 }
