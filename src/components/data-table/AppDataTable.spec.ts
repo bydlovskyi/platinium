@@ -3,11 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import AppDataTable from './AppDataTable.vue'
 import type { IDataTableColumn, IDataTableRowAction } from './data-table.types'
 
-import EmptyNoDataIllustration from '../illustrations/EmptyNoDataIllustration.vue'
-import EmptyNoMatchesIllustration from '../illustrations/EmptyNoMatchesIllustration.vue'
-import LoadFailedIllustration from '../illustrations/LoadFailedIllustration.vue'
-
-import { setViewportToBreakpoint } from '../../../tests/support'
+import { setViewportToBreakpoint, hasIcon } from '../../../tests/support'
 
 interface ITestRow extends Record<string, unknown> {
   id: string
@@ -173,9 +169,9 @@ describe('AppDataTable', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Nothing here yet')
-      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(true)
-      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
-      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+      expect(hasIcon(wrapper, 'empty-no-data')).toBe(true)
+      expect(hasIcon(wrapper, 'empty-no-matches')).toBe(false)
+      expect(hasIcon(wrapper, 'load-failed')).toBe(false)
 
       const createButton = wrapper.findAll('button').find(button => button.text().includes('Create'))
       expect(createButton).toBeDefined()
@@ -189,9 +185,9 @@ describe('AppDataTable', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('No results match your filters')
-      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(true)
-      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
-      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(false)
+      expect(hasIcon(wrapper, 'empty-no-matches')).toBe(true)
+      expect(hasIcon(wrapper, 'empty-no-data')).toBe(false)
+      expect(hasIcon(wrapper, 'load-failed')).toBe(false)
 
       const clearButton = wrapper.findAll('button').find(button => button.text().includes('Clear filters'))
       expect(clearButton).toBeDefined()
@@ -207,9 +203,9 @@ describe('AppDataTable', () => {
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('Nothing here yet')
       expect(wrapper.text()).not.toContain('No results match your filters')
-      expect(wrapper.findComponent(LoadFailedIllustration).exists()).toBe(true)
-      expect(wrapper.findComponent(EmptyNoDataIllustration).exists()).toBe(false)
-      expect(wrapper.findComponent(EmptyNoMatchesIllustration).exists()).toBe(false)
+      expect(hasIcon(wrapper, 'load-failed')).toBe(true)
+      expect(hasIcon(wrapper, 'empty-no-data')).toBe(false)
+      expect(hasIcon(wrapper, 'empty-no-matches')).toBe(false)
 
       const retryButton = wrapper.findAll('button').find(button => button.text().includes('Retry'))
       expect(retryButton).toBeDefined()

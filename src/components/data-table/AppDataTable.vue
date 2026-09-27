@@ -236,7 +236,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         sub-title="Please try again."
       >
         <template #icon>
-          <LoadFailedIllustration class="size-12 text-danger" />
+          <Icon name="load-failed" class="size-12 text-danger" />
         </template>
         <template #extra>
           <el-button type="primary" @click="emit('retry-requested')">
@@ -255,7 +255,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         description="Nothing here yet. Create the first record to get started."
       >
         <template #image>
-          <EmptyNoDataIllustration class="size-16 text-text-muted" />
+          <Icon name="empty-no-data" class="size-16 text-text-muted" />
         </template>
         <el-button v-if="canCreate" type="primary" @click="emit('create-requested')">
           <template #icon>
@@ -267,7 +267,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
 
       <el-empty v-else description="No results match your filters. Try clearing them to see the full list.">
         <template #image>
-          <EmptyNoMatchesIllustration class="size-16 text-text-muted" />
+          <Icon name="empty-no-matches" class="size-16 text-text-muted" />
         </template>
         <el-button @click="emit('clear-filters-requested')">
           <template #icon>

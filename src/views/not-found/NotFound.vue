@@ -1,7 +1,7 @@
 <template>
   <el-result sub-title="The page you're looking for doesn't exist or may have been moved.">
     <template #icon>
-      <NotFoundIllustration class="size-24 text-text-muted" />
+      <Icon name="not-found" class="size-24 text-text-muted" />
     </template>
     <template #title>
       <h1 class="text-screen-heading text-text-primary">

@@ -1,17 +1,15 @@
 import NotFound from '../not-found/NotFound.vue'
 import Forbidden from './Forbidden.vue'
-import ForbiddenIllustration from '@/components/illustrations/ForbiddenIllustration.vue'
-import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
 
-import { mountWithRouterAndPinia } from '../../../tests/support'
+import { mountWithRouterAndPinia, hasIcon } from '../../../tests/support'
 
 describe('Forbidden', () => {
   it('shows the forbidden illustration, a way back, and no other state illustration', async () => {
     const { wrapper } = await mountWithRouterAndPinia(Forbidden, { initialRoute: '/login' })
 
     expect(wrapper.text()).toContain('Access denied')
-    expect(wrapper.findComponent(ForbiddenIllustration).exists()).toBe(true)
-    expect(wrapper.findComponent(NotFoundIllustration).exists()).toBe(false)
+    expect(hasIcon(wrapper, 'forbidden')).toBe(true)
+    expect(hasIcon(wrapper, 'not-found')).toBe(false)
 
     const backButton = wrapper.findAll('a, button').find(el => el.text().includes('Back to dashboard'))
     expect(backButton).toBeDefined()
@@ -21,7 +19,7 @@ describe('Forbidden', () => {
     const forbidden = await mountWithRouterAndPinia(Forbidden, { initialRoute: '/login' })
     const notFound = await mountWithRouterAndPinia(NotFound, { initialRoute: '/login' })
 
-    expect(forbidden.wrapper.findComponent(ForbiddenIllustration).exists()).toBe(true)
-    expect(notFound.wrapper.findComponent(ForbiddenIllustration).exists()).toBe(false)
+    expect(hasIcon(forbidden.wrapper, 'forbidden')).toBe(true)
+    expect(hasIcon(notFound.wrapper, 'forbidden')).toBe(false)
   })
 })

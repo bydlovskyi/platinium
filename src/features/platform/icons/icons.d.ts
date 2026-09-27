@@ -1,2 +1,2 @@
 /* Auto-generated icons names - do not edit manually */
-type TIcons = 'alert-circle' | 'calendar' | 'car' | 'cart' | 'chevron-left' | 'chevron-right' | 'compass' | 'dashboard' | 'filter-off' | 'inbox' | 'logout' | 'menu' | 'moon' | 'more' | 'plus' | 'retry' | 'search' | 'sort' | 'sort-ascending' | 'sort-descending' | 'sun' | 'tag' | 'ticket' | 'user'
+type TIcons = 'alert-circle' | 'calendar' | 'car' | 'cart' | 'chevron-left' | 'chevron-right' | 'compass' | 'dashboard' | 'empty-no-data' | 'empty-no-matches' | 'filter' | 'filter-off' | 'forbidden' | 'inbox' | 'load-failed' | 'logout' | 'menu' | 'moon' | 'more' | 'not-found' | 'plus' | 'retry' | 'search' | 'sort' | 'sort-ascending' | 'sort-descending' | 'sun' | 'tag' | 'ticket' | 'user'
