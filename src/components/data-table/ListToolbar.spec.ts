@@ -88,7 +88,7 @@ describe('ListToolbar', () => {
   })
 
   describe('filters slot', () => {
-    it('renders the filters slot inline above the tablet breakpoint', async () => {
+    it('renders the filters slot inline at and above the laptop breakpoint', async () => {
       setViewportToBreakpoint('desktop')
       const wrapper = mountToolbar({}, {
         slots: { filters: '<div class="entity-filter">Entity filter</div>' }
@@ -97,6 +97,17 @@ describe('ListToolbar', () => {
 
       expect(wrapper.find('.entity-filter').exists()).toBe(true)
       expect(wrapper.find('.el-drawer').exists()).toBe(false)
+    })
+
+    it('moves the filters into the drawer on a tablet, alongside the card list', async () => {
+      setViewportToBreakpoint('tablet')
+      const wrapper = mountToolbar({}, {
+        slots: { filters: '<div class="entity-filter">Entity filter</div>' }
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.entity-filter').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Filters')
     })
 
     it('renders the sort slot inline and keeps ListFilterField width without a label', async () => {
@@ -114,7 +125,7 @@ describe('ListToolbar', () => {
     })
   })
 
-  describe('below the tablet breakpoint', () => {
+  describe('below the laptop breakpoint', () => {
     beforeEach(() => {
       setViewportToBreakpoint('mobile')
     })

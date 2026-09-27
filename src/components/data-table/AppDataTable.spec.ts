@@ -21,8 +21,8 @@ function buildRows (count = 3): ITestRow[] {
 
 function buildColumns (): IDataTableColumn<ITestRow>[] {
   return [
-    { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
-    { key: 'status', label: 'Status', sortable: false, responsivePriority: 'low' }
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'status', label: 'Status', sortable: false }
   ]
 }
 
@@ -376,9 +376,9 @@ describe('AppDataTable', () => {
     })
   })
 
-  describe('presentation switch at the tablet breakpoint', () => {
-    it('renders a real table at and above the tablet breakpoint', async () => {
-      setViewportToBreakpoint('tablet')
+  describe('presentation switch at the laptop breakpoint', () => {
+    it('renders a real table at and above the laptop breakpoint', async () => {
+      setViewportToBreakpoint('laptop')
       const wrapper = mountTable({})
       await flushPromises()
 
@@ -386,14 +386,24 @@ describe('AppDataTable', () => {
       expect(wrapper.find('[role="table"], table').exists()).toBe(true)
     })
 
-    it('renders stacked cards showing only high-priority columns below the tablet breakpoint', async () => {
+    it('renders cards on a tablet, where a full table would squeeze its columns', async () => {
+      setViewportToBreakpoint('tablet')
+      const wrapper = mountTable({})
+      await flushPromises()
+
+      expect(wrapper.find('table').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Row 1')
+    })
+
+    it('renders stacked cards showing every column on mobile, the first as the title', async () => {
       setViewportToBreakpoint('mobile')
       const wrapper = mountTable({})
       await flushPromises()
 
       expect(wrapper.find('table').exists()).toBe(false)
       expect(wrapper.text()).toContain('Row 1')
-      expect(wrapper.text()).not.toContain('Status')
+      expect(wrapper.find('dl').text()).toContain('Status')
+      expect(wrapper.find('dl').text()).toContain('active')
     })
 
     it('switches from table to cards when the viewport crosses the tablet breakpoint reactively', async () => {
@@ -405,6 +415,38 @@ describe('AppDataTable', () => {
       setViewportToBreakpoint('mobile')
       await flushPromises()
       expect(wrapper.find('table').exists()).toBe(false)
+    })
+  })
+
+  describe('sorting cards, which have no column headers', () => {
+    it('offers only sortable columns and requests an explicit ascending sort when one is picked', async () => {
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({})
+      await flushPromises()
+
+      const sortSelect = wrapper.findComponent({ name: 'ElSelect' })
+      expect(sortSelect.exists()).toBe(true)
+
+      sortSelect.vm.$emit('update:modelValue', 'name')
+      expect(wrapper.emitted('sort-changed')).toEqual([[{ field: 'name', order: 'asc' }]])
+    })
+
+    it('flips the direction of the current sort', async () => {
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({ sort: { field: 'name', order: 'asc' } })
+      await flushPromises()
+
+      await wrapper.find('button[aria-label="Sorted ascending, switch to descending"]').trigger('click')
+      expect(wrapper.emitted('sort-changed')).toEqual([[{ field: 'name', order: 'desc' }]])
+    })
+
+    it('clears the sort when the select is cleared', async () => {
+      setViewportToBreakpoint('mobile')
+      const wrapper = mountTable({ sort: { field: 'name', order: 'desc' } })
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'ElSelect' }).vm.$emit('update:modelValue', undefined)
+      expect(wrapper.emitted('sort-changed')).toEqual([[undefined]])
     })
   })
 

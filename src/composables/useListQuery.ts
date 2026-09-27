@@ -217,6 +217,11 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     })
   }
 
+  // Explicit counterpart to the header-click cycle in setSort, for controls that pick field and order directly.
+  function applySort (nextSort: IListQuerySort | undefined): Promise<void> {
+    return enqueueDiscrete(() => pushQuery({ sort: nextSort }))
+  }
+
   function setPage (value: number): Promise<void> {
     return enqueueDiscrete(() => pushQuery({ page: value }))
   }
@@ -274,6 +279,7 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     setSearch,
     setFilter,
     setSort,
+    applySort,
     setPage,
     setPerPage,
     resetFilters

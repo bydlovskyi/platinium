@@ -6,7 +6,7 @@ defineProps<{
 }>()
 
 // On mobile the toolbar moves filters into a drawer, so stack full-width under a label there.
-const { isMobile: isStacked } = useBreakpoint()
+const { isCompact: isStacked } = useBreakpoint()
 </script>
 
 <template>

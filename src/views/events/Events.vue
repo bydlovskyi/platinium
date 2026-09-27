@@ -26,6 +26,7 @@ const {
   setSearch,
   setFilter,
   setSort,
+  applySort,
   setPage,
   setPerPage,
   resetFilters,
@@ -38,11 +39,11 @@ const {
 } = useEventsList()
 
 const columns: IDataTableColumn<TEvent>[] = [
-  { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
-  { key: 'country', label: 'Country', responsivePriority: 'high', cellSlot: 'country' },
-  { key: 'venue', label: 'Venue', responsivePriority: 'low' },
-  { key: 'startDate', label: 'Dates', sortable: true, responsivePriority: 'high', cellSlot: 'dates' },
-  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cardRole: 'badge', cellSlot: 'status' }
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'country', label: 'Country', cellSlot: 'country' },
+  { key: 'venue', label: 'Venue' },
+  { key: 'startDate', label: 'Dates', sortable: true, cellSlot: 'dates' },
+  { key: 'status', label: 'Status', sortable: true, cardRole: 'badge', cellSlot: 'status' }
 ]
 
 const dataTableSort = computed(() => (
@@ -324,6 +325,7 @@ const bulkResultVisible = computed({
       :leaving-row-keys="leavingRowKeys"
       caption="Events"
       @sort-requested="setSort"
+      @sort-changed="applySort"
       @page-requested="setPage"
       @page-size-requested="setPerPage"
       @clear-filters-requested="resetFilters"

@@ -2,3 +2,9 @@
 .el-table__body td.el-table__cell {
   transition: background-color var(--duration-fast) var(--ease-out-token);
 }
+
+/* Cells default to `word-break: break-all` (splits "Conference" mid-word) with no `--el-*` variable; wrap at word boundaries instead. */
+.el-table .cell {
+  word-break: normal;
+  overflow-wrap: break-word;
+}

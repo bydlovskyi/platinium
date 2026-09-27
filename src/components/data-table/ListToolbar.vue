@@ -19,7 +19,8 @@ const emit = defineEmits<{
   'clear-all-requested': []
 }>()
 
-const { isMobile } = useBreakpoint()
+// Same threshold as AppDataTable's cards, so filters move into the drawer together with the table.
+const { isCompact } = useBreakpoint()
 const slots = useSlots()
 
 const isFilterDrawerOpen = ref(false)
@@ -52,12 +53,12 @@ function onSearchInput (value: string): void {
         </template>
       </el-input>
 
-      <div v-if="!isMobile && hasSortControl" class="ml-auto flex items-center gap-2">
+      <div v-if="!isCompact && hasSortControl" class="ml-auto flex items-center gap-2">
         <slot name="sort" />
       </div>
 
       <el-badge
-        v-else-if="isMobile && hasDrawerControls"
+        v-else-if="isCompact && hasDrawerControls"
         :value="activeFilterCount"
         :hidden="!hasActiveFilters"
         type="primary"
@@ -72,7 +73,7 @@ function onSearchInput (value: string): void {
     </div>
 
     <div
-      v-if="!isMobile && hasFilterControls"
+      v-if="!isCompact && hasFilterControls"
       class="flex flex-wrap items-center gap-2"
       role="group"
       aria-label="Filters"
@@ -96,7 +97,7 @@ function onSearchInput (value: string): void {
     </div>
 
     <el-drawer
-      v-if="isMobile && hasDrawerControls"
+      v-if="isCompact && hasDrawerControls"
       v-model="isFilterDrawerOpen"
       title="Filters"
       direction="btt"

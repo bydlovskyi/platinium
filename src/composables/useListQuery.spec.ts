@@ -341,6 +341,21 @@ describe('useListQuery', () => {
       expect(listQuery.sort.value).toEqual({ field: 'name', order: 'asc' })
     })
 
+    it('applies an explicit field and order without cycling, and clears it with undefined', async () => {
+      const { router, listQuery } = await setup()
+
+      await listQuery.applySort({ field: 'name', order: 'desc' })
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'desc' })
+      expect(router.currentRoute.value.query.order).toBe('desc')
+
+      await listQuery.applySort({ field: 'name', order: 'desc' })
+      expect(listQuery.sort.value).toEqual({ field: 'name', order: 'desc' })
+
+      await listQuery.applySort(undefined)
+      expect(listQuery.sort.value).toBeUndefined()
+      expect(router.currentRoute.value.query.sort).toBeUndefined()
+    })
+
     it('starts a newly-clicked field at ascending regardless of another field\'s previous state', async () => {
       const { listQuery } = await setup()
 

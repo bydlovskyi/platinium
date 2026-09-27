@@ -10,6 +10,7 @@ const {
   page,
   setSearch,
   setSort,
+  applySort,
   setPage,
   setPerPage,
   resetFilters,
@@ -35,9 +36,9 @@ const { loading: csvExportLoading, exportCsv } = useCsvExport()
 const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const columns: IDataTableColumn<TCategory>[] = [
-  { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
-  { key: 'description', label: 'Description', responsivePriority: 'low' },
-  { key: 'createdAt', label: 'Created', sortable: true, responsivePriority: 'low', cellSlot: 'createdAt' }
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'description', label: 'Description' },
+  { key: 'createdAt', label: 'Created', sortable: true, cellSlot: 'createdAt' }
 ]
 
 const dataTableSort = computed(() => (
@@ -202,6 +203,7 @@ const bulkResultVisible = computed({
       :leaving-row-keys="leavingRowKeys"
       caption="Categories"
       @sort-requested="setSort"
+      @sort-changed="applySort"
       @page-requested="setPage"
       @page-size-requested="setPerPage"
       @clear-filters-requested="resetFilters"

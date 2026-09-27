@@ -1,9 +1,6 @@
 export type TDataTableAlign = 'left' | 'center' | 'right'
 
-/** `high` columns also render on mobile cards; `low` columns are table-only. */
-export type TDataTableResponsivePriority = 'high' | 'low'
-
-/** Placement on the mobile card; unset `high` columns become label/value fields. */
+/** Placement on the mobile card; every other column becomes a label/value field. */
 export type TDataTableCardRole = 'title' | 'badge'
 
 export type TDataTableSortOrder = 'asc' | 'desc'
@@ -19,9 +16,7 @@ export interface IDataTableColumn<TRow> {
   label: string
   sortable?: boolean
   align?: TDataTableAlign
-  /** Defaults to `'low'`. */
-  responsivePriority?: TDataTableResponsivePriority
-  /** Only read for `high` columns; without a `'title'`, the first `high` column is the card title. */
+  /** Without a `'title'`, the first column is the card title. */
   cardRole?: TDataTableCardRole
   /** Renders slot `cell-<cellSlot>`; otherwise `row[key]` as text. */
   cellSlot?: string

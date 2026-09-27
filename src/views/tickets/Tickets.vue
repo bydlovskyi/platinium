@@ -24,6 +24,7 @@ const {
   setSearch,
   setFilter,
   setSort,
+  applySort,
   setPage,
   setPerPage,
   resetFilters,
@@ -35,15 +36,14 @@ const {
   emptyReason
 } = useTicketsList()
 
-// AppDataTable's mobile card only renders `high` columns.
 const columns: IDataTableColumn<TTicket>[] = [
-  { key: 'name', label: 'Name', sortable: true, responsivePriority: 'high' },
-  { key: 'price', label: 'Price', sortable: true, responsivePriority: 'high', align: 'right', cellSlot: 'price' },
-  { key: 'quantity', label: 'Quantity', sortable: true, responsivePriority: 'low', align: 'right', cellSlot: 'quantity' },
-  { key: 'status', label: 'Status', sortable: true, responsivePriority: 'high', cardRole: 'badge', cellSlot: 'status' },
-  { key: 'eventName', label: 'Event', responsivePriority: 'low' },
-  { key: 'categoryName', label: 'Category', responsivePriority: 'low' },
-  { key: 'createdAt', label: 'Created', sortable: true, responsivePriority: 'low', cellSlot: 'createdAt' }
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'price', label: 'Price', sortable: true, align: 'right', cellSlot: 'price' },
+  { key: 'quantity', label: 'Quantity', sortable: true, align: 'right', cellSlot: 'quantity' },
+  { key: 'status', label: 'Status', sortable: true, cardRole: 'badge', cellSlot: 'status' },
+  { key: 'eventName', label: 'Event' },
+  { key: 'categoryName', label: 'Category' },
+  { key: 'createdAt', label: 'Created', sortable: true, cellSlot: 'createdAt' }
 ]
 
 const dataTableSort = computed(() => (
@@ -439,6 +439,7 @@ const bulkResultVisible = computed({
       :leaving-row-keys="leavingRowKeys"
       caption="Tickets"
       @sort-requested="setSort"
+      @sort-changed="applySort"
       @page-requested="setPage"
       @page-size-requested="setPerPage"
       @clear-filters-requested="resetFilters"

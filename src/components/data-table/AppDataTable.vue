@@ -49,6 +49,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'sort-requested': [field: string]
+  'sort-changed': [sort: IDataTableSort | undefined]
   'page-requested': [page: number]
   'page-size-requested': [perPage: number]
   'row-action-invoked': [payload: { action: string; row: TRow }]
@@ -58,15 +59,14 @@ const emit = defineEmits<{
   'retry-requested': []
 }>()
 
-const { isMobile } = useBreakpoint()
+const { isMobile, isCompact } = useBreakpoint()
 
 const tableRef = ref<TableInstance>()
 
 const cardLayout = computed(() => {
-  const highColumns = props.columns.filter(column => column.responsivePriority === 'high')
-  const title = highColumns.find(column => column.cardRole === 'title') ?? highColumns[0]
-  const badge = highColumns.find(column => column.cardRole === 'badge' && column !== title)
-  const fields = highColumns.filter(column => column !== title && column !== badge)
+  const title = props.columns.find(column => column.cardRole === 'title') ?? props.columns[0]
+  const badge = props.columns.find(column => column.cardRole === 'badge' && column !== title)
+  const fields = props.columns.filter(column => column !== title && column !== badge)
 
   return { title, badge, fields }
 })
@@ -83,7 +83,7 @@ const presentationMode = computed<TPresentationMode>(() => {
   // `loading` before `error` so a retry-in-flight shows feedback instead of the stale error;
   // with rows already on hand that's the table/cards under a loading mask.
   if (props.loading) {
-    return props.rows.length === 0 ? 'loading' : (isMobile.value ? 'cards' : 'table')
+    return props.rows.length === 0 ? 'loading' : (isCompact.value ? 'cards' : 'table')
   }
 
   if (props.error) {
@@ -94,7 +94,7 @@ const presentationMode = computed<TPresentationMode>(() => {
     return 'empty'
   }
 
-  return isMobile.value ? 'cards' : 'table'
+  return isCompact.value ? 'cards' : 'table'
 })
 
 // The skeleton is the real `el-table` with placeholder rows, so columns match and nothing shifts on load.
@@ -149,6 +149,23 @@ function syncSortFromProps (): void {
 }
 
 watch(() => props.sort, syncSortFromProps, { deep: true, flush: 'post' })
+
+// Cards have no column headers, so compact screens pick the sort field and direction explicitly.
+const sortableColumns = computed(() => props.columns.filter(column => column.sortable))
+
+function onCardSortFieldChange (field: string | undefined): void {
+  emit('sort-changed', field ? { field, order: props.sort?.order ?? 'asc' } : undefined)
+}
+
+const cardSortOrderLabel = computed(() => (
+  props.sort?.order === 'desc' ? 'Sorted descending, switch to ascending' : 'Sorted ascending, switch to descending'
+))
+
+function toggleCardSortOrder (): void {
+  if (props.sort) {
+    emit('sort-changed', { field: props.sort.field, order: props.sort.order === 'asc' ? 'desc' : 'asc' })
+  }
+}
 
 function onSortChange ({ prop }: { prop: string | null }): void {
   if (isSyncingSort || !prop) {
@@ -296,7 +313,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         Selecting applies to this page only ({{ pageRowKeys.length }} row{{ pageRowKeys.length === 1 ? '' : 's' }}).
       </p>
 
-      <div v-if="isSkeleton && isMobile" class="flex flex-col gap-2" aria-busy="true">
+      <div v-if="isSkeleton && isCompact" class="flex flex-col gap-2" aria-busy="true">
         <el-card
           v-for="n in SKELETON_ROW_COUNT"
           :key="n"
@@ -399,8 +416,12 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
         v-loading="loading"
         class="flex flex-col gap-2"
       >
-        <div v-if="selectable" class="px-1">
+        <div
+          v-if="selectable || sortableColumns.length > 0"
+          class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1"
+        >
           <el-checkbox
+            v-if="selectable"
             :model-value="allOnPageSelected"
             :indeterminate="someOnPageSelected"
             :aria-label="selectAllAriaLabel"
@@ -408,6 +429,31 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           >
             Select all on this page
           </el-checkbox>
+
+          <div v-if="sortableColumns.length > 0" class="ml-auto flex items-center gap-2">
+            <el-select
+              :model-value="sort?.field"
+              clearable
+              placeholder="Sort by"
+              aria-label="Sort by"
+              class="!w-40"
+              @update:model-value="onCardSortFieldChange"
+            >
+              <el-option
+                v-for="column in sortableColumns"
+                :key="column.key"
+                :label="column.label"
+                :value="column.key"
+              />
+            </el-select>
+            <el-button
+              :disabled="!sort"
+              :aria-label="cardSortOrderLabel"
+              @click="toggleCardSortOrder"
+            >
+              <Icon :name="sort?.order === 'desc' ? 'sort-descending' : 'sort-ascending'" />
+            </el-button>
+          </div>
         </div>
 
         <!-- Cards bypass `el-table`, so a real `<TransitionGroup>` can own the leave animation here. -->
