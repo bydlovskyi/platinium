@@ -6,20 +6,6 @@ import { mountWithRouterAndPinia, resetDatabase } from '../../../../tests/suppor
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent } from '@/mocks/db'
 
-/**
- * `TicketForm` unit tests (GitHub issue #35, PRD-006's testing boundary:
- * "Unit tests: required fields, price and quantity bounds, integer-only
- * quantity, required currency"). Mounted in create mode behind a real router
- * (the component calls `useRoute`/`useUnsavedChangesGuard`, which needs a
- * matched route to register `onBeforeRouteLeave`) and against the real MSW
- * handlers (`RemoteSelect`'s `fetchOptions`/`resolveOption` hit
- * `eventsService`/`categoriesService`, which are thin `apiClient` wrappers —
- * no mocked service, no stubs, real Element Plus components throughout, per
- * `ELEMENT-PLUS.md`'s testing boundary). Integration-level create/edit flows
- * (validation-then-success, editing including changing the event) are left
- * to test-eng's integration suite, per this task's split.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -52,10 +38,7 @@ async function mountCreateForm () {
     attachTo: document.body
   })
 
-  // The route is `meta: { requiresAuth: true }` — without a signed-in
-  // session the route guard redirects to `login` before the form ever
-  // mounts against `/tickets/new`, which only matters for the tests that
-  // assert the post-submit navigation back to the list.
+  // requiresAuth: without a session the guard redirects before the form mounts.
   const authStore = useAuthStore()
   authStore.token = 'mock-token-under-test'
   authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
@@ -71,7 +54,6 @@ async function submit (wrapper: Awaited<ReturnType<typeof mountCreateForm>>['wra
   await flushPromises()
 }
 
-/** Opens a `RemoteSelect`'s dropdown by clicking the `el-form-item` labelled `label`'s own `.el-select__wrapper`, then clicks the option whose text is `optionText` from the teleported dropdown in `document.body`. */
 async function pickRemoteOption (
   wrapper: Awaited<ReturnType<typeof mountCreateForm>>['wrapper'],
   label: string,
@@ -131,9 +113,7 @@ describe('TicketForm', () => {
 
       await submit(wrapper)
 
-      // name, currency, status, eventId, categoryId are all required.
-      // `status` always carries a default (`draft`), so only four of the
-      // five required rules can actually fire empty on a pristine form.
+      // `status` defaults to `draft`, so only four of the five required rules can fire.
       await vi.waitFor(() => {
         expect(wrapper.findAll('.el-form-item__error').length).toBeGreaterThanOrEqual(4)
       })
@@ -158,10 +138,7 @@ describe('TicketForm', () => {
       await quantityInput.trigger('change')
       await flushPromises()
 
-      // `el-input-number`'s own `:min="0"` clamps an out-of-range typed
-      // value back to the boundary rather than accepting it — asserting the
-      // model itself never goes negative is the behaviour PRD-006 asks for
-      // ("quantity restricted to whole non-negative numbers").
+      // el-input-number's :min clamps rather than rejecting, so assert the model never goes negative.
       const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { quantity: number } }
       expect(vm.form.quantity).toBeGreaterThanOrEqual(0)
     })
@@ -176,8 +153,6 @@ describe('TicketForm', () => {
       await quantityInput.trigger('change')
       await flushPromises()
 
-      // `:precision="0" step-strictly` rounds/clamps a fractional entry to
-      // a whole number rather than accepting the decimal.
       const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { quantity: number } }
       expect(Number.isInteger(vm.form.quantity)).toBe(true)
     })
@@ -224,10 +199,7 @@ describe('TicketForm', () => {
       await pickCurrency(wrapper, 'USD')
       await flushPromises()
 
-      // Once a currency is chosen, `CurrencyInput` mounts its own
-      // `el-input-number` for the decimal amount, scoped by the "Price"
-      // `el-form-item` rather than input order on the page (quantity is
-      // also an `el-input-number`).
+      // Scoped by the Price form item: quantity is also an el-input-number.
       const priceFormItem = wrapper.findAll('.el-form-item').find(item => item.text().includes('Price'))!
       const priceInput = priceFormItem.find('.el-input-number input')
       await priceInput.setValue('49.99')

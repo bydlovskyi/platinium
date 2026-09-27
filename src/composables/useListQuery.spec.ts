@@ -7,16 +7,6 @@ interface ITestFilters {
   ownerId: number
 }
 
-/**
- * `useListQuery` unit tests (GitHub issue #21): a generic, URL-driven list
- * query composable meant to back every future list screen (events,
- * categories, tickets). Driven through a real memory-history router (no app
- * route table needed — this composable is route-table agnostic) with a
- * trivial host component, matching this repo's `useBreakpoint.spec.ts`
- * pattern of exercising the composable directly rather than mocking its
- * dependencies.
- */
-
 const LIST_QUERY_KEY = 'test-list'
 
 function buildFilters () {
@@ -252,10 +242,7 @@ describe('useListQuery', () => {
   })
 
   describe('resetFilters', () => {
-    it('clears a search-only query back to the full, unfiltered list (GitHub issue #26)', async () => {
-      // Mirrors the "Clear filters" / "Clear all" repro: navigating straight
-      // to a URL where `search` is the *only* active query param (no other
-      // filters were ever set) must still be fully cleared by resetFilters.
+    it('clears a search-only query back to the full, unfiltered list', async () => {
       const { router, listQuery } = await setup('/list?search=zzzznomatch')
 
       expect(listQuery.search.value).toBe('zzzznomatch')
@@ -349,10 +336,6 @@ describe('useListQuery', () => {
     it('nets two toggles (undefined -> asc -> desc) when setSort is called twice back-to-back without awaiting in between', async () => {
       const { router, listQuery } = await setup()
 
-      // Neither call is awaited before the next fires, so both must still
-      // observe each other's effect rather than both reading the same
-      // pre-push `sort.value` and collapsing into a single toggle (which
-      // would leave order at 'asc' instead of progressing to 'desc').
       const firstCall = listQuery.setSort('name')
       const secondCall = listQuery.setSort('name')
 
@@ -501,14 +484,10 @@ describe('useListQuery', () => {
       await eventsScreen.listQuery.setPerPage(75)
       expect(eventsScreen.listQuery.perPage.value).toBe(75)
 
-      // A different list screen (own `key`, own route/URL) must not see
-      // the events screen's persisted page size.
       const ticketsScreen = await setupWithKey('tickets')
 
       expect(ticketsScreen.listQuery.perPage.value).toBe(20)
 
-      // Re-visiting the events screen later (fresh instance, no perPage in
-      // its URL) still recalls its own persisted value.
       const eventsScreenRevisit = await setupWithKey('events')
 
       expect(eventsScreenRevisit.listQuery.perPage.value).toBe(75)

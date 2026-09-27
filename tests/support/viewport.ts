@@ -6,7 +6,6 @@ const BREAKPOINT_DIMENSIONS: Record<TBreakpoint, { width: number; height: number
   desktop: { width: 1440, height: 900 }
 }
 
-/** Resizes the jsdom window to a named breakpoint for responsive assertions. */
 export function setViewportToBreakpoint (breakpoint: TBreakpoint) {
   const { width, height } = BREAKPOINT_DIMENSIONS[breakpoint]
 

@@ -5,16 +5,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory } from '@/mocks/db'
 
-/**
- * `categoriesService` unit tests (GitHub issue #30, PRD-005's testing
- * boundary — mirroring `src/views/events/events.service.spec.ts`'s shape
- * exactly). This service is a thin wrapper over `apiClient` with no
- * behaviour of its own to stub around, so the only thing worth proving is
- * the request shape (method, URL, params/body) each method actually
- * produces — captured via a `request:start` listener over the real MSW node
- * server, no mocked `apiClient`.
- */
-
 function buildCategory (overrides: Partial<ICategory> = {}): ICategory {
   return {
     id: overrides.id ?? 'category-1',
@@ -168,10 +158,7 @@ describe('categoriesService', () => {
       expect(params.get('format')).toBe('csv')
       expect(params.get('search')).toBe('vip')
 
-      // Not `expect(blob).toBeInstanceOf(Blob)` — see
-      // `eventsService.exportCsv`'s spec comment for why: axios's fetch
-      // adapter resolves its `Blob` through Node/undici's realm, a different
-      // constructor identity than jsdom's global `Blob`.
+      // Duck-typed, not toBeInstanceOf(Blob): the fetch adapter's Blob comes from undici's realm, not jsdom's.
       expect(typeof blob.size).toBe('number')
       expect(blob.type).toContain('text/csv')
       const text = await blob.text()

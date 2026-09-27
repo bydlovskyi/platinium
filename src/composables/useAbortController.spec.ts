@@ -1,18 +1,6 @@
 import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 
-/**
- * `useAbortController` unit tests (issue #46 — every composable is covered).
- *
- * Backs `useListResource`'s "abort a superseded request" and
- * `useDashboardStats`'s "abort an in-flight request on retry" behaviours
- * (both already exercised transitively through those composables' own
- * specs), but its own per-key abort/abortAll semantics — a second `call()`
- * under the same key aborting the first, `abort()` targeting only its own
- * key, and `abortAll()` firing on unmount — were not asserted directly
- * anywhere. `onUnmounted` requires a real component host, matching this
- * repo's `useConfirm.spec.ts` convention.
- */
 function buildHost () {
   let controller: ReturnType<typeof useAbortController<'a' | 'b'>>
 

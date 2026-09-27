@@ -4,15 +4,7 @@ import { db } from '../db/singleton'
 import { resetDatabase } from '../../../tests/support'
 import type { ICategory, ITicket } from '../db'
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient` —
- * mirroring `events.spec.ts`: `apiClient`'s response interceptor unwraps a
- * successful response and discards the status code, which these tests need
- * to assert on directly (e.g. exact 201/400/404/409). Plain `axios` still
- * goes through the same XHR/http layer `msw/node`'s interceptor patches. No
- * `baseURL` is set, so requests resolve against jsdom's default origin,
- * matching how `apiClient` resolves a relative path in production.
- */
+// Plain axios, not `apiClient`: its response interceptor drops the status code these tests assert on.
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
@@ -30,7 +22,6 @@ async function requestFor (
   return { status: response.status, body: response.data }
 }
 
-/** Logs in as the seeded account for the given role, returning its bearer token — used by the viewer-403 tests below. */
 async function loginAs (email: string, password: string): Promise<string> {
   const { data } = await axios.request({
     method: 'post',
@@ -130,9 +121,7 @@ describe('categories handlers', () => {
     })
 
     it('paginates via page/perPage and reports meta accordingly', async () => {
-      // The seed dataset only carries 6 categories (`CATEGORY_DEFINITIONS` in
-      // `src/mocks/db/fixtures.ts`), so a handful more are created here to
-      // guarantee at least two full pages of 3 exist regardless of seed size.
+      // The seed has only 6 categories, so create more to guarantee two full pages of 3.
       await Promise.all(Array.from({ length: 6 }, (_, index) => requestFor('post', '/categories', validCategoryPayload({ name: `Pagination Probe ${index + 1}` }))
       ))
 
@@ -251,7 +240,6 @@ describe('categories handlers', () => {
           code: 'DUPLICATE_NAME',
           message: expect.any(String)
         })
-        // Distinct from the generic dependency-conflict code, so a caller can branch on it.
         expect((second.body as TErrorResponse).code).not.toBe('CONFLICT')
       })
 
@@ -383,10 +371,7 @@ describe('categories handlers', () => {
 
   describe('DELETE /categories/{id}', () => {
     it('deletes a freshly created category with no tickets referencing it: 204, and it is actually gone', async () => {
-      // Created fresh (rather than picked from seed data) so the test's premise —
-      // "no ticket references this category" — is explicit and does not depend on
-      // incidental seed shape (every seeded category happens to have a ticket,
-      // given 400 seeded tickets spread across only 6 seeded categories).
+      // Created fresh: every seeded category happens to have a ticket.
       const target = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
 
       const { status, body } = await requestFor('delete', `/categories/${target.id}`)
@@ -470,8 +455,7 @@ describe('categories handlers', () => {
       const { body } = await requestFor('get', '/categories?format=csv&perPage=1')
       const rows = (body as string).split('\r\n')
 
-      // perPage=1 would cap a JSON list at a single record; the CSV export
-      // must ignore pagination and include the full filtered result.
+      // perPage=1 must be ignored by the CSV export.
       expect(rows.length).toBeGreaterThan(2)
       expect(rows.some(row => row.startsWith('CSV Export Probe,'))).toBe(true)
     })
@@ -580,7 +564,7 @@ describe('categories handlers', () => {
     })
   })
 
-  describe('viewer permissions (PRD-007)', () => {
+  describe('viewer permissions', () => {
     it('rejects POST /categories for a viewer with 403', async () => {
       const token = await loginAsViewer()
 
@@ -622,7 +606,7 @@ describe('categories handlers', () => {
       expect(db.categories.get(created.id)).toBeDefined()
     })
 
-    it('regression: an admin can still create/update/delete after this slice', async () => {
+    it('an admin can still create/update/delete', async () => {
       const token = await loginAsAdmin()
 
       const created = (await requestFor('post', '/categories', validCategoryPayload({ name: 'Admin Regression' }), { token })).body as ICategory

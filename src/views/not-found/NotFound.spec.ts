@@ -3,12 +3,7 @@ import NotFoundIllustration from '@/components/illustrations/NotFoundIllustratio
 
 import { mountWithRouterAndPinia } from '../../../tests/support'
 
-/**
- * 404 page (GitHub issue #41, PRD-010's testing boundary: "the error
- * variant" — `el-result` component tested). Mounted behind a real router
- * (initial route `/login`, so the auth guard never redirects mid-test) so
- * the `router-link`-backed "Back to dashboard" button resolves for real.
- */
+// Starts at /login so the auth guard never redirects mid-test.
 describe('NotFound', () => {
   it('shows the not-found illustration, a way back, and no other state illustration', async () => {
     const { wrapper } = await mountWithRouterAndPinia(NotFound, { initialRoute: '/login' })

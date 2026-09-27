@@ -1,17 +1,4 @@
-/**
- * `filters` unit tests (GitHub issue #24, PRD-003 "Formatters and status
- * tag — unit tested, including a zero price, a large price and each
- * currency"). `formatMoney`, `formatDate` and `formatDateRange` are new in
- * this slice; the pre-existing, deprecated `formatCurrency` is left
- * untouched per the task boundary — no tests added or removed for it here.
- *
- * The app-facing `TCurrency` (`src/features/platform/api/dts/index.d.ts`,
- * generated from the OpenAPI `Currency` schema — the type `formatMoney`'s
- * signature actually uses) is `'USD' | 'EUR' | 'GBP'`, identical to the
- * mock DB's hand-written `TCurrency` in `src/mocks/db/types.ts`. No
- * discrepancy between the two, and no JPY in either — so no zero-decimal
- * currency case exists to exercise here.
- */
+// All supported currencies (USD/EUR/GBP) have 2 decimals, so there's no zero-decimal case to test.
 describe('filters', () => {
   describe('formatMoney', () => {
     it('formats a zero amount', () => {
@@ -36,9 +23,7 @@ describe('filters', () => {
     })
 
     it('derives the minor-unit divisor from the currency rather than hardcoding 100', () => {
-      // Every supported currency (USD/EUR/GBP) has 2 fraction digits, so 1
-      // minor unit is always a cent — this pins that formatMoney divides by
-      // `10 ** maximumFractionDigits` rather than a hardcoded 100.
+      // Pins that formatMoney divides by 10 ** maximumFractionDigits, not a hardcoded 100.
       expect(filters.formatMoney(1, 'USD')).toBe('$0.01')
     })
   })
@@ -61,8 +46,6 @@ describe('filters', () => {
       expect(result).toContain('3')
       expect(result).toContain('10')
       expect(result).toContain('2026')
-      // One combined string, not two independently-formatted dates joined —
-      // the month/year is not repeated for the range's start half.
       expect(result.match(/Sep/g)?.length).toBe(1)
     })
 

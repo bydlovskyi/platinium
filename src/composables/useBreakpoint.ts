@@ -1,23 +1,15 @@
-import { breakpoints } from '@/assets/styles/breakpoints'
+// Mirrors Tailwind's `md` / `xl` screens.
+const BREAKPOINTS = {
+  tablet: 768,
+  desktop: 1280
+} as const
 
-/**
- * Single source of the app's current responsive tier, backed by VueUse's
- * `useBreakpoints` (a `matchMedia` wrapper) — no ad-hoc `window.innerWidth`
- * listener anywhere else in the shell (PRD-002 "Responsive strategy").
- *
- * Tablet and desktop are `min-width` queries off the shared `breakpoints`
- * tokens; mobile is simply "neither of those matched" rather than its own
- * query, so the three tiers can never overlap or leave a gap at the
- * boundary pixel.
- */
 export function useBreakpoint () {
-  const query = useBreakpoints({
-    tablet: breakpoints.tablet,
-    desktop: breakpoints.desktop
-  })
+  const query = useBreakpoints(BREAKPOINTS)
 
   const isDesktop = query.greaterOrEqual('desktop')
   const isTablet = computed(() => query.between('tablet', 'desktop').value)
+  // Mobile is "not tablet" rather than its own query, so tiers never overlap or gap.
   const isMobile = computed(() => !query.greaterOrEqual('tablet').value)
 
   return {

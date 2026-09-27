@@ -1,15 +1,5 @@
 <script lang="ts" setup>
-/**
- * Line illustration for the 403 "forbidden" page (GitHub issue #41, PRD
- * "Designed states"). Reads as a locked padlock behind a barrier line —
- * distinct from the other four illustrations under this directory, all of
- * which describe an empty/failed/lost condition rather than a permission
- * boundary.
- *
- * Shares this family's visual language (rounded 1.5px strokes) with the
- * other four illustrations here. Pure `currentColor` — the consumer sets
- * colour via a `text-*` Tailwind class.
- */
+// Colour comes from `currentColor`; set it with a `text-*` class.
 </script>
 
 <template>

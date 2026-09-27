@@ -9,29 +9,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Dashboard screen, integration tested end to end (GitHub issue #38,
- * PRD-007's testing boundary: "Dashboard — integration tested: renders every
- * `el-statistic` figure from MSW, and each link navigates to the correctly
- * filtered list"). Mounted behind a real memory-history router and a real
- * Pinia instance, against the shared MSW node server answering
- * `GET /dashboard/stats` for real (either the handler's own aggregation over
- * a hand-built controlled dataset via `resetDatabase`, or a `server.use(...)`
- * override for the error/retry scenario) — no mocked `dashboardService`, no
- * mocked `useDashboardStats`. Mirrors `Events.spec.ts`/`permissions.spec.ts`'s
- * established shape: co-located next to the view (not `tests/integration/`),
- * `seedSession` + `authStore.restore()` for a real persisted-token session,
- * `vi.waitFor` for async assertions, teleport-free here so no `document.body`
- * queries are needed.
- *
- * A small hand-built dataset (mirroring `dashboard.spec.ts`'s
- * `controlledDataset()`) is used instead of the large deterministic seed
- * (`src/mocks/db/fixtures.ts`, 48 events / 400 tickets) — the seed's
- * gross-inventory-value sums are not round numbers, so hand-computed
- * expectations here would be an unreadable re-derivation of the seed's own
- * generator rather than something assertable by inspection.
- */
-
 const NOW_ISO = '2026-01-01T00:00:00.000Z'
 
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
@@ -76,12 +53,7 @@ function buildTicket (overrides: Partial<ITicket> = {}): ITicket {
   }
 }
 
-/**
- * A small, fully controlled dataset with two currencies and a known headline
- * figure for every dashboard field, so every assertion below is justified by
- * inspection. Ids are stable (not random) so `nearlySoldOutTickets`'s
- * tie-break-by-id ordering is deterministic across runs.
- */
+// Hand-built rather than the seed so totals are checkable by inspection; stable ids keep the nearly-sold-out tie-break deterministic.
 function seedControlledDashboardDataset (): void {
   db.categories.insert(buildCategory({ id: 'dash-category' }))
 
@@ -94,7 +66,6 @@ function seedControlledDashboardDataset (): void {
   db.tickets.insert(buildTicket({ id: 'dash-tix-usd-1', currency: 'USD', price: 1000, quantity: 3, status: 'draft' }))
   db.tickets.insert(buildTicket({ id: 'dash-tix-usd-2', currency: 'USD', price: 2000, quantity: 5, status: 'on_sale' }))
   db.tickets.insert(buildTicket({ id: 'dash-tix-eur-1', currency: 'EUR', price: 500, quantity: 40, status: 'sold_out' }))
-  // Nearly sold out: on_sale, at/under the threshold.
   db.tickets.insert(buildTicket({ id: 'dash-tix-low-stock', currency: 'USD', price: 100, quantity: NEARLY_SOLD_OUT_MAX_QUANTITY, status: 'on_sale' }))
 }
 
@@ -143,7 +114,6 @@ describe('Dashboard screen', () => {
 
       const statisticByTitle = (title: string) => wrapper.findAllComponents({ name: 'ElStatistic' }).find(stat => stat.props('title') === title)
 
-      // totalEvents: 4, runningEvents: 2, draft: 1, totalTickets: 4,
       // totalAvailableQuantity: 3 + 5 + 40 + NEARLY_SOLD_OUT_MAX_QUANTITY.
       await vi.waitFor(() => {
         expect(statisticByTitle('Total events')?.props('value')).toBe(4)
@@ -172,10 +142,6 @@ describe('Dashboard screen', () => {
         expect(labels).toContain('EUR')
       })
 
-      // Exactly the two currencies present — nothing more (in particular no
-      // combined/summed row) — and the values reflect the exact per-currency
-      // totals the handler computed (formatMoney renders these via Intl, so
-      // asserting the rendered text proves both the split and the amount).
       const items = wrapper.findAll('.el-descriptions__label')
       expect(items).toHaveLength(2)
 
@@ -183,8 +149,6 @@ describe('Dashboard screen', () => {
       expect(descriptionsText).toContain('$150.00') // USD 15000 minor units
       expect(descriptionsText).toContain('€200.00') // EUR 20000 minor units
 
-      // No cross-currency total anywhere on the screen: neither a labelled
-      // "Total" description item nor a combined-currency figure appears.
       expect(wrapper.text()).not.toMatch(/total\s*(value|inventory value)\b(?!.*(USD|EUR))/i)
       expect(wrapper.findAll('.el-descriptions__label').map(item => item.text())).not.toContain('Total')
     })
@@ -214,17 +178,12 @@ describe('Dashboard screen', () => {
         expect(wrapper.findComponent({ name: 'StatusDistributionBar' }).exists()).toBe(true)
       })
 
-      // Assert via rendered text, scoped to each breakdown's `<section>`
-      // (found via the heading rather than a bordered `.el-card` — PRD-010
-      // §43 deliberately drops the card wrapper here).
       const eventsHeading = wrapper.findAll('h2').find(heading => heading.text() === 'Events by status')!
       const eventsSection = eventsHeading.element.closest('section')!
       expect(eventsSection.textContent).toContain('Draft')
       expect(eventsSection.textContent).toContain('Published')
       expect(eventsSection.textContent).toContain('Cancelled')
 
-      // The legend list is the accessible text equivalent for the (aria-hidden)
-      // bar — one link per status, each carrying its exact count.
       const eventsLegendCounts = Array.from(eventsSection.querySelectorAll('li')).map(item => item.querySelector('span.tabular-nums')?.textContent)
       expect(eventsLegendCounts).toEqual(['1', '2', '1', '0']) // draft, published, cancelled, completed
 
@@ -470,7 +429,6 @@ describe('Dashboard screen', () => {
         expect(wrapper.text()).toContain('Total events')
       })
 
-      // Same route, same mounted wrapper instance throughout — no navigation/reload occurred.
       expect(router.currentRoute.value.fullPath).toBe(routeBeforeRetry)
     })
   })

@@ -1,12 +1,6 @@
 {
-  // Not composite: this project needs test files plus every app source file
-  // they import in the same program. Composite mode requires the full file
-  // closure to be declared upfront in "include" — fine for isolated leaf
-  // files, but the auto-import globals this app relies on (RouteRecordRaw,
-  // Component, ...) only resolve when the whole src tree is part of the
-  // same program. "include" below is tsconfig.app.json's own list restated
-  // (TS "extends" replaces arrays rather than merging them) with "exclude"
-  // cleared so *.spec.ts/*.test.ts come back in, plus tests/**/*.
+  // Not composite: auto-import globals only resolve with the whole src tree in one program.
+  // "include" restates tsconfig.app.json's list (extends replaces arrays); "exclude" cleared to bring specs back.
   "extends": "./tsconfig.app.json",
   "include": [
     "dts/**/*",

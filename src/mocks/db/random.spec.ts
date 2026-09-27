@@ -1,6 +1,5 @@
 import { createSeededRandom, createSeededId, type TSeededRandom } from './random'
 
-/** Adapts `createSeededId` to `Array.from`'s `(value, index)` mapper signature. */
 function createSeededIdFrom (random: TSeededRandom): () => string {
   return () => createSeededId(random)
 }

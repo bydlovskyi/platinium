@@ -1,14 +1,4 @@
-/*
-  `--el-notification-content-font-size` already rides `--el-font-size-base`
-  (itself mapped to `--text-body` in theme.css), but theme-chalk hardcodes
-  `--el-notification-title-font-size` to a literal `16px` with no `--el-*`
-  indirection at all (see node_modules/element-plus/theme-chalk/el-notification.css) —
-  there is no variable this project's token layer could point at, so the
-  title falls back to an un-styled literal instead of the type scale. Routed
-  to `--el-font-size-large` (`--text-lg`), the next step up from the body
-  text the message uses, so the title reads as a heading over the message
-  the same way `text-section-heading` sits over `text-body` elsewhere.
-*/
+/* theme-chalk hardcodes the title size to `16px` with no `--el-*` indirection; route it to the type scale. */
 .el-notification {
   --el-notification-title-font-size: var(--el-font-size-large);
 }

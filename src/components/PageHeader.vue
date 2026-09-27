@@ -1,11 +1,4 @@
 <script lang="ts" setup>
-/**
- * Reusable page header (PRD-002 "Page header (deep module)") — every
- * feature screen uses this for its title/breadcrumbs/actions row so heading
- * hierarchy, spacing and action placement are consistent by construction.
- * `Home.vue` is the first consumer, proving the pattern.
- */
-
 interface IBreadcrumb {
   label: string
   routeName?: string

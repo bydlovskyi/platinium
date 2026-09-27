@@ -7,21 +7,6 @@ import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Events create/edit form, integration tested end to end (GitHub issue #27,
- * PRD-004's testing boundary: "Full CRUD flow — integration tested against
- * MSW: create with a validation failure then a success, verify the row
- * appears; edit and verify the change"). Mounted behind a real
- * memory-history router (the app's actual route table, including this
- * slice's own `eventCreate` / `eventEdit` routes) and a real Pinia instance,
- * against the shared MSW node server answering `POST /events`,
- * `GET /events/{id}` and `PATCH /events/{id}` for real — no mocked
- * `eventsService`. A session is seeded via `seedSession('admin')` +
- * `authStore.restore()` (this repo's other established pattern alongside
- * writing to the auth store directly, used here since it exercises the real
- * persisted-token path a fresh navigation to a guarded route relies on).
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -82,14 +67,7 @@ async function fillRequiredFields (wrapper: Awaited<ReturnType<typeof mountSigne
   await flushPromises()
 }
 
-/**
- * Inserts a ticket referencing `eventId` so the mock's `DELETE /events/{id}`
- * handler answers 409 (`checkEventConflict` in
- * `src/mocks/handlers/events.ts`) — mirrors
- * `src/mocks/handlers/events.spec.ts`'s own fixture for the same conflict,
- * including inserting a throwaway category first since `beforeEach` below
- * clears `categories` to an empty slate.
- */
+// Makes `DELETE /events/{id}` answer 409; inserts a category too since `beforeEach` clears them.
 function seedBlockingTicket (eventId: string): void {
   const category: ICategory = {
     id: 'events-delete-spec-category',
@@ -115,7 +93,7 @@ function seedBlockingTicket (eventId: string): void {
   db.tickets.insert(ticket)
 }
 
-/** Opens the row-action dropdown for the row containing `rowText` and clicks the action labelled `actionLabel`. `el-dropdown` teleports its menu to `document.body` (matching `AppDataTable.spec.ts`'s own convention), so the wrapper must be `attachTo: document.body`. */
+// `el-dropdown` teleports its menu, so the wrapper must be mounted with `attachTo: document.body`.
 async function invokeRowAction (
   wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
   rowText: string,
@@ -139,7 +117,6 @@ async function invokeRowAction (
   await flushPromises()
 }
 
-/** Clicks the named button inside the teleported `ElMessageBox` confirmation dialog. */
 function findMessageBoxButton (text: string): HTMLButtonElement {
   const button = Array.from(document.querySelectorAll<HTMLButtonElement>('.el-message-box button'))
     .find(candidate => candidate.textContent?.trim() === text)
@@ -153,10 +130,7 @@ function findMessageBoxButton (text: string): HTMLButtonElement {
 
 describe('Events form', () => {
   beforeEach(() => {
-    // Only `events` is cleared to an empty, deterministic slate — `users`
-    // keeps the default seeded administrator `seedSession('admin')` looks
-    // up, unlike `Events.spec.ts`'s reset (which doesn't need a session
-    // since it signs in by writing to the auth store directly instead).
+    // `users` is kept so `seedSession('admin')` can find the seeded admin.
     const seededUsers = db.users.list({ perPage: Number.MAX_SAFE_INTEGER }).data
     resetDatabase({ events: [], categories: [], tickets: [], users: seededUsers })
   })
@@ -181,7 +155,6 @@ describe('Events form', () => {
         expect(wrapper.text()).toContain('Required field')
       })
 
-      // No event was created by the failed attempt.
       expect(db.events.list({ perPage: 100 }).meta.total).toBe(0)
 
       await fillRequiredFields(wrapper)
@@ -241,14 +214,6 @@ describe('Events form', () => {
     })
   })
 
-  /**
-   * Delete, integration tested end to end (GitHub issue #28, PRD-004's
-   * testing boundary: "delete with confirmation through the `ElMessageBox`
-   * in `document.body`; attempt to delete a referenced event and assert the
-   * conflict message"). Against the real MSW node server answering
-   * `DELETE /events/{id}` for real (`src/mocks/handlers/events.ts`) — no
-   * mocked `eventsService`.
-   */
   describe('delete', () => {
     describe('from the list, with confirmation', () => {
       it('removes the row and shows a success notification once confirmed', async () => {
@@ -262,7 +227,6 @@ describe('Events form', () => {
 
         await invokeRowAction(wrapper, 'Rooftop Jazz Night', 'Delete')
 
-        // The confirmation names the specific event.
         await vi.waitFor(() => {
           expect(document.querySelector('.el-message-box')?.textContent).toContain('Rooftop Jazz Night')
         })
@@ -329,23 +293,18 @@ describe('Events form', () => {
         })
         expect(document.querySelector('.el-notification')?.textContent).toContain('reference this event')
 
-        // The row survives and the administrator has not been navigated away.
         expect(wrapper.text()).toContain('Rooftop Jazz Night')
         expect(db.events.get('e1')).toBeDefined()
         expect(router.currentRoute.value.name).toBe(routeNames.events)
 
-        // The confirmation dialog stays open on failure (onConfirm re-throws,
-        // so useConfirm's beforeClose never calls done()) rather than
-        // closing silently.
+        // Stays open on failure: onConfirm re-throws, so useConfirm's beforeClose never calls done().
         expect(document.querySelector('.el-message-box')).toBeTruthy()
       })
     })
 
     describe('deleting the last row on a page beyond the first', () => {
       it('navigates back to the previous page instead of showing it empty', async () => {
-        // `useListQuery`'s default page size is 20 (DEFAULT_PER_PAGE) — 21
-        // events puts exactly one on page 2, deleting it is "the last row on
-        // a page beyond the first".
+        // Default page size is 20, so the 21st event is the only row on page 2.
         for (let index = 1; index <= 21; index++) {
           db.events.insert(buildEvent({ id: `e${index}`, name: `Event ${String(index).padStart(2, '0')}` }))
         }
@@ -356,10 +315,7 @@ describe('Events form', () => {
           expect(wrapper.find('.el-pagination__total').text()).toContain('21')
         })
 
-        // Sorted by name ascending, zero-padded "Event 01".."Event 21" puts
-        // "Event 21" last — the sole row on page 2 — so which row lands
-        // there is deterministic rather than left to insertion-order/id
-        // tiebreaking.
+        // Zero-padded names sorted ascending make "Event 21" deterministically the last row.
         await router.push({ query: { page: '2', sort: 'name', order: 'asc' } })
         await flushPromises()
 
@@ -444,7 +400,6 @@ describe('Events form', () => {
           expect(document.querySelector('.el-notification')?.textContent).toContain('1 ticket')
         })
 
-        // Stays put — no navigation away from the edit form.
         expect(router.currentRoute.value.name).toBe(routeNames.eventEdit)
         expect(db.events.get('e1')).toBeDefined()
       })

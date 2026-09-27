@@ -5,19 +5,6 @@ import { resetDatabase, seedSession } from '../../tests/support'
 const SEEDED_EMAIL = 'admin@platinium.test'
 const SEEDED_PASSWORD = 'admin123'
 
-/**
- * Auth store unit tests (PRD-002 "Testing boundary"): sign-in success and
- * failure, sign-out clearing state, session restore from a persisted and an
- * absent token.
- *
- * Driven through the real MSW node server (`src/mocks/server.ts`, wired up
- * globally by `tests/setup.ts`) answering `POST /auth/login`,
- * `POST /auth/logout` and `GET /auth/me` — not a mocked `authService` —
- * matching this codebase's established pattern (`src/mocks/handlers/auth.spec.ts`,
- * `tests/integration/response-interceptor.spec.ts`) of exercising the real
- * request/response shape rather than stubbing the layer directly below the
- * unit under test.
- */
 describe('useAuthStore', () => {
   beforeEach(() => {
     resetDatabase()

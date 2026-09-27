@@ -1,13 +1,7 @@
 @import 'element-plus/theme-chalk/el-overlay.css';
 @import 'element-plus/theme-chalk/el-dialog.css';
 
-/*
-  theme-chalk centers `.el-overlay-dialog`'s content through a bare `display: flex`
-  with no `--el-*` variable governing alignment or the viewport gutter — there is
-  nothing in the token layer to route this through, so it stays a selector-level
-  layout override (page-level layout via Tailwind utilities is a standing exception
-  in ELEMENT-PLUS.md).
-*/
+/* theme-chalk centres `.el-overlay-dialog` with a bare `display: flex`; no `--el-*` variable controls alignment or gutter. */
 .el-overlay {
   .el-overlay-dialog {
     @apply flex items-center justify-center p-4;

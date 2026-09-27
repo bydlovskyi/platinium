@@ -26,11 +26,7 @@ const rules: IElementPlus['FormRules'] = {
 const loading = ref(false)
 const submitError = ref<string | null>(null)
 
-/**
- * Only an internal, relative path is a safe redirect target — never an
- * absolute URL, which would let a crafted `?redirect=` query param send a
- * signed-in administrator off-site (open redirect).
- */
+// Only internal relative paths; an absolute URL here would be an open redirect.
 function safeRedirectTarget (): string | null {
   const redirect = route.query.redirect
 
@@ -61,10 +57,7 @@ async function onSubmit (): Promise<void> {
     const redirect = safeRedirectTarget()
 
     if (redirect !== null) {
-      // The one legitimate exception to "always navigate by name": the
-      // destination is a path string carried on the query param itself
-      // (validated safe above), not a hardcoded literal — there is no route
-      // name available for an arbitrary preserved deep link.
+      // Navigates by path: an arbitrary preserved deep link has no route name.
       await router.push(redirect)
     } else {
       await router.push({ name: routeNames.home })

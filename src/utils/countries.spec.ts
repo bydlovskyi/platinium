@@ -1,9 +1,3 @@
-/**
- * `countries` unit tests (GitHub issue #26, PRD-004 "Events list" —
- * "Country rendered as a name, not a code"). Covers at minimum every code
- * the mock database's fixtures actually seed
- * (`src/mocks/db/fixtures.ts`'s `COUNTRIES`).
- */
 const SEEDED_FIXTURE_CODES = ['US', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'PT', 'IE', 'PL', 'SE', 'CA']
 
 describe('countries', () => {

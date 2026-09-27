@@ -6,30 +6,7 @@ import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
 
-/**
- * Categories list + modal, integration tested end to end (GitHub issue #30,
- * PRD-005's testing boundary: "Full CRUD flow — integration tested: create,
- * verify the row appears; edit, verify the change; delete with
- * confirmation; attempt to delete a referenced category and assert the
- * conflict message and its link" and "Duplicate-name handling — integration
- * tested against MSW: submit an existing name, assert the message lands on
- * the name `el-form-item`'s error and the dialog stays open"). Mounted
- * behind a real memory-history router and a real Pinia instance, against
- * the shared MSW node server answering `/categories` for real — no mocked
- * `categoriesService`. Unlike events, categories have no separate
- * create/edit route: everything happens through `CategoryModal.vue`, opened
- * through `useModals()` and rendered by the shared `<Modals />` host — which
- * lives in `App.vue` (a sibling of the route layout, not inside
- * `Categories.vue` itself; see `App.vue`'s template). Mounting `Categories.vue`
- * alone therefore never renders the dialog at all — this journey mounts the
- * real `App.vue` instead (mirroring `tests/integration/admin-shell.spec.ts`'s
- * established pattern for shell-level integration tests), navigated to
- * `/categories`, so `useModals()`'s module-level state is picked up by the
- * same `<Modals />` instance a real navigation would use. Otherwise mirrors
- * `tests/integration/events-form.spec.ts`'s structure and mount pattern
- * (`mountSignedIn`, `invokeRowAction`, `findMessageBoxButton`,
- * `attachTo: document.body` for teleported content).
- */
+// Mounts App.vue because CategoryModal renders in the shared <Modals /> host there, not inside Categories.vue.
 
 function buildCategory (overrides: Partial<ICategory> = {}): ICategory {
   return {
@@ -50,11 +27,7 @@ async function mountSignedIn<T extends Component> (component: T, initialRoute: s
   const result = await mountWithRouterAndPinia(component, {
     initialRoute,
     attachTo: document.body,
-    // See `CategoryModal.spec.ts` — `@vue/test-utils` stubs Vue's built-in
-    // `<transition>` by default, which silently no-ops `el-dialog`'s
-    // `@opened` hook (focus-on-open) and its focus-trap restore-on-close.
-    // Both are exercised by this journey (create → modal opens → submits →
-    // closes), so the stub must be disabled here too.
+    // VTU stubs <transition> by default, which no-ops el-dialog's @opened focus and focus-trap restore.
     global: { stubs: { transition: false } }
   })
   mountedWrappers.push(result.wrapper)
@@ -68,13 +41,6 @@ async function mountSignedIn<T extends Component> (component: T, initialRoute: s
   return result
 }
 
-/**
- * Inserts a ticket referencing `categoryId` so the mock's
- * `DELETE /categories/{id}` handler answers 409
- * (`checkDependencyConflict` in `src/mocks/handlers/categories.ts`) —
- * mirrors `src/mocks/handlers/categories.spec.ts`'s own fixture for the same
- * conflict.
- */
 function seedBlockingTicket (categoryId: string): void {
   const anyEvent = db.events.list({ perPage: 1 }).data[0]
   const event: IEvent = anyEvent ?? {
@@ -107,7 +73,7 @@ function seedBlockingTicket (categoryId: string): void {
   db.tickets.insert(ticket)
 }
 
-/** Opens the row-action dropdown for the row containing `rowText` and clicks the action labelled `actionLabel`. `el-dropdown` teleports its menu to `document.body`, so the wrapper must be `attachTo: document.body`. */
+// `el-dropdown` teleports its menu, so the wrapper must be mounted with `attachTo: document.body`.
 async function invokeRowAction (
   wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
   rowText: string,
@@ -131,7 +97,6 @@ async function invokeRowAction (
   await flushPromises()
 }
 
-/** Clicks the named button inside the teleported `ElMessageBox` confirmation dialog. */
 function findMessageBoxButton (text: string): HTMLButtonElement {
   const button = Array.from(document.querySelectorAll<HTMLButtonElement>('.el-message-box button'))
     .find(candidate => candidate.textContent?.trim() === text)
@@ -236,7 +201,6 @@ describe('Categories view', () => {
       await flushPromises()
       await flushPromises()
 
-      // Stays open — no navigation, no premature close.
       await vi.waitFor(() => {
         expect(document.querySelector('.el-dialog')).toBeTruthy()
       })
@@ -247,7 +211,6 @@ describe('Categories view', () => {
         expect(nameFormItem?.querySelector('.el-form-item__error')?.textContent).toContain('already exists')
       })
 
-      // Only the one pre-existing category — the duplicate was rejected.
       expect(db.categories.list({ perPage: 100 }).meta.total).toBe(1)
     })
   })
@@ -368,7 +331,6 @@ describe('Categories view', () => {
         })
         expect(document.querySelector('.el-notification')?.textContent).toContain('reference this category')
 
-        // The row survives — deletion was rejected.
         expect(wrapper.text()).toContain('Reserved Seating')
         expect(db.categories.get('c1')).toBeDefined()
       })

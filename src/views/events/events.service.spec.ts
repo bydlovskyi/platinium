@@ -5,19 +5,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { IEvent } from '@/mocks/db'
 
-/**
- * `eventsService` unit tests (GitHub issue #28, PRD-004's testing boundary:
- * "Events service — unit tested for correct request shaping"). Exercises
- * `delete` against the real MSW node server (`src/mocks/server.ts`, already
- * wired up globally in `tests/setup.ts`) rather than mocking `apiClient` —
- * this repo's services are thin wrappers with no behaviour of their own to
- * stub around, so the only thing worth proving is the request shape
- * (method, URL, no body) each method actually produces. A `request:start`
- * listener over the shared server captures that shape without replacing the
- * real handler, matching `Events.spec.ts`'s `captureEventsRequests`
- * convention.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? 'event-1',
@@ -100,12 +87,7 @@ describe('eventsService', () => {
       expect(requests[0]!.method).toBe('GET')
       expect(requests[0]!.pathname).toBe('/events')
 
-      // Not `expect(blob).toBeInstanceOf(Blob)`: axios's fetch adapter (see
-      // `eventsService.exportCsv`'s own comment on why it's forced) resolves
-      // its `Blob` through Node/undici's realm, which is a different
-      // constructor identity than jsdom's global `Blob` this test file sees
-      // — duck-typing the shape instead proves the same contract (a real,
-      // readable blob) without depending on which realm produced it.
+      // Duck-typed, not toBeInstanceOf(Blob): the fetch adapter's Blob comes from undici's realm, not jsdom's.
       expect(typeof blob.size).toBe('number')
       expect(blob.type).toContain('text/csv')
       const text = await blob.text()

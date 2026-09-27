@@ -6,12 +6,6 @@ vi.mock('element-plus', () => ({
   ElNotification: vi.fn()
 }))
 
-/**
- * Asserts each method calls the underlying `ElNotification` API with the
- * right `type` (which resolves theming through the design tokens wired in
- * `src/assets/styles/element-reset/theme.css` — see that file's header
- * comment) rather than reaching for Element Plus's library defaults.
- */
 describe('notificationService', () => {
   afterEach(() => vi.clearAllMocks())
 

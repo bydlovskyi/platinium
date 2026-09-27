@@ -2,24 +2,6 @@ import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 
-/**
- * `useUnsavedChangesGuard` unit tests (GitHub issue #27, PRD-004
- * "Unsaved-changes guard composable — unit tested: clean form navigates
- * freely, dirty form prompts through `ElMessageBox.confirm`, saving clears
- * the dirty state"). `onBeforeRouteLeave` only registers inside a component
- * rendered by a matched route, so — like `useListQuery.spec.ts` — this is
- * driven through a real memory-history router with two routes and a host
- * component that calls the composable, rather than calling it bare.
- * `ElMessageBox.confirm` teleports to `document.body` regardless of where
- * the host is mounted (PRD-004's testing boundary), so its dialog is queried
- * there.
- *
- * Every mounted wrapper is unmounted in `afterEach` (not just its DOM wiped)
- * so each test's `beforeunload` listener (registered in
- * `useUnsavedChangesGuard`, removed via its own `onUnmounted`) doesn't leak
- * into the next test and pollute the "clean" assertions.
- */
-
 let mountedWrappers: VueWrapper[] = []
 
 function buildHost (
@@ -81,6 +63,7 @@ async function setup (
   return { wrapper, router }
 }
 
+// Unmount (not just wipe the DOM) so each test's `beforeunload` listener is removed.
 afterEach(() => {
   for (const wrapper of mountedWrappers) {
     wrapper.unmount()
@@ -164,14 +147,13 @@ describe('useUnsavedChangesGuard', () => {
     expect(document.querySelector('.el-message-box')).toBeNull()
   })
 
-  describe('guardRouteLeave: false (PRD-005 — a dialog-hosted form has no route change to guard)', () => {
+  describe('guardRouteLeave: false (dialog-hosted form)', () => {
     it('does not prompt or block route navigation while dirty, since the leave path is the dialog, not a route change', async () => {
       const isDirty = ref(true)
       const { router } = await setup(isDirty, undefined, false)
 
       await router.push('/list')
 
-      // Navigation proceeds freely — no onBeforeRouteLeave was registered to intercept it.
       expect(router.currentRoute.value.name).toBe('list')
       expect(document.querySelector('.el-message-box')).toBeNull()
     })

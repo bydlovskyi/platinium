@@ -3,21 +3,17 @@ import { createSeedDataset, type ISeedDataset } from './fixtures'
 import { isPersistenceDisabled, loadPersistedDataset, persistDataset } from './persistence'
 import type { ICategory, IEvent, IIdentifiable, ITicket, IUser } from './types'
 
-// Per PRD-004's contract for `GET /events`'s `search` parameter: name and
-// venue only. `country` has its own dedicated exact-match filter
-// (`?country=`), so it deliberately does not also participate in free text.
+// `country` has its own exact-match filter, so it's deliberately excluded from free-text search.
 const EVENT_SEARCHABLE_FIELDS: (keyof IEvent)[] = ['name', 'venue']
 const CATEGORY_SEARCHABLE_FIELDS: (keyof ICategory)[] = ['name', 'description']
 const TICKET_SEARCHABLE_FIELDS: (keyof ITicket)[] = ['name']
 const USER_SEARCHABLE_FIELDS: (keyof IUser)[] = ['name', 'email']
 
-/** The mock backend's in-memory database: one typed collection per entity, plus reset. */
 export interface IMockDatabase {
   events: IEntityCollection<IEvent>
   categories: IEntityCollection<ICategory>
   tickets: IEntityCollection<ITicket>
   users: IEntityCollection<IUser>
-  /** Restores every collection to the deterministic seed, or to a given dataset override. */
   reset: (dataset?: ISeedDataset) => void
 }
 
@@ -64,17 +60,6 @@ function wrapWithPersistence<T extends IIdentifiable> (
   }
 }
 
-/**
- * Wires the three entity collections together behind one database handle.
- * Seeded from {@link createSeedDataset} by default, unless a persisted
- * dataset is available and persistence is enabled for the current
- * environment (see `src/mocks/db/persistence.ts`) — persistence is always
- * disabled under test, so suites start from the deterministic seed
- * regardless of what a previous browser session left in `localStorage`.
- *
- * Pass a dataset explicitly to seed (or reset to) a custom fixture instead
- * — the `resetDatabase()` test seam uses this.
- */
 export function createDatabase (dataset?: ISeedDataset): IMockDatabase {
   const persistenceEnabled = dataset === undefined && !isPersistenceDisabled()
   const initialDataset = dataset ?? (persistenceEnabled ? loadPersistedDataset() : undefined) ?? createSeedDataset()
@@ -112,8 +97,7 @@ export function createDatabase (dataset?: ISeedDataset): IMockDatabase {
   const tickets = wrapWithPersistence(rawTickets, flush)
   const users = wrapWithPersistence(rawUsers, flush)
 
-  // Replaces through the unwrapped collections and flushes once, rather than
-  // serializing the whole dataset to `localStorage` once per collection.
+  // Replace via the unwrapped collections so `localStorage` is written once, not once per collection.
   function reset (overrideDataset: ISeedDataset = createSeedDataset()): void {
     rawEvents.replace(overrideDataset.events)
     rawCategories.replace(overrideDataset.categories)

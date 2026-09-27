@@ -1,24 +1,7 @@
 <script lang="ts" setup>
 import type { IStatusDistributionEntry } from './status-distribution-bar.types'
 
-/**
- * The dashboard's status breakdown (GitHub issue #43, PRD-010 "Dashboard
- * presentation") — a single stacked proportional distribution bar, the one
- * hand-built exception PRD-010 names explicitly because `el-progress` can
- * only render one bar per status, not several statuses' shares stacked into
- * one strip that reads as a distribution "in one glance" (issue #43
- * acceptance criteria). Built entirely from this project's own tokens (no
- * literal colour or size), reusing the exact same status->colour mapping
- * `StatusTag`/`el-progress` already ride (`STATUS_PRESENTATION`/
- * `STATUS_PRESENTATION_TYPE_COLOR`, `src/utils/status-presentation.ts`) so a
- * status never reads differently here than anywhere else in the portal.
- *
- * The bar strip itself is `aria-hidden` — a colour-only visualisation would
- * fail PRD-010's "status is never encoded by colour alone" rule on its own,
- * so the real accessible interface is the legend below/beside it: real link
- * text carrying the label and the exact count for every status, the
- * accessible text equivalent the PRD calls for.
- */
+// The bar is aria-hidden (colour only); the legend links are the accessible equivalent.
 const props = defineProps<{
   entries: IStatusDistributionEntry[]
 }>()

@@ -100,8 +100,6 @@ describe('persistDataset / loadPersistedDataset', () => {
     expect(loadPersistedDataset()).toBeUndefined()
     expect(localStorage.getItem(PERSISTENCE_KEY)).toBeNull()
 
-    // Confirms discard-and-reseed, not silent acceptance: a fresh database
-    // falls back to the deterministic seed rather than the corrupted entry.
     const db = createDatabase()
     const seed = createSeedDataset()
 
@@ -143,8 +141,6 @@ describe('createDatabase persistence wiring', () => {
 
     const db = createDatabase()
 
-    // Persistence disabled under test: the database still starts from the
-    // deterministic seed rather than the (empty) persisted dataset.
     const seed = createSeedDataset()
 
     expect(db.events.list({}).meta.total).toBe(seed.events.length)

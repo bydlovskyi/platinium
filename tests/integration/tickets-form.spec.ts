@@ -6,28 +6,6 @@ import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent } from '@/mocks/db'
 
-/**
- * Tickets create/edit form, integration tested end to end (GitHub issue #35,
- * PRD-006's testing boundary: "Full CRUD flow — integration tested against
- * MSW: create with a validation failure then a success (errors asserted on
- * the `el-form-item`); edit including changing the event through the
- * `el-select` dropdown"). Mounted behind a real memory-history router (the
- * app's actual route table, including this slice's own `ticketCreate` /
- * `ticketEdit` routes) and a real Pinia instance, against the shared MSW node
- * server answering `POST /tickets`, `GET /tickets/{id}` and
- * `PATCH /tickets/{id}` for real — no mocked `ticketsService`/`eventsService`/
- * `categoriesService`. A session is seeded via `seedSession('admin')` +
- * `authStore.restore()`, mirroring `tests/integration/events-form.spec.ts`.
- *
- * Delete is deliberately not covered here — already covered by the existing
- * tickets-list integration coverage from issue #34 — nor is the deep-link
- * filter entry, also already covered there. Unit-level concerns (required
- * fields, quantity bounds, price/CurrencyInput round-trip, status
- * independence from quantity) live in
- * `src/views/tickets/components/TicketForm.spec.ts` and are not duplicated
- * here — this file only covers the integration-level CRUD boundary.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -71,7 +49,6 @@ async function mountSignedIn<T extends Component> (component: T, initialRoute: s
   return result
 }
 
-/** Opens a `RemoteSelect`'s dropdown by clicking the `el-form-item` labelled `label`'s own `.el-select__wrapper`, then clicks the option whose text is `optionText` from the teleported dropdown in `document.body`. Mirrors `TicketForm.spec.ts`'s own `pickRemoteOption` helper. */
 async function pickRemoteOption (
   wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
   label: string,
@@ -122,13 +99,7 @@ async function setPrice (
   await flushPromises()
 }
 
-/**
- * Fills every required field with deterministic values (name, currency,
- * event, category) and sets a price — enough for the form to validate and
- * submit successfully. `eventName`/`categoryName` must already be seeded in
- * the database (via `db.events.insert`/`db.categories.insert`) so the
- * `RemoteSelect` dropdowns have something to pick from.
- */
+// `eventName`/`categoryName` must already be seeded so the RemoteSelects have options.
 async function fillRequiredFields (
   wrapper: Awaited<ReturnType<typeof mountSignedIn>>['wrapper'],
   { name, eventName, categoryName }: { name: string; eventName: string; categoryName: string }
@@ -142,10 +113,7 @@ async function fillRequiredFields (
 
 describe('Tickets form', () => {
   beforeEach(() => {
-    // Only `events`/`categories`/`tickets` are cleared to an empty,
-    // deterministic slate — `users` keeps the default seeded administrator
-    // `seedSession('admin')` looks up, mirroring `events-form.spec.ts`'s own
-    // `beforeEach`.
+    // `users` is kept so `seedSession('admin')` can find the seeded admin.
     const seededUsers = db.users.list({ perPage: Number.MAX_SAFE_INTEGER }).data
     resetDatabase({ events: [], categories: [], tickets: [], users: seededUsers })
   })
@@ -169,13 +137,7 @@ describe('Tickets form', () => {
       await wrapper.find('form').trigger('submit')
       await flushPromises()
 
-      // `el-form.validate()` resolves per-field, so its rejected fields'
-      // `el-form-item__error` nodes can render one at a time rather than all
-      // at once — waiting for the first ("Required field" appearing anywhere)
-      // and then checking every field synchronously right after is a race
-      // that only surfaces under enough scheduling pressure (e.g. right after
-      // a CPU-heavy `vue-tsc --build`, as this repo's pre-push hook runs
-      // back-to-back with this suite). Wait for the full set instead.
+      // Field errors can render one at a time; waiting only for the first races under CPU load, so wait for all.
       const requiredLabels = ['Name', 'Currency', 'Event', 'Category']
 
       await vi.waitFor(() => {
@@ -185,7 +147,6 @@ describe('Tickets form', () => {
         }
       })
 
-      // No ticket was created by the failed attempt.
       expect(db.tickets.list({ perPage: 100 }).meta.total).toBe(0)
 
       await fillRequiredFields(wrapper, {
@@ -206,8 +167,7 @@ describe('Tickets form', () => {
       const created = db.tickets.list({ perPage: 100 }).data[0]!
       expect(created.name).toBe('Autumn VIP Pass')
       expect(created.currency).toBe('USD')
-      // 49.99 USD at 2-decimal precision converts to 4999 minor units —
-      // the sole conversion boundary is `CurrencyInput`, per PRD-006.
+      // 49.99 USD at 2-decimal precision is 4999 minor units.
       expect(created.price).toBe(4999)
       expect(created.quantity).toBe(0)
       expect(created.status).toBe('draft')
@@ -216,16 +176,8 @@ describe('Tickets form', () => {
     })
 
     it('rejects a create referencing an event deleted after being picked, attaching the error to the event field', async () => {
-      // PRD-006 "Referential validation": the mock's `eventReferenceError`
-      // (src/mocks/handlers/tickets.ts) rejects a create whose `eventId`
-      // does not resolve to an existing event, independent of whatever
-      // `RemoteSelect` displayed at pick time. Triggered realistically here
-      // by picking a real, currently-existing event through the actual
-      // `RemoteSelect` dropdown, then deleting that event directly from the
-      // database (simulating another administrator/tab deleting it) so the
-      // reference is dangling by the time this form submits — `RemoteSelect`
-      // itself has no way to select a nonexistent option, so this is the
-      // only realistic path to a 400 on this field through the real UI.
+      // RemoteSelect can't pick a nonexistent option, so the picked event is deleted before submit
+      // to produce a dangling reference (400).
       db.events.insert(buildEvent({ id: 'event-1', name: 'Rooftop Jazz Night' }))
       db.categories.insert(buildCategory({ id: 'category-1', name: 'General Admission' }))
 
@@ -237,9 +189,6 @@ describe('Tickets form', () => {
         categoryName: 'General Admission'
       })
 
-      // The event is removed from the database after being picked — the
-      // form still holds `eventId: 'event-1'` in its local state, but the
-      // server-side reference no longer resolves.
       db.events.remove('event-1')
 
       await wrapper.find('form').trigger('submit')
@@ -253,7 +202,6 @@ describe('Tickets form', () => {
       const eventFormItem = wrapper.findAll('.el-form-item').find(item => item.text().includes('Event'))!
       expect(eventFormItem.text()).toContain('References an event that does not exist.')
 
-      // No ticket was created, and the administrator was not navigated away.
       expect(db.tickets.list({ perPage: 100 }).meta.total).toBe(0)
       expect(router.currentRoute.value.name).toBe(routeNames.ticketCreate)
     })
@@ -284,10 +232,6 @@ describe('Tickets form', () => {
         expect(wrapper.find('input[placeholder="General Admission"]').element).toHaveProperty('value', 'Original Ticket Name')
       })
 
-      // The event/category `RemoteSelect`s resolve to the referenced
-      // records' real names, not raw ids or an empty field (PRD-006
-      // "Editing pre-fills all values including the resolved event and
-      // category, even when they are not on the first page").
       const eventFormItem = wrapper.findAll('.el-form-item').find(item => item.text().includes('Event'))!
       const categoryFormItem = wrapper.findAll('.el-form-item').find(item => item.text().includes('Category'))!
       await vi.waitFor(() => {
@@ -310,7 +254,6 @@ describe('Tickets form', () => {
       const updated = await ticketsService.get('ticket-1')
       expect(updated.name).toBe('Updated Ticket Name')
       expect(updated.eventId).toBe('event-2')
-      // Untouched fields survive the update unchanged.
       expect(updated.categoryId).toBe('category-1')
       expect(updated.price).toBe(2500)
     })

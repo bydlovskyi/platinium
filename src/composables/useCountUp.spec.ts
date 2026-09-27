@@ -3,17 +3,6 @@ import { mount } from '@vue/test-utils'
 
 import { setPreferredReducedMotion } from '../../tests/support'
 
-/**
- * `useCountUp` unit tests (GitHub issue #42, PRD-010 "Motion" — "dashboard
- * headline figures count into place on first load"). Mirrors
- * `useBulkOperations.spec.ts`'s convention of exercising the composable
- * through a trivial host component. `Dashboard.spec.ts` and
- * `tests/integration/reduced-motion.spec.ts` already cover this composable
- * wired into the real `el-statistic` figures end to end — these tests cover
- * the composable's own contract in isolation: first-load-only counting, and
- * the reduced-motion bypass.
- */
-
 function setup (initialValue = 0) {
   const source = ref(initialValue)
   let display!: ReturnType<typeof useCountUp>
@@ -60,9 +49,7 @@ describe('useCountUp', () => {
     source.value = 42
     await nextTick()
 
-    // No `vi.waitFor` grace period — under the preference this must already
-    // be the final value on the very next tick, not merely converge to it
-    // eventually the way the non-reduced-motion test above does.
+    // No `vi.waitFor`: under reduced motion the final value must be there on the next tick.
     expect(display.value).toBe(42)
   })
 
@@ -72,10 +59,6 @@ describe('useCountUp', () => {
     source.value = 10
     await vi.waitFor(() => expect(display.value).toBe(10))
 
-    // A later change to `source` (e.g. a refetch) still eases to the new
-    // value rather than jumping — `hasStarted` only gates *when counting
-    // begins* (the very first 0 → real-value transition, matching "on first
-    // load"), not whether subsequent changes animate at all.
     source.value = 25
 
     await vi.waitFor(() => {
@@ -91,10 +74,6 @@ describe('useCountUp', () => {
 
     source.value = 25
 
-    // Immediately after the change, the display should already be
-    // transitioning from its previous value (10) rather than having reset
-    // to 0 — proving "first load" framing rather than "every change resets
-    // and recounts from zero."
     await nextTick()
     expect(display.value).not.toBe(0)
   })

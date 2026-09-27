@@ -4,18 +4,6 @@ import ListToolbar from './ListToolbar.vue'
 
 import { setViewportToBreakpoint } from '../../../tests/support'
 
-/**
- * `ListToolbar` component tests (GitHub issue #24, PRD-003's testing
- * boundary "Toolbar and pagination — component tested: `el-input` clear,
- * `el-tag` close removes a filter, `el-drawer` + `el-badge` count on
- * mobile"). Pagination's own `el-pagination` page-size-change case belongs
- * to `AppDataTable.spec.ts`, not here. Mounts the real `el-input`, `el-tag`,
- * `el-drawer` and `el-badge` (never stubbed), driving them through their
- * real rendered DOM per `docs/prd/ELEMENT-PLUS.md`'s testing section, and
- * uses `setViewportToBreakpoint` (`tests/support/viewport.ts`) the same way
- * `AppDataTable.spec.ts` does for its own mobile-breakpoint cases.
- */
-
 function buildActiveFilters () {
   return [
     { key: 'status', label: 'Status: Published' },
@@ -37,8 +25,7 @@ beforeEach(() => {
   setViewportToBreakpoint('desktop')
 })
 
-// `el-drawer` teleports to `document.body`, so a drawer left open by one
-// test would otherwise bleed into the next test's DOM queries.
+// `el-drawer` teleports to `document.body`, so clear it between tests.
 afterEach(() => {
   document.body.innerHTML = ''
 })
@@ -57,9 +44,7 @@ describe('ListToolbar', () => {
     it('clears the search and emits update:search with an empty string via el-input\'s clear button', async () => {
       const wrapper = mountToolbar({ search: 'summer fair' }, { attachTo: document.body })
 
-      // el-input only renders its clear icon once the input has content
-      // *and* is focused — matching how an administrator would actually
-      // reach it (focus, then click the clear glyph).
+      // el-input only renders its clear icon once it has content and is focused.
       await wrapper.find('input').trigger('focus')
       await flushPromises()
 

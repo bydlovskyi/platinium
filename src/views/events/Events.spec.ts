@@ -8,24 +8,6 @@ import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { IEvent } from '@/mocks/db'
 
-/**
- * Events list screen, integration tested end to end (GitHub issue #26,
- * PRD-004's testing boundary: "List behaviour — integration tested: search,
- * each filter, sort toggling and pagination all reflected in the URL and in
- * the request the mock receives"). Mounted behind a real memory-history
- * router (seeded with the app's actual route table and the real
- * `routeGuard`) and a real Pinia instance, against the shared MSW node
- * server answering `GET /events` for real — no mocked `eventsService`, no
- * mocked composables. Assertions target `route.query`, the actual request
- * MSW received (via a `request:start` life-cycle listener over the shared
- * node server, matching `TESTING.md`'s worked example) and user-visible DOM,
- * never internal component state.
- *
- * Signs a session in directly by writing to the auth store, matching
- * `admin-shell.spec.ts`'s established pattern, since this slice is only
- * responsible for the list screen behind the guard, not the login flow.
- */
-
 function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   return {
     id: overrides.id ?? `event-${Math.random().toString(36).slice(2)}`,
@@ -41,7 +23,6 @@ function buildEvent (overrides: Partial<IEvent> = {}): IEvent {
   }
 }
 
-/** Captures the query params of every `GET /events` request MSW receives, without replacing the real handler's behaviour. */
 function captureEventsRequests (): URLSearchParams[] {
   const captured: URLSearchParams[] = []
 
@@ -118,7 +99,7 @@ describe('Events list screen', () => {
       })
     })
 
-    it('clicking "Clear filters" on a search-only no-matches empty state clears the search and shows the full list again (GitHub issue #26)', async () => {
+    it('clicking "Clear filters" on a search-only no-matches empty state clears the search and shows the full list again', async () => {
       db.events.insert(buildEvent({ id: 'e1', name: 'Alpha Concert' }))
       const requests = captureEventsRequests()
 
@@ -299,11 +280,7 @@ describe('Events list screen', () => {
 
       const { wrapper, router } = await mountEvents()
 
-      // Drives the composable's setter directly through the URL, the same
-      // observable surface a real date-range selection produces (this
-      // slice's own useEventsList wires the picker's v-model to setFilter
-      // for both bounds) — el-date-picker's own panel interaction is
-      // exercised by Element Plus's own test suite, not re-tested here.
+      // Drives the filter through the URL; el-date-picker's panel is Element Plus's to test.
       await router.push({ query: { startDateFrom: '2030-06-01', startDateTo: '2030-06-30' } })
       await flushPromises()
 

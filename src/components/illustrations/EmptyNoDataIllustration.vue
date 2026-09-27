@@ -1,16 +1,5 @@
 <script lang="ts" setup>
-/**
- * Line illustration for the data table's "no-data" empty state (GitHub issue
- * #41, PRD "Designed states"). Reads as an open, empty container with a
- * floating "add" affordance above it — distinct from
- * `EmptyNoMatchesIllustration`'s search motif, since here nothing has been
- * created yet rather than a filter hiding existing records.
- *
- * Shares this family's visual language (rounded 1.5px strokes, no fills
- * beyond small solid accents) with the other four illustrations under this
- * directory. Pure `currentColor` — the consumer sets colour via a
- * `text-*` Tailwind class, same convention as `src/features/platform/icons`.
- */
+// Colour comes from `currentColor`; set it with a `text-*` class.
 </script>
 
 <template>

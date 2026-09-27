@@ -5,7 +5,6 @@ import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 
 export interface IAxiosRequestConfig<Path extends TPathKeys = string, Method extends TPathMethods<Path> = string> extends AxiosRequestConfig {
   dynamicKeys?: TRequestParameters<Path, Method>
   params?: TRequestQuery<Path, Method>
-  /** Suppresses the response interceptor's global error toast for this request. Defaults to `true` (toast shown) when unset. */
   showNotification?: boolean
 }
 

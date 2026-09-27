@@ -3,20 +3,6 @@ import { http, HttpResponse } from 'msw'
 import { resetDatabase, seedSession } from '../../../../tests/support'
 import { server } from '@/mocks/server'
 
-/**
- * `useDashboardStats` unit tests (GitHub issue #38, PRD-007 "Dashboard").
- * Covers the loading/error/retry state transitions that are this
- * composable's only real logic beyond the one-line `dashboardService.getStats`
- * call — behaviour that `Dashboard.spec.ts`'s integration test exercises
- * indirectly through the DOM, but which is faster and more precisely
- * asserted here directly against the composable's returned refs (`loading`
- * flips back to `false` in the `finally` branch even on failure, `error` is
- * cleared before a retry fires, an aborted in-flight request is swallowed
- * rather than surfaced as an error). Runs against the real MSW node server
- * (`src/mocks/server.ts`), never a mocked `dashboardService`, matching every
- * other composable spec in this repo (`useTicketsList.spec.ts`).
- */
-
 function withSetup<T> (composable: () => T): T {
   let result!: T
 

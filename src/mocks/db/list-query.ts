@@ -4,7 +4,6 @@ import type { IIdentifiable } from './types'
 const DEFAULT_PAGE = 1
 const DEFAULT_PER_PAGE = 20
 
-/** Declares which fields free-text `search` is matched against for a collection. */
 interface IListQueryOptions<T> {
   searchableFields: (keyof T)[]
 }
@@ -53,12 +52,6 @@ function matchesRange<T> (record: T, range: NonNullable<IListQuery<T>['range']>)
   })
 }
 
-/**
- * Two inclusive ranges `[recordStart, recordEnd]` and `[from, to]` overlap
- * iff neither lies entirely before the other. An omitted `from`/`to` bound
- * leaves that side of the requested window open, matching everything on
- * that side.
- */
 function rangesOverlap (recordStart: string, recordEnd: string, overlap: IOverlapFilter): boolean {
   if (overlap.from !== undefined && recordEnd < overlap.from) {
     return false
@@ -102,19 +95,11 @@ function sortRecords<T extends IIdentifiable> (records: T[], sort: keyof T | und
       }
     }
 
-    // Deterministic tiebreaker: always id-ascending, regardless of `order`,
-    // so equal sort values hold a consistent relative order across pages.
+    // Tiebreak id-ascending regardless of `order` so equal values keep a stable order across pages.
     return compareValues(a.id, b.id)
   })
 }
 
-/**
- * Applies free-text search, equality filters, range filters, stable sorting
- * and offset pagination to an in-memory array of records — pure and
- * synchronous, with no dependency on MSW, Vue or the network. This is the
- * single query engine every collection (and, in turn, every entity handler)
- * reuses, so filtering behaviour cannot diverge between entities.
- */
 export function applyListQuery<T extends IIdentifiable> (
   records: T[],
   query: IListQuery<T>,
@@ -142,10 +127,7 @@ export function applyListQuery<T extends IIdentifiable> (
 
   const sorted = sortRecords(filtered, query.sort, query.order ?? 'asc')
 
-  // Clamp to the smallest sane value (1) rather than throwing: this is a
-  // defensive boundary a future MSW handler (slice #15) will call with
-  // whatever a client sent, and `page <= 0`/`perPage <= 0` would otherwise
-  // corrupt the offset math (negative `slice` start, `Infinity` totalPages).
+  // Clamp rather than throw: `page`/`perPage` <= 0 would corrupt the offset math (negative slice, Infinity totalPages).
   const page = Math.max(query.page ?? DEFAULT_PAGE, 1)
   const perPage = Math.max(query.perPage ?? DEFAULT_PER_PAGE, 1)
   const total = sorted.length

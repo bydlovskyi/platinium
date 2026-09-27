@@ -4,17 +4,6 @@ import EventForm from './EventForm.vue'
 
 import { mountWithRouterAndPinia } from '../../../../tests/support'
 
-/**
- * `EventForm` unit tests (GitHub issue #27, PRD-004's testing boundary:
- * "Event form validation — unit tested: required fields, name length
- * bounds, the date ordering constraint in both directions, and clearing the
- * end date when the start date moves past it"). Mounted in create mode
- * behind a real router (the component calls `useRoute`/`useUnsavedChangesGuard`,
- * which needs a matched route to register `onBeforeRouteLeave`), no store
- * dependency exercised here. Real Element Plus components throughout — no
- * stubs — per `ELEMENT-PLUS.md`'s testing boundary.
- */
-
 async function mountCreateForm () {
   const { wrapper, router } = await mountWithRouterAndPinia(EventForm, {
     initialRoute: '/events/new',
@@ -31,16 +20,7 @@ async function submit (wrapper: Awaited<ReturnType<typeof mountCreateForm>>['wra
   await flushPromises()
 }
 
-/**
- * Sets an `el-date-picker` field's value by typing into its rendered input
- * and committing with Enter — the picker binds `value-format="YYYY-MM-DD"`,
- * so the committed model value is the plain date string. Element Plus's own
- * keydown handler treats a first Enter as "open the panel" and only a
- * second Enter as "commit and close" — closing is what fires its `change`
- * event (`watch(pickerVisible)` in the library's `picker.mjs`), so two
- * Enters are sent to exercise this form's own `@change` handlers
- * (`onStartDateChange` / `onEndDateChange`), not just the `v-model` update.
- */
+// Two Enters: the first opens the picker panel, the second commits and closes it, which is what fires `change`.
 async function setDate (wrapper: Awaited<ReturnType<typeof mountCreateForm>>['wrapper'], label: string, value: string): Promise<void> {
   const formItem = wrapper.findAll('.el-form-item').find(item => item.text().includes(label))
   if (!formItem) {
@@ -72,8 +52,7 @@ describe('EventForm', () => {
 
       await submit(wrapper)
 
-      // name, country, venue, startDate, endDate — `status` always carries a
-      // default (`draft`) so it is never empty and never fails "required".
+      // `status` defaults to `draft`, so it never fails "required".
       await vi.waitFor(() => {
         expect(wrapper.findAll('.el-form-item__error').length).toBeGreaterThanOrEqual(5)
       })
@@ -104,10 +83,7 @@ describe('EventForm', () => {
       mountedWrappers.push(wrapper)
 
       await setDate(wrapper, 'Start date', '2027-06-10')
-      // Programmatically drive the underlying model past the picker's own
-      // `:disabled-date` (which already prevents *selecting* an invalid
-      // cell in the UI) so the form-rule validator itself — the second of
-      // the three enforcement layers — is what's under test here.
+      // Bypasses the picker's :disabled-date so the form-rule validator itself is under test.
       const vm = wrapper.findComponent(EventForm).vm as unknown as { form: { endDate: string } }
       vm.form.endDate = '2027-06-01'
 
@@ -125,7 +101,6 @@ describe('EventForm', () => {
       await setDate(wrapper, 'Start date', '2027-06-01')
       await setDate(wrapper, 'End date', '2027-06-10')
 
-      // Move the start date past the already-chosen end date.
       await setDate(wrapper, 'Start date', '2027-06-20')
 
       await vi.waitFor(() => {

@@ -2,9 +2,8 @@
 // Define event payloads here. Each key is an event name, value is the payload type.
 interface IEventMap {
   exampleEventName: string
-  /** Published by the response interceptor on a 401. `main.ts` subscribes to clear the session and redirect to login. */
   sessionExpired: { message: string }
-  /** Published by the auth store once a sign-out (explicit or session-expiry) has cleared the token and user. Other stores subscribe to reset their own cached state. */
+  /** Published after sign-out has cleared the token and user; stores subscribe to reset cached state. */
   authSignedOut: undefined
 }
 

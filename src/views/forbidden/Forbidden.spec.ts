@@ -5,12 +5,6 @@ import NotFoundIllustration from '@/components/illustrations/NotFoundIllustratio
 
 import { mountWithRouterAndPinia } from '../../../tests/support'
 
-/**
- * 403 page (GitHub issue #41, PRD-010's testing boundary: "the error
- * variant" — `el-result` component tested). Mirrors `NotFound.spec.ts`, and
- * also locks in that the two `el-result` pages are visually distinct from
- * each other (issue #41's core requirement: conflating states is the bug).
- */
 describe('Forbidden', () => {
   it('shows the forbidden illustration, a way back, and no other state illustration', async () => {
     const { wrapper } = await mountWithRouterAndPinia(Forbidden, { initialRoute: '/login' })

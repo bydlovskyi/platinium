@@ -1,12 +1,6 @@
-/** A deterministic pseudo-random float generator in the range `[0, 1)`. */
 export type TSeededRandom = () => number
 
-/**
- * Creates a deterministic pseudo-random number generator (mulberry32) seeded
- * by a single integer. The same seed always produces the same sequence of
- * floats, which is what lets the seed fixtures be identical on every run
- * without depending on `Math.random()` or the wall clock.
- */
+// mulberry32: deterministic so seed fixtures are identical on every run.
 export function createSeededRandom (seed: number): TSeededRandom {
   let state = seed >>> 0
 
@@ -30,17 +24,10 @@ const UUID_VERSION_BITS = 0x40
 const VERSION_BYTE_INDEX = 6
 const VARIANT_BYTE_INDEX = 8
 
-/**
- * Draws a UUID-shaped (v4-looking) identifier from a {@link TSeededRandom}
- * generator. Deterministic for a given generator state, so seed fixtures can
- * hold stable, opaque, UUID-shaped ids across runs without depending on
- * `crypto.randomUUID()`.
- */
 export function createSeededId (random: TSeededRandom): string {
   const bytes = Array.from({ length: 16 }, (_, index) => {
     const byte = Math.floor(random() * (BYTE_MASK + 1))
 
-    // Set the version (4) and variant (RFC 4122) bits, matching UUIDv4 shape.
     if (index === VERSION_BYTE_INDEX) {
       return (byte & NIBBLE_MASK) | UUID_VERSION_BITS
     }

@@ -4,14 +4,7 @@ type TPathKeys = keyof TApiPaths
 
 type TPathMethods<Path extends TPathKeys> = keyof TApiPaths[Path]
 
-/**
- * Success response status for a path+method. Most of the contract answers
- * `200`; `POST /events` (and any future create endpoint) answers `201`
- * instead — openapi-typescript keys `responses` by the numeric status
- * literal, so `Method`'s own `responses` map is checked for whichever of the
- * two it actually declares rather than hardcoding `200`, so a create
- * endpoint's response type doesn't resolve to `unknown`.
- */
+// Create endpoints answer 201 rather than 200; without this their response type resolves to `unknown`.
 type TSuccessStatus<Path extends TPathKeys, Method extends TPathMethods<Path>> =
   200 extends keyof TApiPaths[Path][Method]['responses']
     ? 200

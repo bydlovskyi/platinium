@@ -77,18 +77,6 @@ function parseSort (
   return defaultSort
 }
 
-/**
- * Generic, URL-driven list-query composable (GitHub issue #21): owns search
- * text, a typed filters object, sort, page and page size for a list screen,
- * synchronized bidirectionally with `route.query` so the URL is always the
- * shareable, back-button-navigable source of truth. Reusable across every
- * future list screen (events, categories, tickets) — callers supply their
- * own filter shape and get full type safety back.
- *
- * Discrete changes (filters, sort, page, committed search) go through
- * `router.push` so the back button steps through them one at a time; only
- * the search debounce itself avoids touching history until it settles.
- */
 export function useListQuery<TFilters extends object> (options: IUseListQueryOptions<TFilters>) {
   const {
     key,
@@ -177,17 +165,7 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     await router.push({ query: buildQuery(overrides) })
   }
 
-  // Discrete setters (everything but `setSearch`) read current reactive state
-  // synchronously and then push. If two are fired back-to-back without an
-  // `await` in between, the second would read the same pre-push state as the
-  // first (its `router.push` hasn't resolved and updated the refs yet) and
-  // compute the same result — e.g. two rapid `setSort('name')` clicks would
-  // net one toggle instead of two. Chaining every discrete setter onto a
-  // shared queue ensures each one's state read only happens after the
-  // previous push has fully settled, so back-to-back calls behave the same
-  // as properly-sequenced (awaited) ones. `setSearch` is intentionally left
-  // out — it must stay synchronous/non-blocking for the debounced input
-  // binding.
+  // Serializes discrete setters so back-to-back calls each read post-push state (e.g. two setSort clicks = two toggles).
   let discreteQueue: Promise<void> = Promise.resolve()
 
   function enqueueDiscrete (run: () => Promise<void>): Promise<void> {
@@ -254,11 +232,6 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
         resetValues[filterKey] = filterDescriptors[filterKey].default
       }
 
-      // Also clears `search` (bypassing its debounce, since this is a
-      // discrete "start over" action, not typing) — otherwise a search-only
-      // query (e.g. `?search=zzz`) would survive "clear filters"/"clear all"
-      // and the empty state's promise to show the full list again would be
-      // broken (GitHub issue #26).
       search.value = ''
 
       return pushQuery({ filters: resetValues, search: '', page: DEFAULT_PAGE })

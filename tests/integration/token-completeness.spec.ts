@@ -1,20 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-/**
- * Design-token completeness (issue #46, PRD-008's closing gap review —
- * "deep modules confirmed exhaustively tested: … token completeness").
- *
- * jsdom never loads this project's global stylesheets (nothing under
- * `tests/` imports `element-reset/index.css` or `theme.css`), so — the same
- * limitation `theme-toggle.spec.ts` and `reduced-motion.spec.ts` already
- * document — a token's *cascade* cannot be exercised here. What can be
- * verified, and is exhaustive rather than a spot check, is the *source
- * contract*: every token this project declares is complete across both
- * themes and every derived scale it promises, parsed directly out of the
- * two files that are this project's entire colour/motion/radius layer
- * (`src/assets/styles/theme.css`'s `@theme` block, `element-reset/theme.css`).
- */
+// jsdom never loads the global stylesheets, so tokens are verified against the CSS source, not the cascade.
 
 const THEME_TOKENS_PATH = resolve(__dirname, '../../src/assets/styles/theme.css')
 const ELEMENT_RESET_THEME_PATH = resolve(__dirname, '../../src/assets/styles/element-reset/theme.css')
@@ -22,7 +9,6 @@ const ELEMENT_RESET_THEME_PATH = resolve(__dirname, '../../src/assets/styles/ele
 const themeTokensSource = readFileSync(THEME_TOKENS_PATH, 'utf-8')
 const elementResetThemeSource = readFileSync(ELEMENT_RESET_THEME_PATH, 'utf-8')
 
-/** Slices a CSS source between a selector's `{` and its matching top-level `}`. */
 function ruleBody (source: string, selector: string): string {
   const start = source.indexOf(`${selector} {`)
 
@@ -56,7 +42,7 @@ function declaredCustomProperties (body: string): Set<string> {
 const HUES = ['primary', 'success', 'warning', 'danger', 'info']
 const HUE_VARIANTS = ['', '-light-3', '-light-5', '-light-7', '-light-8', '-light-9', '-dark-2']
 
-describe('design tokens — completeness (issue #46)', () => {
+describe('design tokens — completeness', () => {
   describe('colour hue ladder', () => {
     const lightRoot = declaredCustomProperties(ruleBody(elementResetThemeSource, ':root'))
     const darkRoot = declaredCustomProperties(ruleBody(elementResetThemeSource, 'html.dark'))

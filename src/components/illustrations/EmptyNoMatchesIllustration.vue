@@ -1,15 +1,5 @@
 <script lang="ts" setup>
-/**
- * Line illustration for the data table's "no-matches" empty state (GitHub
- * issue #41, PRD "Designed states"). Reads as a search/filter that came up
- * empty — a magnifying glass over faint, struck-through content lines —
- * distinct from `EmptyNoDataIllustration`'s "nothing created yet" motif,
- * since records exist here but the current filters hide all of them.
- *
- * Shares this family's visual language (rounded 1.5px strokes) with the
- * other four illustrations under this directory. Pure `currentColor` — the
- * consumer sets colour via a `text-*` Tailwind class.
- */
+// Colour comes from `currentColor`; set it with a `text-*` class.
 </script>
 
 <template>

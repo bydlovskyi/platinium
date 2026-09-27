@@ -1,10 +1,4 @@
-/* Self-hosted Inter Variable (no Google Fonts / third-party runtime request).
-   `wght.css` bundles the non-italic variable-weight axis only — this project
-   doesn't use italic Inter, so the italic subset is skipped to keep the
-   bundle smaller. Ships as a real dependency (`@fontsource-variable/inter`),
-   so the woff2 files are part of the build output and preloaded like any
-   other bundled asset; `font-display: swap` (baked into the package) avoids
-   a flash of invisible text while still avoiding FOUT-to-fallback jank. */
+/* Self-hosted Inter Variable, non-italic weight axis only. */
 @import '@fontsource-variable/inter/wght.css';
 
 @layer base {
@@ -24,34 +18,22 @@
     height: 12px;
   }
 
-  /* scrollbar itself — tokenised so the thumb and its inset track both
-     follow the active theme (the previous literal #babac0 thumb on a #fff
-     border stayed light-mode in dark mode). */
   *::-webkit-scrollbar-thumb {
     background-color: var(--el-border-color);
     border-radius: 16px;
     border: 2px solid var(--el-bg-color-page);
   }
 
-  /* set button(top and bottom of the scrollbar) */
   *::-webkit-scrollbar-button {
     display: none;
   }
 
-  /* Single global focus-ring treatment (see the --focus-ring-* tokens in
-     theme.css) so every focusable element gets a visible, AA-contrast ring
-     in both themes without any component having to implement it. Using
-     outline rather than box-shadow keeps the element's own elevation shadow
-     intact and lets the gap show the element's real background. */
   :focus-visible {
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 }
 
-/* Reduced-motion baseline: forces near-instant transitions/animations for
-   anyone with `prefers-reduced-motion: reduce`, applied globally now so that
-   no future component (slice #42 and beyond) has to remember to opt in. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -63,14 +45,7 @@
   }
 }
 
-/* Route transitions (issue #42, PRD-010 "Motion") — shared by both
-   `AdminLayout.vue` and `AuthLayout.vue`'s `<Transition name="route-fade">`
-   around `router-view`, so the one class pair lives here instead of being
-   duplicated per-layout `.vue` file. A short opacity/translate crossfade,
-   timed off the base duration/easing tokens (not a literal value) so the
-   reduced-motion override above still neutralises it via the near-zero
-   `transition-duration`, and element-reset/theme.css's token override keeps
-   `getComputedStyle` consistent for anything that reads the tokens directly. */
+/* Shared by AdminLayout and AuthLayout's `<Transition name="route-fade">`. */
 .route-fade-enter-active,
 .route-fade-leave-active {
   transition: opacity var(--duration-base) var(--ease-out-token), transform var(--duration-base) var(--ease-out-token);
@@ -82,11 +57,7 @@
   transform: translateY(4px);
 }
 
-/* List item leave (issue #42, PRD-010 "Motion") — the `row-class-name`
-   leaving class `AppDataTable` applies (via each list view's delete flow)
-   before the refetch. `el-table` renders its own body, so this cannot be a
-   `<TransitionGroup>` the way the mobile card list could be — this class
-   just plays a short CSS animation on the `<tr>` marked for removal. */
+/* Applied via `el-table`'s `row-class-name`; `el-table` renders its own body, so no `<TransitionGroup>`. */
 @keyframes row-leaving {
   to {
     opacity: 0;
@@ -98,12 +69,7 @@
   animation: row-leaving var(--duration-base) var(--ease-in-out-token) forwards;
 }
 
-/* Skeleton-to-content crossfade (issue #42, PRD-010 "Motion" — "loading does
-   not end in a flash"). `el-skeleton` has no built-in transition between its
-   `#template` and real content (a plain `v-if` internally), so every call
-   site that swaps a skeleton for real content wraps the pair in
-   `<Transition name="skeleton-fade" mode="out-in">` — shared here rather
-   than duplicated per component, the same way `.route-fade-*` is shared. */
+/* `el-skeleton` has no built-in crossfade; wrap skeleton + content in `<Transition name="skeleton-fade" mode="out-in">`. */
 .skeleton-fade-enter-active,
 .skeleton-fade-leave-active {
   transition: opacity var(--duration-base) var(--ease-out-token);

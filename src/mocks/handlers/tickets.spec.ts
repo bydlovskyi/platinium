@@ -4,16 +4,7 @@ import { db } from '../db/singleton'
 import { resetDatabase } from '../../../tests/support'
 import type { ICategory, IEvent, ITicket } from '../db'
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient` —
- * mirroring `events.spec.ts`/`categories.spec.ts`: `apiClient`'s response
- * interceptor unwraps a successful response and discards the status code,
- * which these tests need to assert on directly (e.g. exact 201/400/404).
- * Plain `axios` still goes through the same XHR/http layer `msw/node`'s
- * interceptor patches. No `baseURL` is set, so requests resolve against
- * jsdom's default origin, matching how `apiClient` resolves a relative path
- * in production.
- */
+// Plain axios, not `apiClient`: its response interceptor drops the status code these tests assert on.
 async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
@@ -31,7 +22,6 @@ async function requestFor (
   return { status: response.status, body: response.data }
 }
 
-/** Logs in as the seeded account for the given role, returning its bearer token — used by the viewer-403 tests below. */
 async function loginAs (email: string, password: string): Promise<string> {
   const { data } = await axios.request({
     method: 'post',
@@ -687,7 +677,7 @@ describe('tickets handlers', () => {
     })
   })
 
-  describe('viewer permissions (PRD-007)', () => {
+  describe('viewer permissions', () => {
     it('rejects POST /tickets for a viewer with 403', async () => {
       const token = await loginAsViewer()
 
@@ -729,7 +719,7 @@ describe('tickets handlers', () => {
       expect(db.tickets.get(created.id)).toBeDefined()
     })
 
-    it('regression: an admin can still create/update/delete after this slice', async () => {
+    it('an admin can still create/update/delete', async () => {
       const token = await loginAsAdmin()
 
       const created = (await requestFor('post', '/tickets', validTicketPayload({ name: 'Admin Regression Ticket' }), { token })).body as TTicketWithNames

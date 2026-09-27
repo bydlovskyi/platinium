@@ -1,14 +1,4 @@
-/*
-  Row hover transition (GitHub issue #42, PRD-010 "Motion" — "interactive
-  rows and controls have hover and focus transitions"). `el-table` only ships
-  its row-hover background-colour *transition* behind an internal
-  `.el-table--enable-row-transition` class with no public prop to opt into it
-  and a literal `.25s ease` with no `--el-*` indirection this project's token
-  layer could otherwise reach (see node_modules/element-plus/theme-chalk/el-table.css) —
-  a selector-level override, same as el-dialog.css/el-notification.css.
-  `--el-table-row-hover-bg-color` itself (the colour) is unchanged; only a
-  transition is added on top of it, timed off the fast token.
-*/
+/* Row-hover transition is a hardcoded `.25s ease` behind an internal class; no `--el-*` variable to retime it. */
 .el-table__body td.el-table__cell {
   transition: background-color var(--duration-fast) var(--ease-out-token);
 }

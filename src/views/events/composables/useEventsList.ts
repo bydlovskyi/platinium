@@ -6,7 +6,6 @@ const EVENT_SORT_FIELDS = ['name', 'startDate', 'endDate', 'status'] as const
 
 const EVENT_STATUS_FILTER_VALUES: (TEventStatus | 'all')[] = ['all', 'draft', 'published', 'cancelled', 'completed']
 
-/** Filter shape for the events list (GitHub issue #26): status, country and an overlapping start-date window. */
 export interface IEventsListFilters {
   status: TEventStatus | 'all'
   country: string
@@ -14,14 +13,6 @@ export interface IEventsListFilters {
   startDateTo: string
 }
 
-/**
- * Orchestrates the events list screen (GitHub issue #26, PRD-004): binds
- * `useListQuery` (issue #21) to `useListResource` (issue #22) and
- * `eventsService.list`, translating the URL-driven query into the exact
- * request shape `GET /events` expects (`src/mocks/openapi.yaml`). Keeps all
- * list-state logic out of `Events.vue` itself, per this slice's explicit
- * acceptance criterion.
- */
 export function useEventsList () {
   const listQuery = useListQuery<IEventsListFilters>({
     key: EVENTS_LIST_QUERY_KEY,

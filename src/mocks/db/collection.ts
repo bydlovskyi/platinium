@@ -2,46 +2,26 @@ import { applyListQuery } from './list-query'
 import type { IListQuery, IListResult } from './query.types'
 import type { IIdentifiable } from './types'
 
-/** Options accepted by {@link createCollection}. */
 export interface ICollectionOptions<T extends IIdentifiable> {
   initialRecords: T[]
-  /** Fields matched by a free-text `search` query, declared once per collection. */
   searchableFields: (keyof T)[]
 }
 
-/**
- * A narrow, typed in-memory collection: list with query options, get by id,
- * insert, update, remove. Every entity's records live behind this same
- * interface so a future handler factory (slice #15) can wrap it identically
- * for every entity without behaviour diverging between them.
- */
 export interface IEntityCollection<T extends IIdentifiable> {
   list: (query: IListQuery<T>) => IListResult<T>
   get: (id: string) => T | undefined
   insert: (record: T) => T
   update: (id: string, patch: Partial<T>) => T | undefined
   remove: (id: string) => boolean
-  /** Replaces the entire underlying dataset, e.g. on reset-to-seed or persistence hydration. */
   replace: (records: T[]) => void
 }
 
-/**
- * Shallow-copies every record on the way *in*, mirroring the copy every read
- * path makes on the way out. Without this, a caller that keeps a reference to
- * a record it inserted (or to the array it seeded/replaced the store with)
- * could keep mutating the stored record in place, bypassing `update()` and
- * the persistence flush wired around it.
- */
+// Copy on the way in too, so a caller holding an inserted/seeded reference can't mutate the store behind `update()`.
 function copyAll<T extends IIdentifiable> (records: T[]): T[] {
   return records.map(record => ({ ...record }))
 }
 
-/**
- * Drops keys whose value is `undefined` so a patch built from optional inputs
- * (`{ status: query.status }`) leaves untouched fields alone instead of
- * erasing them. No domain field is legitimately `undefined`, so there is no
- * unset semantics to preserve.
- */
+// Drops `undefined` keys so a patch built from optional inputs doesn't erase untouched fields.
 function definedFieldsOf<T> (patch: Partial<T>): Partial<T> {
   const defined: Partial<T> = {}
 
@@ -54,19 +34,11 @@ function definedFieldsOf<T> (patch: Partial<T>): Partial<T> {
   return defined
 }
 
-/**
- * Creates an in-memory, typed collection store over `T`. Pure and
- * synchronous — no MSW, no Vue, no network — so it is unit-testable in
- * isolation and reusable across Event, Category and Ticket alike.
- */
 export function createCollection<T extends IIdentifiable> (options: ICollectionOptions<T>): IEntityCollection<T> {
   let records: T[] = copyAll(options.initialRecords)
 
   return {
-    // Shallow-copy each record on the way out: these are flat record shapes
-    // (no nested objects/arrays), so `{ ...record }` is enough to stop a
-    // caller's in-place mutation of a fetched record from silently
-    // corrupting the shared store, bypassing `update()` and persistence.
+    // Records are flat, so a shallow copy is enough to stop callers mutating the shared store.
     list: (query) => {
       const result = applyListQuery(records, query, { searchableFields: options.searchableFields })
 

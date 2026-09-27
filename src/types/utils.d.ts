@@ -22,17 +22,7 @@ type TTableHeadings<T = Record<string, any>> = {
   formatter?: (row: T) => (number | string)
 }[]
 
-/**
- * `Intl.DateTimeFormat.prototype.formatRange` is well-supported at runtime
- * (Baseline since 2021) but missing from this project's `ES2020` `lib`
- * target (tsconfig.json), which only ships the constructor/format/
- * resolvedOptions surface. Augmenting the `Intl` namespace's `DateTimeFormat`
- * interface locally rather than widening `lib` project-wide, since this is
- * the one method `filters.formatDateRange` uses. The interface name is fixed
- * by TypeScript's declaration merging (it must match the ambient
- * `Intl.DateTimeFormat` exactly) and cannot take this repo's `IPrefix`
- * convention.
- */
+// formatRange is missing from the ES2020 lib target; augmented here rather than widening lib project-wide.
 declare namespace Intl {
   // eslint-disable-next-line @typescript-eslint/naming-convention -- must match the ambient `Intl.DateTimeFormat` name exactly to merge
   interface DateTimeFormat {

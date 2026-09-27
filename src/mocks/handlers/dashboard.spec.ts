@@ -5,15 +5,7 @@ import { resetDatabase } from '../../../tests/support'
 import { NEARLY_SOLD_OUT_MAX_QUANTITY } from './dashboard'
 import type { ICategory, IEvent, ISeedDataset, ITicket, IUser } from '../db'
 
-/**
- * Requests are driven through a plain `axios` instance — not `apiClient` —
- * mirroring `events.spec.ts`/`categories.spec.ts`: `apiClient`'s response
- * interceptor unwraps a successful response and discards the status code,
- * which these tests need to assert on directly. Plain `axios` still goes
- * through the same XHR/http layer `msw/node`'s interceptor patches. No
- * `baseURL` is set, so requests resolve against jsdom's default origin,
- * matching how `apiClient` resolves a relative path in production.
- */
+// Plain axios, not `apiClient`: its response interceptor drops the status code these tests assert on.
 async function requestFor (
   path: string,
   options: { token?: string } = {}
@@ -99,12 +91,6 @@ function buildUser (overrides: Partial<IUser>): IUser {
   }
 }
 
-/**
- * A small, fully controlled dataset — hand-computed expectations below are
- * derived directly from these records, not from the large deterministic seed
- * (`src/mocks/db/fixtures.ts`), so every assertion here can be justified by
- * inspection rather than by re-deriving the seed's own generator logic.
- */
 function controlledDataset (): ISeedDataset {
   const events: IEvent[] = [
     buildEvent({ id: 'evt-draft', status: 'draft', startDate: '2026-06-01', endDate: '2026-06-02' }),
@@ -157,7 +143,6 @@ describe('dashboard handlers', () => {
 
       const stats = body as TDashboardStats
 
-      // Headline counts.
       expect(stats.totalEvents).toBe(5)
       expect(stats.runningEvents).toBe(2) // evt-published-1, evt-published-2
       expect(stats.totalTickets).toBe(7)
@@ -167,7 +152,6 @@ describe('dashboard handlers', () => {
 
       expect(stats.totalAvailableQuantity).toBe(expectedTotalQuantity)
 
-      // Ticket status breakdown, hand counted.
       expect(stats.ticketStatusBreakdown).toEqual([
         { status: 'draft', count: 1 }, // tix-usd-1
         { status: 'on_sale', count: 3 }, // tix-usd-2, tix-at-threshold, tix-above-threshold
@@ -175,7 +159,6 @@ describe('dashboard handlers', () => {
         { status: 'archived', count: 1 } // tix-archived-low-stock
       ])
 
-      // Event status breakdown, hand counted.
       expect(stats.eventStatusBreakdown).toEqual([
         { status: 'draft', count: 1 },
         { status: 'published', count: 2 },
@@ -211,8 +194,6 @@ describe('dashboard handlers', () => {
         const { body } = await requestFor('/dashboard/stats', { token })
         const stats = body as Record<string, unknown>
 
-        // The only monetary field on the payload is the per-currency array;
-        // there is no sibling "total" scalar mixing currencies together.
         expect(Object.keys(stats).filter(key => /total.*value|gross/i.test(key))).toEqual(['grossInventoryValue'])
         expect(Array.isArray(stats.grossInventoryValue)).toBe(true)
       })
