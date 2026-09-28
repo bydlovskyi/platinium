@@ -324,17 +324,28 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           class="!rounded-token-lg"
           body-class="flex flex-col gap-2 !px-4 !py-3"
         >
-          <div class="flex h-6 items-center gap-3">
-            <el-skeleton-item variant="text" class="!w-3/5" />
-            <el-skeleton-item v-if="cardLayout.badge" variant="text" class="ml-auto !h-5 !w-14" />
+          <!-- At phone width a title shares its row with the checkbox, badge and menu and nearly always wraps to
+               two lines; from `md` up it fits on one. -->
+          <div class="flex h-12 items-start gap-3 md:h-6 md:items-center">
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <el-skeleton-item variant="text" class="!w-4/5" />
+              <el-skeleton-item variant="text" class="!w-2/5 md:!hidden" />
+            </div>
+            <el-skeleton-item v-if="cardLayout.badge" variant="text" class="!h-5 !w-14 shrink-0" />
           </div>
           <div
             v-if="cardLayout.fields.length > 0"
             class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-subtle pt-2"
           >
-            <div v-for="column in cardLayout.fields" :key="column.key" class="flex flex-col gap-1">
-              <el-skeleton-item variant="text" class="!h-3 !w-1/3" />
-              <el-skeleton-item variant="text" class="!w-4/5" />
+            <!-- Label and value take the caption (16px) and body (20px) line boxes of a real field, so the card
+                 keeps its height when the data arrives. -->
+            <div v-for="column in cardLayout.fields" :key="column.key" class="flex flex-col">
+              <div class="flex h-4 items-center">
+                <el-skeleton-item variant="text" class="!h-3 !w-1/3" />
+              </div>
+              <div class="flex h-5 items-center">
+                <el-skeleton-item variant="text" class="!w-4/5" />
+              </div>
             </div>
           </div>
         </el-card>
@@ -368,7 +379,10 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
             :show-overflow-tooltip="!isSkeleton"
           >
             <template #default="{ row }">
-              <el-skeleton-item v-if="isSkeleton" variant="text" class="!w-4/5" />
+              <!-- Same line box as the tallest real cell (the 32px actions button), so rows never jump on load. -->
+              <div v-if="isSkeleton" class="flex h-8 items-center">
+                <el-skeleton-item variant="text" class="!w-4/5" />
+              </div>
               <slot
                 v-else-if="column.cellSlot"
                 :name="`cell-${column.cellSlot}`"
@@ -386,7 +400,7 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
               <span class="sr-only">Row actions</span>
             </template>
             <template #default="{ row }">
-              <el-skeleton-item v-if="isSkeleton" variant="text" class="!w-6" />
+              <el-skeleton-item v-if="isSkeleton" variant="circle" class="!block !size-8" />
               <DataTableRowActions
                 v-else
                 :row="row"
