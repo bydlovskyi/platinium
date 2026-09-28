@@ -82,26 +82,39 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
           </div>
         </div>
 
+        <el-card shadow="never" class="mb-4">
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="text" class="!w-48" />
+              <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <el-skeleton-item v-for="n in 3" :key="n" variant="rect" class="!h-10" />
+              </div>
+            </template>
+          </el-skeleton>
+        </el-card>
+
         <el-row :gutter="16">
-          <el-col :xs="24" :md="12" class="mb-4">
-            <el-card shadow="never">
-              <el-skeleton animated :rows="3" />
-            </el-card>
-          </el-col>
-          <el-col :xs="24" :md="6" class="mb-4">
-            <el-skeleton animated :rows="4" />
-          </el-col>
-          <el-col :xs="24" :md="6" class="mb-4">
-            <el-skeleton animated :rows="4" />
+          <el-col v-for="n in 2" :key="n" :xs="24" :md="12" class="mb-4">
+            <el-skeleton animated>
+              <template #template>
+                <el-skeleton-item variant="text" class="!w-40" />
+                <el-skeleton-item variant="rect" class="!mt-3 !h-3 !w-full" />
+                <div class="mt-3 flex gap-4">
+                  <el-skeleton-item v-for="m in 3" :key="m" variant="text" class="!w-20" />
+                </div>
+              </template>
+            </el-skeleton>
           </el-col>
         </el-row>
 
         <el-row :gutter="16">
-          <el-col :xs="24" :md="12" class="mb-4">
-            <el-skeleton animated :rows="5" />
-          </el-col>
-          <el-col :xs="24" :md="12" class="mb-4">
-            <el-skeleton animated :rows="5" />
+          <el-col v-for="n in 2" :key="n" :xs="24" :md="12" class="mb-4">
+            <el-skeleton animated>
+              <template #template>
+                <el-skeleton-item variant="text" class="!w-48" />
+                <el-skeleton-item v-for="m in 6" :key="m" variant="text" class="!mt-3 !h-6 !w-full" />
+              </template>
+            </el-skeleton>
           </el-col>
         </el-row>
       </div>
