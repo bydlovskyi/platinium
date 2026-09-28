@@ -9,7 +9,12 @@ const route = useRoute()
 const router = useRouter()
 
 const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
-const form = useElFormModel<ILoginForm>({ email: 'admin@platinium.test', password: 'admin123' })
+// Demo credentials are pre-filled for the dev server only; a build never ships a working login.
+const form = useElFormModel<ILoginForm>(
+  import.meta.env.DEV
+    ? { email: 'admin@platinium.test', password: 'admin123' }
+    : { email: '', password: '' }
+)
 
 const rules: IElementPlus['FormRules'] = {
   email: [
@@ -40,7 +45,7 @@ async function onSubmit (): Promise<void> {
     return
   }
 
-  const isValid = await formRef.value?.validate().catch(() => false)
+  const isValid = await formRef.value?.validate(() => undefined).catch(() => false)
 
   if (!isValid) {
     return

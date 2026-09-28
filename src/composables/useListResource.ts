@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 const ABORT_CONTROLLER_KEY = 'fetch'
 
 interface IUseListResourceResult<TItem> {
@@ -45,7 +47,8 @@ export function useListResource<TQuery, TItem> (
         return
       }
 
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
+      // The client is axios, so a cancelled request rejects with `CanceledError`, not a DOM `AbortError`.
+      if (axios.isCancel(caught)) {
         return
       }
 

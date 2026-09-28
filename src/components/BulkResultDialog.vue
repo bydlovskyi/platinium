@@ -61,6 +61,7 @@ const { isMobile } = useBreakpoint()
     :model-value="modelValue"
     :title="`Bulk ${entityLabel} update result`"
     :fullscreen="isMobile"
+    class="bulk-result-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-result :icon="resultType" :title="resultTitle" :sub-title="resultSubTitle" />
@@ -100,3 +101,18 @@ const { isMobile } = useBreakpoint()
     </template>
   </el-dialog>
 </template>
+
+<style>
+/* A long failure list must scroll inside the dialog: otherwise the title and Close button leave the viewport.
+   No `--el-*` variable controls the body height, hence the class override. */
+.bulk-result-dialog:not(.is-fullscreen) {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2 * var(--el-dialog-margin-top, 15vh));
+}
+
+.bulk-result-dialog:not(.is-fullscreen) .el-dialog__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+</style>

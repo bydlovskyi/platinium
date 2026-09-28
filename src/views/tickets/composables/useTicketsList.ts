@@ -1,11 +1,7 @@
-import type { TDataTableEmptyReason } from '@/components/data-table/data-table.types'
-
 const TICKETS_LIST_QUERY_KEY = 'tickets'
 
 // Must match the mock handler's `sortableFields`.
 const TICKET_SORT_FIELDS = ['name', 'price', 'quantity', 'status', 'createdAt'] as const
-
-export const CURRENCIES: TCurrency[] = ['USD', 'EUR', 'GBP']
 
 const TICKET_STATUS_FILTER_VALUES: (TTicketStatus | 'all')[] = ['all', ...TICKET_STATUSES]
 const TICKET_CURRENCY_FILTER_VALUES: (TCurrency | 'all')[] = ['all', ...CURRENCIES]
@@ -41,6 +37,7 @@ function parseMinorUnits (raw: string): number | undefined {
 export function useTicketsList () {
   const listQuery = useListQuery<ITicketsListFilters>({
     key: TICKETS_LIST_QUERY_KEY,
+    routeName: routeNames.tickets,
     filters: {
       eventId: {
         default: '',
@@ -84,30 +81,18 @@ export function useTicketsList () {
     perPage: listQuery.perPage.value
   }))
 
-  const listResource = useListResource(query, (currentQuery, signal) => ticketsService.list(currentQuery, signal))
-
-  const hasActiveFiltersOrSearch = computed(() => (
-    listQuery.appliedSearch.value !== '' ||
-    listQuery.filters.eventId !== '' ||
-    listQuery.filters.categoryId !== '' ||
-    listQuery.filters.status !== 'all' ||
-    listQuery.filters.currency !== 'all' ||
-    listQuery.filters.priceMin !== undefined ||
-    listQuery.filters.priceMax !== undefined
-  ))
-
-  const emptyReason = computed<TDataTableEmptyReason>(() => {
-    if (listResource.data.value.length > 0 || listResource.loading.value || listResource.error.value) {
-      return 'none'
-    }
-
-    return hasActiveFiltersOrSearch.value ? 'no-matches' : 'no-data'
-  })
-
-  return {
-    ...listQuery,
-    ...listResource,
+  return useEntityList({
+    listQuery,
     query,
-    emptyReason
-  }
+    fetcher: (currentQuery, signal) => ticketsService.list(currentQuery, signal),
+    hasActiveFilters: () => (
+      listQuery.appliedSearch.value !== '' ||
+      listQuery.filters.eventId !== '' ||
+      listQuery.filters.categoryId !== '' ||
+      listQuery.filters.status !== 'all' ||
+      listQuery.filters.currency !== 'all' ||
+      listQuery.filters.priceMin !== undefined ||
+      listQuery.filters.priceMax !== undefined
+    )
+  })
 }

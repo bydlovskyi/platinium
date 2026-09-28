@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 export function useDashboardStats () {
   const data = ref<TDashboardStats>()
   const loading = ref(false)
@@ -12,7 +14,7 @@ export function useDashboardStats () {
     try {
       data.value = await call('fetch', signal => dashboardService.getStats(signal))
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
+      if (axios.isCancel(caught)) {
         return
       }
 

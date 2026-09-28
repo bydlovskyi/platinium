@@ -2,6 +2,8 @@ import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PER_PAGE = 20
+// Mirrors `perPage.maximum` in openapi.yaml.
+const MAX_PER_PAGE = 100
 const DEFAULT_DEBOUNCE_MS = 300
 
 interface IListQueryFilterDescriptor<TValue> {
@@ -21,12 +23,16 @@ interface IListQuerySort {
 
 interface IUseListQueryOptions<TFilters extends object> {
   key: string
+  /** The list's own route: `route.query` also changes while leaving for another page, which must not refetch. */
+  routeName?: string
   filters: TListQueryFilterDescriptors<TFilters>
   sortFields: readonly string[]
   defaultSort?: IListQuerySort
   defaultPerPage?: number
   debounceMs?: number
 }
+
+const RESERVED_QUERY_KEYS = ['search', 'sort', 'order', 'page', 'perPage']
 
 function readString (query: LocationQuery, key: string): string | undefined {
   const raw = query[key]
@@ -80,6 +86,7 @@ function parseSort (
 export function useListQuery<TFilters extends object> (options: IUseListQueryOptions<TFilters>) {
   const {
     key,
+    routeName,
     filters: filterDescriptors,
     sortFields,
     defaultSort,
@@ -92,6 +99,25 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
 
   const persistedPerPage = useStorage(`list-query:${key}:per-page`, defaultPerPage)
 
+  const listQueryKeys = [...RESERVED_QUERY_KEYS, ...Object.keys(filterDescriptors)]
+
+  // A URL with none of the list's keys is a fresh entry (sidebar, bookmark of the bare path). Only then does the
+  // persisted page size apply; any URL the app wrote already carries `perPage` when it isn't the default, so
+  // history entries and shared links mean exactly what they say.
+  function isFreshEntry (query: LocationQuery): boolean {
+    return listQueryKeys.every(queryKey => query[queryKey] === undefined)
+  }
+
+  function parsePerPage (query: LocationQuery): number {
+    const raw = readString(query, 'perPage')
+
+    if (raw === undefined) {
+      return isFreshEntry(query) ? persistedPerPage.value : defaultPerPage
+    }
+
+    return Math.min(parsePositiveInteger(raw, defaultPerPage), MAX_PER_PAGE)
+  }
+
   const search = ref(readString(route.query, 'search') ?? '')
   // Committed (debounced) search — use this for requests, not the per-keystroke `search`.
   const appliedSearch = computed(() => readString(route.query, 'search') ?? '')
@@ -99,11 +125,7 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
   const filters = reactive<TFilters>({} as TFilters) as TFilters
   const sort = ref<IListQuerySort | undefined>(parseSort(route.query, sortFields, defaultSort))
   const page = ref(parsePositiveInteger(readString(route.query, 'page'), DEFAULT_PAGE))
-  const perPage = ref(
-    readString(route.query, 'perPage') !== undefined
-      ? parsePositiveInteger(readString(route.query, 'perPage'), defaultPerPage)
-      : persistedPerPage.value
-  )
+  const perPage = ref(parsePerPage(route.query))
 
   function hydrateFiltersFrom (query: LocationQuery): void {
     for (const filterKey of Object.keys(filterDescriptors) as (keyof TFilters)[]) {
@@ -178,6 +200,15 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     return result
   }
 
+  // Makes an applied preference visible in the URL, so the entry the back button returns to is unambiguous.
+  function revealPersistedPerPage (query: LocationQuery): void {
+    if (isFreshEntry(query) && perPage.value !== defaultPerPage) {
+      void pushQuery({}, true)
+    }
+  }
+
+  revealPersistedPerPage(route.query)
+
   function setSearch (value: string): void {
     search.value = value
   }
@@ -195,12 +226,16 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     { debounce: debounceMs }
   )
 
-  function setFilter<TKey extends keyof TFilters> (filterKey: TKey, value: TFilters[TKey]): Promise<void> {
+  function setFilters (patch: Partial<TFilters>): Promise<void> {
     return enqueueDiscrete(() => {
-      const nextFilters = { ...filters, [filterKey]: value } as TFilters
+      const nextFilters = { ...filters, ...patch } as TFilters
 
       return pushQuery({ filters: nextFilters, page: DEFAULT_PAGE })
     })
+  }
+
+  function setFilter<TKey extends keyof TFilters> (filterKey: TKey, value: TFilters[TKey]): Promise<void> {
+    return setFilters({ [filterKey]: value } as unknown as Partial<TFilters>)
   }
 
   function setSort (field: string): Promise<void> {
@@ -254,6 +289,10 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
   watch(
     () => route.query,
     (query) => {
+      if (routeName !== undefined && route.name !== routeName) {
+        return
+      }
+
       const nextSearch = readString(query, 'search') ?? ''
 
       if (search.value !== nextSearch) {
@@ -263,9 +302,9 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
       hydrateFiltersFrom(query)
       sort.value = parseSort(query, sortFields, defaultSort)
       page.value = parsePositiveInteger(readString(query, 'page'), DEFAULT_PAGE)
-      perPage.value = readString(query, 'perPage') !== undefined
-        ? parsePositiveInteger(readString(query, 'perPage'), defaultPerPage)
-        : persistedPerPage.value
+      perPage.value = parsePerPage(query)
+
+      revealPersistedPerPage(query)
     }
   )
 
@@ -278,6 +317,7 @@ export function useListQuery<TFilters extends object> (options: IUseListQueryOpt
     perPage,
     setSearch,
     setFilter,
+    setFilters,
     setSort,
     applySort,
     setPage,

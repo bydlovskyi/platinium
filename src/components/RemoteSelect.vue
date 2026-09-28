@@ -127,6 +127,15 @@ async function loadMore (): Promise<void> {
 
 let resolveRequestValue: string | undefined
 
+// While the preselected record is being fetched, `el-select` would show the raw id; hide the value until then.
+const resolving = ref(false)
+
+const displayedValue = computed(() => (resolving.value ? undefined : modelValue.value))
+
+const emit = defineEmits<{
+  resolved: [option: TOption]
+}>()
+
 watch(modelValue, async (value) => {
   if (!value) {
     selectedOption.value = undefined
@@ -145,6 +154,7 @@ watch(modelValue, async (value) => {
   }
 
   resolveRequestValue = value
+  resolving.value = true
 
   try {
     const resolved = await props.resolveOption(value)
@@ -155,8 +165,13 @@ watch(modelValue, async (value) => {
     }
 
     selectedOption.value = resolved
+    emit('resolved', resolved)
   } catch {
     // Unresolvable reference: keep the raw value rather than break the form.
+  } finally {
+    if (resolveRequestValue === value) {
+      resolving.value = false
+    }
   }
 }, { immediate: true })
 
@@ -188,17 +203,18 @@ onMounted(() => {
 
 <template>
   <el-select
-    v-model="modelValue"
+    :model-value="displayedValue"
     filterable
     remote
     :remote-method="onRemoteMethod"
     :debounce="SEARCH_DEBOUNCE_MS"
-    :loading="loading"
+    :loading="loading || resolving"
     :clearable="clearable"
-    :disabled="disabled"
-    :placeholder="placeholder"
+    :disabled="disabled || resolving"
+    :placeholder="resolving ? 'Loading…' : placeholder"
     :popper-class="popperClass"
     class="w-full"
+    @update:model-value="modelValue = $event"
     @visible-change="onVisibleChange"
   >
     <el-option

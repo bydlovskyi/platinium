@@ -1,5 +1,3 @@
-import type { TDataTableEmptyReason } from '@/components/data-table/data-table.types'
-
 const EVENTS_LIST_QUERY_KEY = 'events'
 
 const EVENT_SORT_FIELDS = ['name', 'startDate', 'endDate', 'status'] as const
@@ -16,6 +14,7 @@ export interface IEventsListFilters {
 export function useEventsList () {
   const listQuery = useListQuery<IEventsListFilters>({
     key: EVENTS_LIST_QUERY_KEY,
+    routeName: routeNames.events,
     filters: {
       status: {
         default: 'all',
@@ -49,28 +48,16 @@ export function useEventsList () {
     perPage: listQuery.perPage.value
   }))
 
-  const listResource = useListResource(query, (currentQuery, signal) => eventsService.list(currentQuery, signal))
-
-  const hasActiveFiltersOrSearch = computed(() => (
-    listQuery.appliedSearch.value !== '' ||
-    listQuery.filters.status !== 'all' ||
-    listQuery.filters.country !== '' ||
-    listQuery.filters.startDateFrom !== '' ||
-    listQuery.filters.startDateTo !== ''
-  ))
-
-  const emptyReason = computed<TDataTableEmptyReason>(() => {
-    if (listResource.data.value.length > 0 || listResource.loading.value || listResource.error.value) {
-      return 'none'
-    }
-
-    return hasActiveFiltersOrSearch.value ? 'no-matches' : 'no-data'
-  })
-
-  return {
-    ...listQuery,
-    ...listResource,
+  return useEntityList({
+    listQuery,
     query,
-    emptyReason
-  }
+    fetcher: (currentQuery, signal) => eventsService.list(currentQuery, signal),
+    hasActiveFilters: () => (
+      listQuery.appliedSearch.value !== '' ||
+      listQuery.filters.status !== 'all' ||
+      listQuery.filters.country !== '' ||
+      listQuery.filters.startDateFrom !== '' ||
+      listQuery.filters.startDateTo !== ''
+    )
+  })
 }

@@ -26,7 +26,7 @@ const statCards = computed(() => [
     to: { name: routeNames.events }
   },
   {
-    title: 'Currently running',
+    title: 'Published events',
     value: runningEventsDisplay.value,
     to: { name: routeNames.events, query: { status: 'published' } },
     percentage: percentOfEvents(data.value?.runningEvents ?? 0)
