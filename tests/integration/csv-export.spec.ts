@@ -196,7 +196,10 @@ describe('CSV export', () => {
       const today = new Date().toISOString().slice(0, 10)
       expect(anchor.download).toBe(`events-${today}.csv`)
 
-      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:mock-url')
+      // Revoked on the next tick, after the click has been handed to the browser.
+      await vi.waitFor(() => {
+        expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:mock-url')
+      })
     })
 
     it('shows the loading state on the button while the export request is in flight', async () => {
