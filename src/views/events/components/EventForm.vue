@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ValidationFieldError, DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
+import { ValidationFieldError } from '@/features/platform/api/interceptors/response.interceptor'
 
 interface IEventFormModel {
   name: string
@@ -10,132 +10,48 @@ interface IEventFormModel {
   status: TEventStatus
 }
 
-const NAME_MAX_LENGTH = 120
-const VENUE_MAX_LENGTH = 120
-
-const STATUS_OPTIONS: { value: TEventStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'completed', label: 'Completed' }
-]
-
-function emptyModel (): IEventFormModel {
-  return {
-    name: '',
-    country: '',
-    venue: '',
-    startDate: '',
-    endDate: '',
-    status: 'draft'
-  }
-}
-
-function cloneModel (model: IEventFormModel): IEventFormModel {
-  return { ...model }
-}
-
 const route = useRoute()
 const router = useRouter()
 const { canDo } = useCapability()
 const { isMobile } = useBreakpoint()
+const { confirm } = useConfirm()
+const { notifyDependencyConflict } = useDependencyConflictNotice()
+
 const actionButtonSize = computed(() => (isMobile.value ? 'small' : 'default'))
 
-const eventId = computed<string | undefined>(() => (
-  typeof route.params.id === 'string' ? route.params.id : undefined
-))
+const eventId = computed(() => (typeof route.params.id === 'string' ? route.params.id : undefined))
 const isEditMode = computed(() => eventId.value !== undefined)
 
 // The list passes its fullPath as `from` so returning keeps its filters/sort/page.
-const returnTo = computed<string | { name: string }>(() => (
-  typeof route.query.from === 'string' ? route.query.from : { name: routeNames.events }
-))
-
-function goToList (): void {
-  void router.push(returnTo.value)
-}
-
-const { confirm } = useConfirm()
-
-// Re-throws so useConfirm keeps the dialog open on a 409.
-async function deleteEvent (): Promise<void> {
-  const id = eventId.value
-
-  if (id === undefined) {
-    return
-  }
-
-  await confirm({
-    subject: form.name,
-    onConfirm: async () => {
-      try {
-        await eventsService.delete(id)
-      } catch (error) {
-        if (error instanceof DependencyConflictError) {
-          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
-
-          notificationService.error({
-            title: 'Cannot delete event',
-            message: `${blocking} reference this event and must be removed first.`,
-            action: {
-              label: `View ${blocking}`,
-              onClick: () => {
-                void router.push({ name: routeNames.tickets, query: { eventId: id } })
-              }
-            }
-          })
-        }
-
-        throw error
-      }
-
-      notificationService.success({ message: 'Event deleted.' })
-
-      markClean()
-      await router.push(returnTo.value)
-    }
-  })
-}
+const returnTo = computed(() => (typeof route.query.from === 'string' ? route.query.from : { name: routeNames.events }))
 
 const loadingRecord = ref(isEditMode.value)
 const loadError = ref(false)
 
 const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
-const form = useElFormModel<IEventFormModel>(emptyModel())
+const form = useElFormModel<IEventFormModel>({
+  name: '',
+  country: '',
+  venue: '',
+  startDate: '',
+  endDate: '',
+  status: 'draft'
+})
 
-const baseline = ref<IEventFormModel | undefined>(isEditMode.value ? undefined : emptyModel())
+// Undefined until the record loads, so the empty form an edit starts with never counts as dirty.
+let baseline = isEditMode.value ? undefined : JSON.stringify(form)
 
-// Tracked separately: re-deriving "start > end" would keep the alert up forever, not just right after clearing.
-const justClearedEndDate = ref(false)
-
-const isDirtyFromBaseline = computed(() => (
-  baseline.value !== undefined && JSON.stringify(form) !== JSON.stringify(baseline.value)
-))
-
-// Writable mirror for useUnsavedChangesGuard; handing it the computed would leave the flag stuck after a save.
 const isDirty = ref(false)
-watch(isDirtyFromBaseline, (value) => {
-  isDirty.value = value
-}, { immediate: true })
+watch(form, () => {
+  isDirty.value = baseline !== undefined && JSON.stringify(form) !== baseline
+})
 
-const { markClean: markGuardClean } = useUnsavedChangesGuard({ isDirty })
-
-function markClean (): void {
-  baseline.value = cloneModel(form)
-  markGuardClean()
-}
+const { markClean } = useUnsavedChangesGuard({ isDirty })
 
 const serverFieldErrors = ref<Partial<Record<keyof IEventFormModel, string>>>({})
 
-function fieldError (field: keyof IEventFormModel): string | undefined {
-  return serverFieldErrors.value[field]
-}
-
-function clearServerError (field: keyof IEventFormModel): void {
-  if (serverFieldErrors.value[field] !== undefined) {
-    serverFieldErrors.value = { ...serverFieldErrors.value, [field]: undefined }
-  }
-}
+// Tracked separately: re-deriving "start > end" would keep the alert up forever, not just right after clearing.
+const justClearedEndDate = ref(false)
 
 // Local getters, not toISOString (UTC shifts the day near midnight in negative offsets).
 function toDateOnly (date: Date): string {
@@ -147,48 +63,37 @@ function toDateOnly (date: Date): string {
 }
 
 function disabledEndDate (date: Date): boolean {
-  if (!form.startDate) {
-    return false
-  }
-
-  return toDateOnly(date) < form.startDate
+  return form.startDate !== '' && toDateOnly(date) < form.startDate
 }
 
 // :disabled-date only stops picker interaction; this catches programmatic changes.
 function validateEndDate (_rule: unknown, value: string, callback: (error?: Error) => void): void {
-  if (value && form.startDate && value < form.startDate) {
-    callback(new Error('End date must not precede start date.'))
-    return
-  }
-
-  callback()
+  callback(value && form.startDate && value < form.startDate ? new Error('End date must not precede start date.') : undefined)
 }
 
 function onStartDateChange (value: string | null): void {
-  clearServerError('startDate')
+  serverFieldErrors.value.startDate = undefined
+  justClearedEndDate.value = Boolean(value && form.endDate && form.endDate < value)
 
-  if (value && form.endDate && form.endDate < value) {
+  if (justClearedEndDate.value) {
     form.endDate = ''
-    justClearedEndDate.value = true
-  } else {
-    justClearedEndDate.value = false
   }
 }
 
 function onEndDateChange (): void {
-  clearServerError('endDate')
+  serverFieldErrors.value.endDate = undefined
   justClearedEndDate.value = false
 }
 
 const rules: IElementPlus['FormRules'] = {
   name: [
     useRequiredRule(),
-    useMaxLenRule(NAME_MAX_LENGTH)
+    useMaxLenRule(120)
   ],
   country: [useRequiredRule()],
   venue: [
     useRequiredRule(),
-    useMaxLenRule(VENUE_MAX_LENGTH)
+    useMaxLenRule(120)
   ],
   startDate: [useRequiredRule()],
   endDate: [
@@ -198,82 +103,56 @@ const rules: IElementPlus['FormRules'] = {
   status: [useRequiredRule()]
 }
 
-async function loadRecord (id: string): Promise<void> {
+// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
+watch(eventId, async (id) => {
+  if (id === undefined) {
+    return
+  }
+
   loadingRecord.value = true
   loadError.value = false
 
   try {
     const event = await eventsService.get(id, { showNotification: false })
 
-    const loaded: IEventFormModel = {
+    Object.assign(form, {
       name: event.name,
       country: event.country,
       venue: event.venue,
       startDate: event.startDate,
       endDate: event.endDate,
       status: event.status
-    }
-
-    // Discard if the route moved to a different id while this was in flight.
-    if (eventId.value !== id) {
-      return
-    }
-
-    Object.assign(form, loaded)
-    baseline.value = cloneModel(loaded)
+    })
+    baseline = JSON.stringify(form)
   } catch {
-    if (eventId.value !== id) {
-      return
-    }
-
     loadError.value = true
   } finally {
-    if (eventId.value === id) {
-      loadingRecord.value = false
-    }
-  }
-}
-
-// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
-watch(eventId, (id) => {
-  if (id !== undefined) {
-    void loadRecord(id)
+    loadingRecord.value = false
   }
 }, { immediate: true })
 
-const submitting = ref(false)
-
-function toPayload (): TEventPayload {
-  return {
-    name: form.name,
-    country: form.country,
-    venue: form.venue,
-    startDate: form.startDate,
-    endDate: form.endDate,
-    status: form.status
-  }
-}
+const loading = ref(false)
 
 async function onSubmit (): Promise<void> {
-  if (submitting.value) {
+  if (loading.value) {
     return
   }
 
-  submitting.value = true
+  loading.value = true
 
   try {
     const isValid = await formRef.value?.validate().catch(() => false)
 
-    if (isValid !== true) {
+    if (!isValid) {
       return
     }
 
     serverFieldErrors.value = {}
 
-    if (isEditMode.value && eventId.value !== undefined) {
-      await eventsService.update(eventId.value, toPayload())
+    if (eventId.value) {
+      await eventsService.update(eventId.value, { ...form })
     } else {
-      await eventsService.create(toPayload())
+      await eventsService.create({ ...form })
     }
 
     notificationService.success({
@@ -287,8 +166,28 @@ async function onSubmit (): Promise<void> {
       serverFieldErrors.value = error.fieldErrors
     }
   } finally {
-    submitting.value = false
+    loading.value = false
   }
+}
+
+// Re-throws so useConfirm keeps the dialog open on a 409.
+async function deleteEvent (id: string): Promise<void> {
+  await confirm({
+    subject: form.name,
+    onConfirm: async () => {
+      try {
+        await eventsService.delete(id)
+      } catch (error) {
+        notifyDependencyConflict(error, { entity: 'event', to: { name: routeNames.tickets, query: { eventId: id } } })
+        throw error
+      }
+
+      notificationService.success({ message: 'Event deleted.' })
+
+      markClean()
+      await router.push(returnTo.value)
+    }
+  })
 }
 </script>
 
@@ -296,7 +195,6 @@ async function onSubmit (): Promise<void> {
   <div class="flex flex-col gap-4">
     <PageHeader :title="isEditMode ? 'Edit event' : 'Create event'" />
 
-    <!-- el-skeleton has no built-in transition to its content, hence the keyed <Transition>. -->
     <Transition name="skeleton-fade" mode="out-in">
       <el-skeleton v-if="loadingRecord" key="skeleton" :rows="6" animated />
 
@@ -307,7 +205,7 @@ async function onSubmit (): Promise<void> {
           sub-title="This event may have been deleted or the link is incorrect."
         >
           <template #extra>
-            <el-button type="primary" @click="goToList">
+            <el-button type="primary" @click="router.push(returnTo)">
               Back to list
             </el-button>
           </template>
@@ -324,23 +222,23 @@ async function onSubmit (): Promise<void> {
         class="max-w-lg"
         @submit.prevent="onSubmit"
       >
-        <el-form-item label="Name" prop="name" :error="fieldError('name')">
+        <el-form-item label="Name" prop="name" :error="serverFieldErrors.name">
           <el-input
             v-model="form.name"
             maxlength="120"
             show-word-limit
             placeholder="Summer Jazz Festival"
-            @input="clearServerError('name')"
+            @input="serverFieldErrors.name = undefined"
           />
         </el-form-item>
 
-        <el-form-item label="Country" prop="country" :error="fieldError('country')">
+        <el-form-item label="Country" prop="country" :error="serverFieldErrors.country">
           <el-select
             v-model="form.country"
             filterable
             placeholder="Select a country"
             class="w-full"
-            @change="clearServerError('country')"
+            @change="serverFieldErrors.country = undefined"
           >
             <el-option
               v-for="option in countries.options"
@@ -351,17 +249,17 @@ async function onSubmit (): Promise<void> {
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Venue" prop="venue" :error="fieldError('venue')">
+        <el-form-item label="Venue" prop="venue" :error="serverFieldErrors.venue">
           <el-input
             v-model="form.venue"
             maxlength="120"
             show-word-limit
             placeholder="Skyline Terrace"
-            @input="clearServerError('venue')"
+            @input="serverFieldErrors.venue = undefined"
           />
         </el-form-item>
 
-        <el-form-item label="Start date" prop="startDate" :error="fieldError('startDate')">
+        <el-form-item label="Start date" prop="startDate" :error="serverFieldErrors.startDate">
           <el-date-picker
             v-model="form.startDate"
             type="date"
@@ -372,7 +270,7 @@ async function onSubmit (): Promise<void> {
           />
         </el-form-item>
 
-        <el-form-item label="End date" prop="endDate" :error="fieldError('endDate')">
+        <el-form-item label="End date" prop="endDate" :error="serverFieldErrors.endDate">
           <el-date-picker
             v-model="form.endDate"
             type="date"
@@ -392,10 +290,10 @@ async function onSubmit (): Promise<void> {
           />
         </el-form-item>
 
-        <el-form-item label="Status" prop="status" :error="fieldError('status')">
-          <el-radio-group v-model="form.status" @change="clearServerError('status')">
-            <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
+        <el-form-item label="Status" prop="status" :error="serverFieldErrors.status">
+          <el-radio-group v-model="form.status" @change="serverFieldErrors.status = undefined">
+            <el-radio v-for="status in EVENT_STATUSES" :key="status" :value="status">
+              {{ STATUS_PRESENTATION[status].label }}
             </el-radio>
           </el-radio-group>
         </el-form-item>
@@ -403,27 +301,25 @@ async function onSubmit (): Promise<void> {
         <div class="flex items-center justify-between gap-2">
           <div class="flex gap-2">
             <el-button
-              v-if="canDo('events', isEditMode ? 'update' : 'create')"
               :size="actionButtonSize"
               type="primary"
               native-type="submit"
-              :loading="submitting"
-              :disabled="submitting"
+              :loading="loading"
             >
               {{ isEditMode ? 'Save changes' : 'Create event' }}
             </el-button>
-            <el-button :size="actionButtonSize" :disabled="submitting" @click="goToList">
+            <el-button :size="actionButtonSize" :disabled="loading" @click="router.push(returnTo)">
               Cancel
             </el-button>
           </div>
 
           <el-button
-            v-if="isEditMode && canDo('events', 'delete')"
+            v-if="eventId && canDo('events', 'delete')"
             :size="actionButtonSize"
             type="danger"
             plain
-            :disabled="submitting"
-            @click="deleteEvent"
+            :disabled="loading"
+            @click="deleteEvent(eventId)"
           >
             Delete event
           </el-button>

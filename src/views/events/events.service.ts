@@ -1,25 +1,11 @@
 import { blobExportTestOverrides } from '@/features/platform/api/helpers'
 
-interface IEventListParams {
-  search?: string
-  status?: TEventStatus
-  country?: string
-  startDateFrom?: string
-  startDateTo?: string
-  sort?: string
-  order?: TSortOrder
-  page?: number
-  perPage?: number
-}
+type TEventListParams = Omit<NonNullable<TRequestQuery<'/events', 'get'>>, 'format'>
 
-type TEventExportParams = Omit<IEventListParams, 'page' | 'perPage'>
-
-interface IEventGetOptions {
-  showNotification?: boolean
-}
+type TEventExportParams = Omit<TEventListParams, 'page' | 'perPage'>
 
 class EventsService {
-  list (params: IEventListParams, signal?: AbortSignal): Promise<TEventListResponse> {
+  list (params: TEventListParams, signal?: AbortSignal): Promise<TEventListResponse> {
     return apiClient.get('/events', { params, signal })
   }
 
@@ -27,7 +13,7 @@ class EventsService {
     return apiClient.post('/events', payload)
   }
 
-  get (id: string, { showNotification }: IEventGetOptions = {}): Promise<TEvent> {
+  get (id: string, { showNotification }: { showNotification?: boolean } = {}): Promise<TEvent> {
     return apiClient.get('/events/{id}', { dynamicKeys: { id }, showNotification })
   }
 

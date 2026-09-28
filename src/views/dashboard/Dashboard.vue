@@ -1,64 +1,65 @@
 <script lang="ts" setup>
-import type { IStatusDistributionEntry } from './components/status-distribution-bar.types'
-
 const router = useRouter()
 const { canDo } = useCapability()
 const { isMobile } = useBreakpoint()
 
 const { data, loading, error, retry } = useDashboardStats()
 
-// 1 column on mobile so a third currency stacks instead of overflowing the card.
-const grossInventoryValueColumns = computed(() => isMobile.value ? 1 : 3)
-
 const draftEvents = computed(() => data.value?.eventStatusBreakdown.find(entry => entry.status === 'draft')?.count ?? 0)
 
-const runningEventsPercentage = computed(() => {
-  const totalEvents = data.value?.totalEvents ?? 0
-
-  return totalEvents === 0 ? 0 : Math.round(((data.value?.runningEvents ?? 0) / totalEvents) * 100)
-})
-const draftEventsPercentage = computed(() => {
-  const totalEvents = data.value?.totalEvents ?? 0
-
-  return totalEvents === 0 ? 0 : Math.round((draftEvents.value / totalEvents) * 100)
-})
-
-const eventsDistributionEntries = computed<IStatusDistributionEntry[]>(() => (
-  data.value?.eventStatusBreakdown ?? []
-).map(entry => ({
-  status: entry.status,
-  count: entry.count,
-  to: { name: routeNames.events, query: { status: entry.status } }
-})))
-const ticketsDistributionEntries = computed<IStatusDistributionEntry[]>(() => (
-  data.value?.ticketStatusBreakdown ?? []
-).map(entry => ({
-  status: entry.status,
-  count: entry.count,
-  to: { name: routeNames.tickets, query: { status: entry.status } }
-})))
-
-const totalEventsDisplay = useCountUp(computed(() => data.value?.totalEvents ?? 0))
-const runningEventsDisplay = useCountUp(computed(() => data.value?.runningEvents ?? 0))
+const totalEventsDisplay = useCountUp(() => data.value?.totalEvents ?? 0)
+const runningEventsDisplay = useCountUp(() => data.value?.runningEvents ?? 0)
 const draftEventsDisplay = useCountUp(draftEvents)
-const totalTicketsDisplay = useCountUp(computed(() => data.value?.totalTickets ?? 0))
-const totalAvailableQuantityDisplay = useCountUp(computed(() => data.value?.totalAvailableQuantity ?? 0))
+const totalTicketsDisplay = useCountUp(() => data.value?.totalTickets ?? 0)
+const totalAvailableQuantityDisplay = useCountUp(() => data.value?.totalAvailableQuantity ?? 0)
+
+function percentOfEvents (count: number): number {
+  const totalEvents = data.value?.totalEvents ?? 0
+
+  return totalEvents === 0 ? 0 : Math.round((count / totalEvents) * 100)
+}
+
+const statCards = computed(() => [
+  {
+    title: 'Total events',
+    value: totalEventsDisplay.value,
+    to: { name: routeNames.events }
+  },
+  {
+    title: 'Currently running',
+    value: runningEventsDisplay.value,
+    to: { name: routeNames.events, query: { status: 'published' } },
+    percentage: percentOfEvents(data.value?.runningEvents ?? 0)
+  },
+  {
+    title: 'Draft events',
+    value: draftEventsDisplay.value,
+    to: { name: routeNames.events, query: { status: 'draft' } },
+    percentage: percentOfEvents(draftEvents.value)
+  },
+  {
+    title: 'Total tickets',
+    value: totalTicketsDisplay.value,
+    to: { name: routeNames.tickets }
+  },
+  {
+    title: 'Total available quantity',
+    value: totalAvailableQuantityDisplay.value,
+    to: { name: routeNames.tickets }
+  }
+])
 
 // The edit route is capability-gated, so a viewer's row click is a no-op rather than a 403.
 function onUpcomingEventRowClick (row: TEvent): void {
-  if (!canDo('events', 'update')) {
-    return
+  if (canDo('events', 'update')) {
+    void router.push({ name: routeNames.eventEdit, params: { id: row.id } })
   }
-
-  void router.push({ name: routeNames.eventEdit, params: { id: row.id } })
 }
 
 function onNearlySoldOutTicketRowClick (row: TTicket): void {
-  if (!canDo('tickets', 'update')) {
-    return
+  if (canDo('tickets', 'update')) {
+    void router.push({ name: routeNames.ticketEdit, params: { id: row.id } })
   }
-
-  void router.push({ name: routeNames.ticketEdit, params: { id: row.id } })
 }
 </script>
 
@@ -121,112 +122,49 @@ function onNearlySoldOutTicketRowClick (row: TTicket): void {
 
       <div v-else-if="data" key="content" class="flex flex-col gap-5">
         <div class="stat-cards-row">
-          <div class="stat-card">
+          <div v-for="card in statCards" :key="card.title" class="stat-card">
             <el-card shadow="never" class="h-full">
-              <router-link :to="{ name: routeNames.events }" class="block hover:text-accent">
-                <el-statistic
-                  title="Total events"
-                  :value="totalEventsDisplay"
-                  class="headline-statistic tabular-nums"
-                />
-              </router-link>
-            </el-card>
-          </div>
-
-          <div class="stat-card">
-            <el-card shadow="never" class="h-full">
-              <router-link
-                :to="{ name: routeNames.events, query: { status: 'published' } }"
-                class="block hover:text-accent"
-              >
-                <el-statistic
-                  title="Currently running"
-                  :value="runningEventsDisplay"
-                  class="headline-statistic tabular-nums"
-                >
-                  <template #suffix>
-                    <span class="text-caption text-text-muted align-middle">({{ runningEventsPercentage }}%)</span>
+              <router-link :to="card.to" class="block hover:text-accent">
+                <el-statistic :title="card.title" :value="card.value" class="headline-statistic tabular-nums">
+                  <template v-if="card.percentage !== undefined" #suffix>
+                    <span class="text-caption text-text-muted align-middle">({{ card.percentage }}%)</span>
                   </template>
                 </el-statistic>
-              </router-link>
-            </el-card>
-          </div>
-
-          <div class="stat-card">
-            <el-card shadow="never" class="h-full">
-              <router-link
-                :to="{ name: routeNames.events, query: { status: 'draft' } }"
-                class="block hover:text-accent"
-              >
-                <el-statistic title="Draft events" :value="draftEventsDisplay" class="headline-statistic tabular-nums">
-                  <template #suffix>
-                    <span class="text-caption text-text-muted align-middle">({{ draftEventsPercentage }}%)</span>
-                  </template>
-                </el-statistic>
-              </router-link>
-            </el-card>
-          </div>
-
-          <div class="stat-card">
-            <el-card shadow="never" class="h-full">
-              <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-                <el-statistic
-                  title="Total tickets"
-                  :value="totalTicketsDisplay"
-                  class="headline-statistic tabular-nums"
-                />
-              </router-link>
-            </el-card>
-          </div>
-
-          <div class="stat-card">
-            <el-card shadow="never" class="h-full">
-              <router-link :to="{ name: routeNames.tickets }" class="block hover:text-accent">
-                <el-statistic
-                  title="Total available quantity"
-                  :value="totalAvailableQuantityDisplay"
-                  class="headline-statistic tabular-nums"
-                />
               </router-link>
             </el-card>
           </div>
         </div>
 
-        <!-- Gross inventory value per currency — one labelled block, never summed across currencies. -->
-        <el-row :gutter="16">
-          <el-col :span="24" class="mb-4">
-            <el-card shadow="never">
-              <el-descriptions title="Gross inventory value" :column="grossInventoryValueColumns" border>
-                <el-descriptions-item
-                  v-for="currencyTotal in data.grossInventoryValue"
-                  :key="currencyTotal.currency"
-                  :label="currencyTotal.currency"
-                >
-                  <span class="tabular-nums">
-                    {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
-                  </span>
-                </el-descriptions-item>
+        <el-card shadow="never" class="mb-4">
+          <el-descriptions title="Gross inventory value" :column="isMobile ? 1 : 3" border>
+            <el-descriptions-item
+              v-for="currencyTotal in data.grossInventoryValue"
+              :key="currencyTotal.currency"
+              :label="currencyTotal.currency"
+            >
+              <span class="tabular-nums">
+                {{ filters.formatMoney(currencyTotal.totalMinorUnits, currencyTotal.currency) }}
+              </span>
+            </el-descriptions-item>
 
-                <el-descriptions-item v-if="data.grossInventoryValue.length === 0" label="No inventory">
-                  —
-                </el-descriptions-item>
-              </el-descriptions>
-            </el-card>
-          </el-col>
-        </el-row>
+            <el-descriptions-item v-if="data.grossInventoryValue.length === 0" label="No inventory">
+              —
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
 
         <el-row :gutter="16">
           <el-col :xs="24" :md="12" class="mb-4">
             <section aria-labelledby="events-status-heading">
               <h2 id="events-status-heading" class="text-section-heading text-text-primary mb-3">Events by status</h2>
-              <StatusDistributionBar :entries="eventsDistributionEntries" />
+              <StatusDistributionBar :entries="data.eventStatusBreakdown" :route-name="routeNames.events" />
             </section>
           </el-col>
 
           <el-col :xs="24" :md="12" class="mb-4">
             <section aria-labelledby="tickets-status-heading">
               <h2 id="tickets-status-heading" class="text-section-heading text-text-primary mb-3">Tickets by status</h2>
-              <StatusDistributionBar :entries="ticketsDistributionEntries" />
+              <StatusDistributionBar :entries="data.ticketStatusBreakdown" :route-name="routeNames.tickets" />
             </section>
           </el-col>
         </el-row>

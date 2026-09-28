@@ -17,6 +17,15 @@ export function useBulkOperations () {
   const isRunning = ref(false)
   const lastResult = ref<TBulkResult>()
 
+  const resultVisible = computed({
+    get: () => lastResult.value !== undefined,
+    set: (value: boolean) => {
+      if (!value) {
+        lastResult.value = undefined
+      }
+    }
+  })
+
   function clearSelection (): void {
     selectedIds.value = []
   }
@@ -81,6 +90,7 @@ export function useBulkOperations () {
     selectedIds,
     isRunning,
     lastResult,
+    resultVisible,
     clearSelection,
     runBulkOperation
   }

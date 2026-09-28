@@ -5,8 +5,10 @@ const TICKETS_LIST_QUERY_KEY = 'tickets'
 // Must match the mock handler's `sortableFields`.
 const TICKET_SORT_FIELDS = ['name', 'price', 'quantity', 'status', 'createdAt'] as const
 
-const TICKET_STATUS_FILTER_VALUES: (TTicketStatus | 'all')[] = ['all', 'draft', 'on_sale', 'sold_out', 'archived']
-const TICKET_CURRENCY_FILTER_VALUES: (TCurrency | 'all')[] = ['all', 'USD', 'EUR', 'GBP']
+export const CURRENCIES: TCurrency[] = ['USD', 'EUR', 'GBP']
+
+const TICKET_STATUS_FILTER_VALUES: (TTicketStatus | 'all')[] = ['all', ...TICKET_STATUSES]
+const TICKET_CURRENCY_FILTER_VALUES: (TCurrency | 'all')[] = ['all', ...CURRENCIES]
 
 // Fixed at 2 decimals: the filter spans currencies, so there's no single currency precision to derive.
 const PRICE_FILTER_DECIMALS = 2
@@ -95,11 +97,7 @@ export function useTicketsList () {
   ))
 
   const emptyReason = computed<TDataTableEmptyReason>(() => {
-    if (listResource.data.value.length > 0) {
-      return 'none'
-    }
-
-    if (listResource.loading.value || listResource.error.value) {
+    if (listResource.data.value.length > 0 || listResource.loading.value || listResource.error.value) {
       return 'none'
     }
 
@@ -109,7 +107,7 @@ export function useTicketsList () {
   return {
     ...listQuery,
     ...listResource,
-    emptyReason,
-    sortFields: TICKET_SORT_FIELDS
+    query,
+    emptyReason
   }
 }

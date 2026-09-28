@@ -1,19 +1,18 @@
 import StatusDistributionBar from './StatusDistributionBar.vue'
-import type { IStatusDistributionEntry } from './status-distribution-bar.types'
 
 import { mountWithRouterAndPinia } from '../../../../tests/support'
 
-function buildEntries (): IStatusDistributionEntry[] {
+function buildEntries (): TStatusBreakdown[] {
   return [
-    { status: 'draft', count: 1, to: { name: routeNames.events, query: { status: 'draft' } } },
-    { status: 'published', count: 3, to: { name: routeNames.events, query: { status: 'published' } } }
+    { status: 'draft', count: 1 },
+    { status: 'published', count: 3 }
   ]
 }
 
 describe('StatusDistributionBar', () => {
   it('renders one bar segment per entry, proportional to its share of the total', async () => {
     const { wrapper } = await mountWithRouterAndPinia(StatusDistributionBar, {
-      props: { entries: buildEntries() }
+      props: { entries: buildEntries(), routeName: routeNames.events }
     })
 
     const segments = wrapper.findAll('[aria-hidden="true"] > div')
@@ -24,7 +23,7 @@ describe('StatusDistributionBar', () => {
 
   it('renders an accessible legend with a label and the exact count for every entry', async () => {
     const { wrapper } = await mountWithRouterAndPinia(StatusDistributionBar, {
-      props: { entries: buildEntries() }
+      props: { entries: buildEntries(), routeName: routeNames.events }
     })
 
     const items = wrapper.findAll('li')
@@ -35,9 +34,9 @@ describe('StatusDistributionBar', () => {
     expect(items[1]!.text()).toContain('3')
   })
 
-  it('links each legend row to the entry\'s target route', async () => {
+  it('links each legend row to the route filtered by its status', async () => {
     const { wrapper } = await mountWithRouterAndPinia(StatusDistributionBar, {
-      props: { entries: buildEntries() }
+      props: { entries: buildEntries(), routeName: routeNames.events }
     })
 
     const links = wrapper.findAllComponents({ name: 'RouterLink' })
@@ -48,7 +47,7 @@ describe('StatusDistributionBar', () => {
 
   it('renders no segments and an empty legend when there are no entries', async () => {
     const { wrapper } = await mountWithRouterAndPinia(StatusDistributionBar, {
-      props: { entries: [] }
+      props: { entries: [], routeName: routeNames.events }
     })
 
     expect(wrapper.findAll('[aria-hidden="true"] > div')).toHaveLength(0)

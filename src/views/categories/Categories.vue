@@ -1,13 +1,8 @@
 <script lang="ts" setup>
-import { DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
-
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
-
-const router = useRouter()
 
 const {
   search,
-  appliedSearch,
   sort,
   page,
   setSearch,
@@ -21,8 +16,11 @@ const {
   loading,
   error,
   refetch,
+  query,
   emptyReason
 } = useCategoriesList()
+
+const { leavingRowKeys, removeRows } = useRowRemoval({ rows: data, page, setPage, refetch })
 
 const { openModal } = useModals()
 const { confirm } = useConfirm()
@@ -31,21 +29,18 @@ const {
   selectedIds,
   isRunning: bulkRunning,
   lastResult: bulkResult,
+  resultVisible: bulkResultVisible,
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
-const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
+const { notifyDependencyConflict } = useDependencyConflictNotice()
 
 const columns: IDataTableColumn<TCategory>[] = [
   { key: 'name', label: 'Name', sortable: true },
   { key: 'description', label: 'Description' },
   { key: 'createdAt', label: 'Created', sortable: true, cellSlot: 'createdAt' }
 ]
-
-const dataTableSort = computed(() => (
-  sort.value ? { field: sort.value.field, order: sort.value.order } : undefined
-))
 
 function rowKey (row: TCategory): string {
   return row.id
@@ -73,18 +68,8 @@ function selectionSubject (): string {
   return `${count} categor${count === 1 ? 'y' : 'ies'}`
 }
 
-async function onBulkDeleteComplete (): Promise<void> {
-  const succeededIds = bulkResult.value?.succeeded ?? []
-  const allVisibleRowsDeleted = data.value.length > 0 &&
-    data.value.every(category => succeededIds.includes(category.id))
-
-  await playLeave(succeededIds)
-
-  if (allVisibleRowsDeleted && page.value > 1) {
-    void setPage(page.value - 1)
-  } else {
-    void refetch()
-  }
+function onBulkDeleteComplete (): Promise<void> {
+  return removeRows(bulkResult.value?.succeeded ?? [])
 }
 
 async function bulkDeleteCategories (): Promise<void> {
@@ -102,33 +87,13 @@ async function deleteCategory (category: TCategory): Promise<void> {
       try {
         await categoriesService.delete(category.id)
       } catch (error) {
-        if (error instanceof DependencyConflictError) {
-          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
-
-          notificationService.error({
-            title: 'Cannot delete category',
-            message: `${blocking} reference this category and must be removed first.`,
-            action: {
-              label: `View ${blocking}`,
-              onClick: () => {
-                void router.push({ name: routeNames.tickets, query: { categoryId: category.id } })
-              }
-            }
-          })
-        }
-
+        notifyDependencyConflict(error, { entity: 'category', to: { name: routeNames.tickets, query: { categoryId: category.id } } })
         throw error
       }
 
       notificationService.success({ message: 'Category deleted.' })
 
-      await playLeave([category.id])
-
-      if (data.value.length === 1 && page.value > 1) {
-        void setPage(page.value - 1)
-      } else {
-        void refetch()
-      }
+      await removeRows([category.id])
     }
   })
 }
@@ -149,12 +114,8 @@ function onExportCsvClicked (): void {
   // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'categories',
-    exportFn: (params, signal) => categoriesService.exportCsv(params, signal),
-    params: {
-      search: appliedSearch.value || undefined,
-      sort: sort.value?.field,
-      order: sort.value?.order
-    },
+    exportFn: params => categoriesService.exportCsv(params),
+    params: { ...query.value, page: undefined, perPage: undefined },
     total: meta.value?.total ?? 0
   }).catch(() => undefined)
 }
@@ -162,15 +123,6 @@ function onExportCsvClicked (): void {
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
-
-const bulkResultVisible = computed({
-  get: () => bulkResult.value !== undefined,
-  set: (value: boolean) => {
-    if (!value) {
-      bulkResult.value = undefined
-    }
-  }
-})
 
 const bulkResultNames = computed(() => Object.fromEntries(data.value.map(category => [category.id, category.name])))
 
@@ -218,7 +170,7 @@ function bulkBlockingLink (failure: TBulkFailure) {
       :loading="loading"
       :error="error"
       :empty-reason="emptyReason"
-      :sort="dataTableSort"
+      :sort="sort"
       :row-actions="rowActions"
       :can-create="canDo('categories', 'create')"
       selectable

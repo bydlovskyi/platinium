@@ -14,7 +14,6 @@ declare module 'vue' {
     AppDataTable: typeof import('./../../src/components/data-table/AppDataTable.vue')['default']
     BulkResultDialog: typeof import('./../../src/components/BulkResultDialog.vue')['default']
     CategoryModal: typeof import('./../../src/views/categories/components/CategoryModal.vue')['default']
-    Compute: typeof import('./../../src/components/Compute.vue')['default']
     CurrencyInput: typeof import('./../../src/components/CurrencyInput.vue')['default']
     ElAffix: typeof import('element-plus/es')['ElAffix']
     ElAlert: typeof import('element-plus/es')['ElAlert']

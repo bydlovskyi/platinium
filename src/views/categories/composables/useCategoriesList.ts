@@ -1,15 +1,10 @@
 import type { TDataTableEmptyReason } from '@/components/data-table/data-table.types'
 
-const CATEGORIES_LIST_QUERY_KEY = 'categories'
-
-// Must match the mock handler's `sortableFields`.
-const CATEGORY_SORT_FIELDS = ['name', 'createdAt'] as const
-
 export function useCategoriesList () {
   const listQuery = useListQuery<Record<string, never>>({
-    key: CATEGORIES_LIST_QUERY_KEY,
+    key: 'categories',
     filters: {},
-    sortFields: CATEGORY_SORT_FIELDS
+    sortFields: ['name', 'createdAt']
   })
 
   const query = computed(() => ({
@@ -22,24 +17,18 @@ export function useCategoriesList () {
 
   const listResource = useListResource(query, (currentQuery, signal) => categoriesService.list(currentQuery, signal))
 
-  const hasActiveSearch = computed(() => listQuery.appliedSearch.value !== '')
-
   const emptyReason = computed<TDataTableEmptyReason>(() => {
-    if (listResource.data.value.length > 0) {
+    if (listResource.data.value.length > 0 || listResource.loading.value || listResource.error.value) {
       return 'none'
     }
 
-    if (listResource.loading.value || listResource.error.value) {
-      return 'none'
-    }
-
-    return hasActiveSearch.value ? 'no-matches' : 'no-data'
+    return listQuery.appliedSearch.value !== '' ? 'no-matches' : 'no-data'
   })
 
   return {
     ...listQuery,
     ...listResource,
-    emptyReason,
-    sortFields: CATEGORY_SORT_FIELDS
+    query,
+    emptyReason
   }
 }

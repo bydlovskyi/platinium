@@ -12,100 +12,41 @@ interface ITicketFormModel {
   categoryId: string | undefined
 }
 
-const STATUS_OPTIONS: { value: TTicketStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'on_sale', label: 'On sale' },
-  { value: 'sold_out', label: 'Sold out' },
-  { value: 'archived', label: 'Archived' }
-]
-
-function emptyModel (): ITicketFormModel {
-  return {
-    name: '',
-    price: 0,
-    // No default currency: CurrencyInput must not mount (and convert price) before one is picked.
-    currency: undefined,
-    quantity: 0,
-    status: 'draft',
-    eventId: undefined,
-    categoryId: undefined
-  }
-}
-
-function cloneModel (model: ITicketFormModel): ITicketFormModel {
-  return { ...model }
-}
-
 const route = useRoute()
 const router = useRouter()
-const { canDo } = useCapability()
 
-const ticketId = computed<string | undefined>(() => (
-  typeof route.params.id === 'string' ? route.params.id : undefined
-))
+const ticketId = computed(() => (typeof route.params.id === 'string' ? route.params.id : undefined))
 const isEditMode = computed(() => ticketId.value !== undefined)
 
 // The list passes its fullPath as `from` so returning keeps its filters/sort/page.
-const returnTo = computed<string | { name: string }>(() => (
-  typeof route.query.from === 'string' ? route.query.from : { name: routeNames.tickets }
-))
-
-function goToList (): void {
-  void router.push(returnTo.value)
-}
+const returnTo = computed(() => (typeof route.query.from === 'string' ? route.query.from : { name: routeNames.tickets }))
 
 const loadingRecord = ref(isEditMode.value)
 const loadError = ref(false)
 
 const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
-const form = useElFormModel<ITicketFormModel>(emptyModel())
+const form = useElFormModel<ITicketFormModel>({
+  name: '',
+  price: 0,
+  // No default currency: CurrencyInput must not mount (and convert price) before one is picked.
+  currency: undefined,
+  quantity: 0,
+  status: 'draft',
+  eventId: undefined,
+  categoryId: undefined
+})
 
-const baseline = ref<ITicketFormModel | undefined>(isEditMode.value ? undefined : emptyModel())
+// Undefined until the record loads, so the empty form an edit starts with never counts as dirty.
+let baseline = isEditMode.value ? undefined : JSON.stringify(form)
 
-const isDirtyFromBaseline = computed(() => (
-  baseline.value !== undefined && JSON.stringify(form) !== JSON.stringify(baseline.value)
-))
-
-// Writable mirror for useUnsavedChangesGuard; handing it the computed would leave the flag stuck after a save.
 const isDirty = ref(false)
-watch(isDirtyFromBaseline, (value) => {
-  isDirty.value = value
-}, { immediate: true })
+watch(form, () => {
+  isDirty.value = baseline !== undefined && JSON.stringify(form) !== baseline
+})
 
-const { markClean: markGuardClean } = useUnsavedChangesGuard({ isDirty })
-
-function markClean (): void {
-  baseline.value = cloneModel(form)
-  markGuardClean()
-}
+const { markClean } = useUnsavedChangesGuard({ isDirty })
 
 const serverFieldErrors = ref<Partial<Record<keyof ITicketFormModel, string>>>({})
-
-function fieldError (field: keyof ITicketFormModel): string | undefined {
-  return serverFieldErrors.value[field]
-}
-
-function clearServerError (field: keyof ITicketFormModel): void {
-  if (serverFieldErrors.value[field] !== undefined) {
-    serverFieldErrors.value = { ...serverFieldErrors.value, [field]: undefined }
-  }
-}
-
-function fetchEventOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
-  return eventsService.list({ search: term, page: pageNumber })
-}
-
-function resolveEventOption (id: string): Promise<TEvent> {
-  return eventsService.get(id)
-}
-
-function fetchCategoryOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
-  return categoriesService.list({ search: term, page: pageNumber })
-}
-
-function resolveCategoryOption (id: string): Promise<TCategory> {
-  return categoriesService.get(id)
-}
 
 const rules: IElementPlus['FormRules'] = {
   name: [useRequiredRule()],
@@ -115,14 +56,19 @@ const rules: IElementPlus['FormRules'] = {
   categoryId: [useRequiredRule()]
 }
 
-async function loadRecord (id: string): Promise<void> {
+// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
+watch(ticketId, async (id) => {
+  if (id === undefined) {
+    return
+  }
+
   loadingRecord.value = true
   loadError.value = false
 
   try {
     const ticket = await ticketsService.get(id, { showNotification: false })
 
-    const loaded: ITicketFormModel = {
+    Object.assign(form, {
       name: ticket.name,
       price: ticket.price,
       currency: ticket.currency,
@@ -130,69 +76,47 @@ async function loadRecord (id: string): Promise<void> {
       status: ticket.status,
       eventId: ticket.eventId,
       categoryId: ticket.categoryId
-    }
-
-    // Discard if the route moved to a different id while this was in flight.
-    if (ticketId.value !== id) {
-      return
-    }
-
-    Object.assign(form, loaded)
-    baseline.value = cloneModel(loaded)
+    })
+    baseline = JSON.stringify(form)
   } catch {
-    if (ticketId.value !== id) {
-      return
-    }
-
     loadError.value = true
   } finally {
-    if (ticketId.value === id) {
-      loadingRecord.value = false
-    }
-  }
-}
-
-// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
-watch(ticketId, (id) => {
-  if (id !== undefined) {
-    void loadRecord(id)
+    loadingRecord.value = false
   }
 }, { immediate: true })
 
-const submitting = ref(false)
-
-function toPayload (): TTicketPayload {
-  return {
-    name: form.name,
-    price: form.price,
-    currency: form.currency!,
-    quantity: form.quantity,
-    status: form.status,
-    eventId: form.eventId!,
-    categoryId: form.categoryId!
-  }
-}
+const loading = ref(false)
 
 async function onSubmit (): Promise<void> {
-  if (submitting.value) {
+  if (loading.value) {
     return
   }
 
-  submitting.value = true
+  loading.value = true
 
   try {
     const isValid = await formRef.value?.validate().catch(() => false)
 
-    if (isValid !== true) {
+    if (!isValid) {
       return
     }
 
     serverFieldErrors.value = {}
 
-    if (isEditMode.value && ticketId.value !== undefined) {
-      await ticketsService.update(ticketId.value, toPayload())
+    const payload: TTicketPayload = {
+      name: form.name,
+      price: form.price,
+      currency: form.currency!,
+      quantity: form.quantity,
+      status: form.status,
+      eventId: form.eventId!,
+      categoryId: form.categoryId!
+    }
+
+    if (ticketId.value) {
+      await ticketsService.update(ticketId.value, payload)
     } else {
-      await ticketsService.create(toPayload())
+      await ticketsService.create(payload)
     }
 
     notificationService.success({
@@ -206,7 +130,7 @@ async function onSubmit (): Promise<void> {
       serverFieldErrors.value = error.fieldErrors
     }
   } finally {
-    submitting.value = false
+    loading.value = false
   }
 }
 </script>
@@ -225,7 +149,7 @@ async function onSubmit (): Promise<void> {
           sub-title="This ticket may have been deleted or the link is incorrect."
         >
           <template #extra>
-            <el-button type="primary" @click="goToList">
+            <el-button type="primary" @click="router.push(returnTo)">
               Back to list
             </el-button>
           </template>
@@ -242,38 +166,36 @@ async function onSubmit (): Promise<void> {
         class="max-w-lg"
         @submit.prevent="onSubmit"
       >
-        <el-form-item label="Name" prop="name" :error="fieldError('name')">
+        <el-form-item label="Name" prop="name" :error="serverFieldErrors.name">
           <el-input
             v-model="form.name"
             placeholder="General Admission"
-            @input="clearServerError('name')"
+            @input="serverFieldErrors.name = undefined"
           />
         </el-form-item>
 
-        <el-form-item label="Currency" prop="currency" :error="fieldError('currency')">
+        <el-form-item label="Currency" prop="currency" :error="serverFieldErrors.currency">
           <el-select
             v-model="form.currency"
             placeholder="Select a currency"
             class="w-full"
-            @change="clearServerError('currency')"
+            @change="serverFieldErrors.currency = undefined"
           >
-            <el-option label="USD" value="USD" />
-            <el-option label="EUR" value="EUR" />
-            <el-option label="GBP" value="GBP" />
+            <el-option v-for="currency in CURRENCIES" :key="currency" :label="currency" :value="currency" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Price" prop="price" :error="fieldError('price')">
+        <el-form-item label="Price" prop="price" :error="serverFieldErrors.price">
           <CurrencyInput
             v-if="form.currency"
             v-model="form.price"
             :currency="form.currency"
-            @update:model-value="clearServerError('price')"
+            @update:model-value="serverFieldErrors.price = undefined"
           />
           <el-input v-else disabled placeholder="Select a currency first" />
         </el-form-item>
 
-        <el-form-item label="Quantity" prop="quantity" :error="fieldError('quantity')">
+        <el-form-item label="Quantity" prop="quantity" :error="serverFieldErrors.quantity">
           <el-input-number
             v-model="form.quantity"
             :min="0"
@@ -281,53 +203,47 @@ async function onSubmit (): Promise<void> {
             step-strictly
             :precision="0"
             class="w-full"
-            @change="clearServerError('quantity')"
+            @change="serverFieldErrors.quantity = undefined"
           />
         </el-form-item>
 
-        <el-form-item label="Status" prop="status" :error="fieldError('status')">
-          <el-radio-group v-model="form.status" @change="clearServerError('status')">
-            <el-radio v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
+        <el-form-item label="Status" prop="status" :error="serverFieldErrors.status">
+          <el-radio-group v-model="form.status" @change="serverFieldErrors.status = undefined">
+            <el-radio v-for="status in TICKET_STATUSES" :key="status" :value="status">
+              {{ STATUS_PRESENTATION[status].label }}
             </el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="Event" prop="eventId" :error="fieldError('eventId')">
+        <el-form-item label="Event" prop="eventId" :error="serverFieldErrors.eventId">
           <RemoteSelect
             v-model="form.eventId"
-            :fetch-options="fetchEventOptions"
-            :resolve-option="resolveEventOption"
+            :fetch-options="params => eventsService.list(params)"
+            :resolve-option="id => eventsService.get(id)"
             :option-value="(event: TEvent) => event.id"
             :option-label="(event: TEvent) => event.name"
             placeholder="Search for an event…"
-            @update:model-value="clearServerError('eventId')"
+            @update:model-value="serverFieldErrors.eventId = undefined"
           />
         </el-form-item>
 
-        <el-form-item label="Category" prop="categoryId" :error="fieldError('categoryId')">
+        <el-form-item label="Category" prop="categoryId" :error="serverFieldErrors.categoryId">
           <RemoteSelect
             v-model="form.categoryId"
-            :fetch-options="fetchCategoryOptions"
-            :resolve-option="resolveCategoryOption"
+            :fetch-options="params => categoriesService.list(params)"
+            :resolve-option="id => categoriesService.get(id)"
             :option-value="(category: TCategory) => category.id"
             :option-label="(category: TCategory) => category.name"
             placeholder="Search for a category…"
-            @update:model-value="clearServerError('categoryId')"
+            @update:model-value="serverFieldErrors.categoryId = undefined"
           />
         </el-form-item>
 
         <div class="flex gap-2">
-          <el-button
-            v-if="canDo('tickets', isEditMode ? 'update' : 'create')"
-            type="primary"
-            native-type="submit"
-            :loading="submitting"
-            :disabled="submitting"
-          >
+          <el-button type="primary" native-type="submit" :loading="loading">
             {{ isEditMode ? 'Save changes' : 'Create ticket' }}
           </el-button>
-          <el-button :disabled="submitting" @click="goToList">
+          <el-button :disabled="loading" @click="router.push(returnTo)">
             Cancel
           </el-button>
         </div>

@@ -1,9 +1,7 @@
 <script lang="ts" setup>
-import type { IStatusDistributionEntry } from './status-distribution-bar.types'
-
-// The bar is aria-hidden (colour only); the legend links are the accessible equivalent.
 const props = defineProps<{
-  entries: IStatusDistributionEntry[]
+  entries: TStatusBreakdown[]
+  routeName: string
 }>()
 
 const total = computed(() => props.entries.reduce((sum, entry) => sum + entry.count, 0))
@@ -17,9 +15,7 @@ function label (status: string): string {
 }
 
 function color (status: string): string {
-  const type = STATUS_PRESENTATION[status as TStatus]?.type
-
-  return type ? STATUS_PRESENTATION_TYPE_COLOR[type] : STATUS_PRESENTATION_TYPE_COLOR.info
+  return STATUS_PRESENTATION_TYPE_COLOR[STATUS_PRESENTATION[status as TStatus]?.type ?? 'info']
 }
 </script>
 
@@ -36,7 +32,10 @@ function color (status: string): string {
 
     <ul class="flex flex-wrap gap-x-4 gap-y-2">
       <li v-for="entry in entries" :key="entry.status">
-        <router-link :to="entry.to" class="text-body text-text-muted hover:text-accent flex items-center gap-2">
+        <router-link
+          :to="{ name: routeName, query: { status: entry.status } }"
+          class="text-body text-text-muted hover:text-accent flex items-center gap-2"
+        >
           <span class="size-2.5 shrink-0 rounded-token-sm" :style="{ backgroundColor: color(entry.status) }" />
           <span>{{ label(entry.status) }}</span>
           <span class="text-text-primary tabular-nums">{{ entry.count }}</span>

@@ -1,17 +1,11 @@
 import { blobExportTestOverrides } from '@/features/platform/api/helpers'
 
-interface ICategoryListParams {
-  search?: string
-  sort?: string
-  order?: TSortOrder
-  page?: number
-  perPage?: number
-}
+type TCategoryListParams = Omit<NonNullable<TRequestQuery<'/categories', 'get'>>, 'format'>
 
-type TCategoryExportParams = Omit<ICategoryListParams, 'page' | 'perPage'>
+type TCategoryExportParams = Omit<TCategoryListParams, 'page' | 'perPage'>
 
 class CategoriesService {
-  list (params: ICategoryListParams, signal?: AbortSignal): Promise<TCategoryListResponse> {
+  list (params: TCategoryListParams, signal?: AbortSignal): Promise<TCategoryListResponse> {
     return apiClient.get('/categories', { params, signal })
   }
 

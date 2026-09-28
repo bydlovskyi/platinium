@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import { DependencyConflictError } from '@/features/platform/api/interceptors/response.interceptor'
-
 import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
 
 const router = useRouter()
@@ -12,15 +10,15 @@ const {
   selectedIds,
   isRunning: bulkRunning,
   lastResult: bulkResult,
+  resultVisible: bulkResultVisible,
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
-const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
+const { notifyDependencyConflict } = useDependencyConflictNotice()
 
 const {
   search,
-  appliedSearch,
   filters: listFilters,
   sort,
   page,
@@ -36,8 +34,11 @@ const {
   loading,
   error,
   refetch,
+  query,
   emptyReason
 } = useEventsList()
+
+const { leavingRowKeys, removeRows } = useRowRemoval({ rows: data, page, setPage, refetch })
 
 const columns: IDataTableColumn<TEvent>[] = [
   { key: 'name', label: 'Name', sortable: true },
@@ -47,15 +48,11 @@ const columns: IDataTableColumn<TEvent>[] = [
   { key: 'status', label: 'Status', sortable: true, cardRole: 'badge', cellSlot: 'status' }
 ]
 
-const dataTableSort = computed(() => (
-  sort.value ? { field: sort.value.field, order: sort.value.order } : undefined
-))
-
 const activeFilters = computed(() => {
   const chips: { key: string; label: string }[] = []
 
   if (listFilters.status !== 'all') {
-    chips.push({ key: 'status', label: `Status: ${listFilters.status}` })
+    chips.push({ key: 'status', label: `Status: ${STATUS_PRESENTATION[listFilters.status].label}` })
   }
 
   if (listFilters.country !== '') {
@@ -71,13 +68,6 @@ const activeFilters = computed(() => {
 
   return chips
 })
-
-const statusFilterOptions: { value: TEventStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'completed', label: 'Completed' }
-]
 
 const dateRangeModel = computed<[string, string] | null>({
   get: (): [string, string] | null => (
@@ -128,17 +118,8 @@ function selectionSubject (): string {
   return `${count} event${count === 1 ? '' : 's'}`
 }
 
-async function onBulkDeleteComplete (): Promise<void> {
-  const succeededIds = bulkResult.value?.succeeded ?? []
-  const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(event => succeededIds.includes(event.id))
-
-  await playLeave(succeededIds)
-
-  if (allVisibleRowsDeleted && page.value > 1) {
-    void setPage(page.value - 1)
-  } else {
-    void refetch()
-  }
+function onBulkDeleteComplete (): Promise<void> {
+  return removeRows(bulkResult.value?.succeeded ?? [])
 }
 
 async function bulkDeleteEvents (): Promise<void> {
@@ -160,7 +141,7 @@ async function bulkArchiveEvents (): Promise<void> {
   })
 }
 
-// Re-throws on 409 so useConfirm keeps the dialog open; useListResource doesn't adjust the page itself.
+// Re-throws on 409 so useConfirm keeps the dialog open.
 async function deleteEvent (event: TEvent): Promise<void> {
   await confirm({
     subject: event.name,
@@ -168,33 +149,13 @@ async function deleteEvent (event: TEvent): Promise<void> {
       try {
         await eventsService.delete(event.id)
       } catch (error) {
-        if (error instanceof DependencyConflictError) {
-          const blocking = `${error.count} ${error.entity}${error.count === 1 ? '' : 's'}`
-
-          notificationService.error({
-            title: 'Cannot delete event',
-            message: `${blocking} reference this event and must be removed first.`,
-            action: {
-              label: `View ${blocking}`,
-              onClick: () => {
-                void router.push({ name: routeNames.tickets, query: { eventId: event.id } })
-              }
-            }
-          })
-        }
-
+        notifyDependencyConflict(error, { entity: 'event', to: { name: routeNames.tickets, query: { eventId: event.id } } })
         throw error
       }
 
       notificationService.success({ message: 'Event deleted.' })
 
-      await playLeave([event.id])
-
-      if (data.value.length === 1 && page.value > 1) {
-        void setPage(page.value - 1)
-      } else {
-        void refetch()
-      }
+      await removeRows([event.id])
     }
   })
 }
@@ -215,16 +176,8 @@ function onExportCsvClicked (): void {
   // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'events',
-    exportFn: (params, signal) => eventsService.exportCsv(params, signal),
-    params: {
-      search: appliedSearch.value || undefined,
-      status: listFilters.status === 'all' ? undefined : listFilters.status,
-      country: listFilters.country || undefined,
-      startDateFrom: listFilters.startDateFrom || undefined,
-      startDateTo: listFilters.startDateTo || undefined,
-      sort: sort.value?.field,
-      order: sort.value?.order
-    },
+    exportFn: params => eventsService.exportCsv(params),
+    params: { ...query.value, page: undefined, perPage: undefined },
     total: meta.value?.total ?? 0
   }).catch(() => undefined)
 }
@@ -232,15 +185,6 @@ function onExportCsvClicked (): void {
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
-
-const bulkResultVisible = computed({
-  get: () => bulkResult.value !== undefined,
-  set: (value: boolean) => {
-    if (!value) {
-      bulkResult.value = undefined
-    }
-  }
-})
 
 const bulkResultNames = computed(() => Object.fromEntries(data.value.map(event => [event.id, event.name])))
 
@@ -292,10 +236,10 @@ function bulkBlockingLink (failure: TBulkFailure) {
           >
             <el-option label="All statuses" value="all" />
             <el-option
-              v-for="option in statusFilterOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+              v-for="status in EVENT_STATUSES"
+              :key="status"
+              :label="STATUS_PRESENTATION[status].label"
+              :value="status"
             />
           </el-select>
         </ListFilterField>
@@ -366,7 +310,7 @@ function bulkBlockingLink (failure: TBulkFailure) {
       :loading="loading"
       :error="error"
       :empty-reason="emptyReason"
-      :sort="dataTableSort"
+      :sort="sort"
       :row-actions="rowActions"
       selectable
       :selected-row-keys="selectedIds"

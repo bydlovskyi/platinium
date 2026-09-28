@@ -15,7 +15,7 @@ function baseDurationMs (): number {
   return 200
 }
 
-export function useCountUp (source: Ref<number>) {
+export function useCountUp (source: MaybeRefOrGetter<number>) {
   // Not the `--duration-base` token: a `0s` duration divides by zero in useTransition.
   const reducedMotion = usePreferredReducedMotion()
   const prefersReducedMotion = computed(() => reducedMotion.value === 'reduce')
@@ -24,7 +24,7 @@ export function useCountUp (source: Ref<number>) {
   const hasStarted = ref(false)
   const target = ref(0)
 
-  watch(source, (value) => {
+  watch(() => toValue(source), (value) => {
     if (!hasStarted.value && value > 0) {
       hasStarted.value = true
     }

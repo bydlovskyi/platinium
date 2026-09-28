@@ -7,10 +7,13 @@
 export {}
 declare global {
   const CSV_EXPORT_WARNING_THRESHOLD: typeof import('../../src/composables/useCsvExport').CSV_EXPORT_WARNING_THRESHOLD
+  const CURRENCIES: typeof import('../../src/views/tickets/composables/useTicketsList').CURRENCIES
+  const EVENT_STATUSES: typeof import('../../src/utils/status-presentation').EVENT_STATUSES
   const EffectScope: typeof import('vue').EffectScope
   const STATUS_PRESENTATION: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION
   const STATUS_PRESENTATION_TYPE_COLOR: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION_TYPE_COLOR
   const THEME_STORAGE_KEY: typeof import('../../src/composables/useTheme').THEME_STORAGE_KEY
+  const TICKET_STATUSES: typeof import('../../src/utils/status-presentation').TICKET_STATUSES
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const apiClient: typeof import('../../src/features/platform/api/client').apiClient
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -48,7 +51,6 @@ declare global {
   const eventsService: typeof import('../../src/views/events/events.service').eventsService
   const extendRef: typeof import('@vueuse/core').extendRef
   const filters: typeof import('../../src/utils/filters').filters
-  const generalService: typeof import('../../src/services/general.service').generalService
   const getActivePinia: typeof import('pinia').getActivePinia
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
@@ -193,6 +195,7 @@ declare global {
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
   const useDebouncedRefHistory: typeof import('@vueuse/core').useDebouncedRefHistory
+  const useDependencyConflictNotice: typeof import('../../src/composables/useDependencyConflictNotice').useDependencyConflictNotice
   const useDeviceMotion: typeof import('@vueuse/core').useDeviceMotion
   const useDeviceOrientation: typeof import('@vueuse/core').useDeviceOrientation
   const useDevicePixelRatio: typeof import('@vueuse/core').useDevicePixelRatio
@@ -282,6 +285,7 @@ declare global {
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
   const useRowLeaveAnimation: typeof import('../../src/composables/useRowLeaveAnimation').useRowLeaveAnimation
+  const useRowRemoval: typeof import('../../src/composables/useRowRemoval').useRowRemoval
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
   const useScreenOrientation: typeof import('@vueuse/core').useScreenOrientation
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
@@ -385,10 +389,13 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly CSV_EXPORT_WARNING_THRESHOLD: UnwrapRef<typeof import('../../src/composables/useCsvExport')['CSV_EXPORT_WARNING_THRESHOLD']>
+    readonly CURRENCIES: UnwrapRef<typeof import('../../src/views/tickets/composables/useTicketsList')['CURRENCIES']>
+    readonly EVENT_STATUSES: UnwrapRef<typeof import('../../src/utils/status-presentation')['EVENT_STATUSES']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly STATUS_PRESENTATION: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION']>
     readonly STATUS_PRESENTATION_TYPE_COLOR: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION_TYPE_COLOR']>
     readonly THEME_STORAGE_KEY: UnwrapRef<typeof import('../../src/composables/useTheme')['THEME_STORAGE_KEY']>
+    readonly TICKET_STATUSES: UnwrapRef<typeof import('../../src/utils/status-presentation')['TICKET_STATUSES']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly apiClient: UnwrapRef<typeof import('../../src/features/platform/api/client')['apiClient']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -426,7 +433,6 @@ declare module 'vue' {
     readonly eventsService: UnwrapRef<typeof import('../../src/views/events/events.service')['eventsService']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly filters: UnwrapRef<typeof import('../../src/utils/filters')['filters']>
-    readonly generalService: UnwrapRef<typeof import('../../src/services/general.service')['generalService']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
@@ -571,6 +577,7 @@ declare module 'vue' {
     readonly useDebounce: UnwrapRef<typeof import('@vueuse/core')['useDebounce']>
     readonly useDebounceFn: UnwrapRef<typeof import('@vueuse/core')['useDebounceFn']>
     readonly useDebouncedRefHistory: UnwrapRef<typeof import('@vueuse/core')['useDebouncedRefHistory']>
+    readonly useDependencyConflictNotice: UnwrapRef<typeof import('../../src/composables/useDependencyConflictNotice')['useDependencyConflictNotice']>
     readonly useDeviceMotion: UnwrapRef<typeof import('@vueuse/core')['useDeviceMotion']>
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>
@@ -660,6 +667,7 @@ declare module 'vue' {
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
     readonly useRowLeaveAnimation: UnwrapRef<typeof import('../../src/composables/useRowLeaveAnimation')['useRowLeaveAnimation']>
+    readonly useRowRemoval: UnwrapRef<typeof import('../../src/composables/useRowRemoval')['useRowRemoval']>
     readonly useSSRWidth: UnwrapRef<typeof import('@vueuse/core')['useSSRWidth']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>

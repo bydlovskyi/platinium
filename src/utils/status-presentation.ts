@@ -1,6 +1,10 @@
 // Shared by StatusTag and the dashboard so a status never reads in a different colour.
 export type TStatus = TEventStatus | TTicketStatus
 
+export const EVENT_STATUSES: TEventStatus[] = ['draft', 'published', 'cancelled', 'completed']
+
+export const TICKET_STATUSES: TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archived']
+
 export type TStatusPresentationType = 'success' | 'warning' | 'danger' | 'info'
 
 export interface IStatusPresentation {

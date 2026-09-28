@@ -9,15 +9,14 @@ const {
   selectedIds,
   isRunning: bulkRunning,
   lastResult: bulkResult,
+  resultVisible: bulkResultVisible,
   clearSelection,
   runBulkOperation
 } = useBulkOperations()
 const { loading: csvExportLoading, exportCsv } = useCsvExport()
-const { leavingRowKeys, playLeave } = useRowLeaveAnimation()
 
 const {
   search,
-  appliedSearch,
   filters: listFilters,
   sort,
   page,
@@ -33,8 +32,11 @@ const {
   loading,
   error,
   refetch,
+  query,
   emptyReason
 } = useTicketsList()
+
+const { leavingRowKeys, removeRows } = useRowRemoval({ rows: data, page, setPage, refetch })
 
 const columns: IDataTableColumn<TTicket>[] = [
   { key: 'name', label: 'Name', sortable: true },
@@ -45,55 +47,6 @@ const columns: IDataTableColumn<TTicket>[] = [
   { key: 'categoryName', label: 'Category' },
   { key: 'createdAt', label: 'Created', sortable: true, cellSlot: 'createdAt' }
 ]
-
-const dataTableSort = computed(() => (
-  sort.value ? { field: sort.value.field, order: sort.value.order } : undefined
-))
-
-const STATUS_FILTER_OPTIONS: { value: TTicketStatus; label: string }[] = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'on_sale', label: 'On sale' },
-  { value: 'sold_out', label: 'Sold out' },
-  { value: 'archived', label: 'Archived' }
-]
-
-const CURRENCY_FILTER_OPTIONS: { value: TCurrency; label: string }[] = [
-  { value: 'USD', label: 'USD' },
-  { value: 'EUR', label: 'EUR' },
-  { value: 'GBP', label: 'GBP' }
-]
-
-// resolveOption lets a deep-linked id show a name before any options are loaded.
-
-async function fetchEventOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
-  return eventsService.list({ search: term, page: pageNumber })
-}
-
-function resolveEventOption (id: string): Promise<TEvent> {
-  return eventsService.get(id)
-}
-
-async function fetchCategoryOptions ({ search: term, page: pageNumber }: { search: string; page: number }) {
-  return categoriesService.list({ search: term, page: pageNumber })
-}
-
-function resolveCategoryOption (id: string): Promise<TCategory> {
-  return categoriesService.get(id)
-}
-
-const eventFilterModel = computed<string | undefined>({
-  get: () => listFilters.eventId || undefined,
-  set: (value) => {
-    void setFilter('eventId', value ?? '')
-  }
-})
-
-const categoryFilterModel = computed<string | undefined>({
-  get: () => listFilters.categoryId || undefined,
-  set: (value) => {
-    void setFilter('categoryId', value ?? '')
-  }
-})
 
 // URL/request state is integer minor units; the inputs show whole-currency amounts.
 const priceMinModel = computed<number | undefined>({
@@ -122,7 +75,7 @@ const activeFilters = computed(() => {
   }
 
   if (listFilters.status !== 'all') {
-    chips.push({ key: 'status', label: `Status: ${STATUS_FILTER_OPTIONS.find(option => option.value === listFilters.status)?.label ?? listFilters.status}` })
+    chips.push({ key: 'status', label: `Status: ${STATUS_PRESENTATION[listFilters.status].label}` })
   }
 
   if (listFilters.currency !== 'all') {
@@ -212,17 +165,8 @@ function selectionSubject (): string {
   return `${count} ticket${count === 1 ? '' : 's'}`
 }
 
-async function onBulkDeleteComplete (): Promise<void> {
-  const succeededIds = bulkResult.value?.succeeded ?? []
-  const allVisibleRowsDeleted = data.value.length > 0 && data.value.every(ticket => succeededIds.includes(ticket.id))
-
-  await playLeave(succeededIds)
-
-  if (allVisibleRowsDeleted && page.value > 1) {
-    void setPage(page.value - 1)
-  } else {
-    void refetch()
-  }
+function onBulkDeleteComplete (): Promise<void> {
+  return removeRows(bulkResult.value?.succeeded ?? [])
 }
 
 async function bulkDeleteTickets (): Promise<void> {
@@ -253,13 +197,7 @@ async function deleteTicket (ticket: TTicket): Promise<void> {
 
       notificationService.success({ message: 'Ticket deleted.' })
 
-      await playLeave([ticket.id])
-
-      if (data.value.length === 1 && page.value > 1) {
-        void setPage(page.value - 1)
-      } else {
-        void refetch()
-      }
+      await removeRows([ticket.id])
     }
   })
 }
@@ -280,18 +218,8 @@ function onExportCsvClicked (): void {
   // The interceptor already toasts failures; this only prevents an unhandled rejection.
   exportCsv({
     entity: 'tickets',
-    exportFn: (params, signal) => ticketsService.exportCsv(params, signal),
-    params: {
-      search: appliedSearch.value || undefined,
-      eventId: listFilters.eventId || undefined,
-      categoryId: listFilters.categoryId || undefined,
-      status: listFilters.status === 'all' ? undefined : listFilters.status,
-      currency: listFilters.currency === 'all' ? undefined : listFilters.currency,
-      priceMin: listFilters.priceMin,
-      priceMax: listFilters.priceMax,
-      sort: sort.value?.field,
-      order: sort.value?.order
-    },
+    exportFn: params => ticketsService.exportCsv(params),
+    params: { ...query.value, page: undefined, perPage: undefined },
     total: meta.value?.total ?? 0
   }).catch(() => undefined)
 }
@@ -299,15 +227,6 @@ function onExportCsvClicked (): void {
 function onSelectionChanged (keys: string[]): void {
   selectedIds.value = keys
 }
-
-const bulkResultVisible = computed({
-  get: () => bulkResult.value !== undefined,
-  set: (value: boolean) => {
-    if (!value) {
-      bulkResult.value = undefined
-    }
-  }
-})
 
 const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket => [ticket.id, ticket.name])))
 </script>
@@ -340,27 +259,29 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
       <template #filters>
         <ListFilterField label="Event" class="w-48">
           <RemoteSelect
-            v-model="eventFilterModel"
-            :fetch-options="fetchEventOptions"
-            :resolve-option="resolveEventOption"
+            :model-value="listFilters.eventId || undefined"
+            :fetch-options="params => eventsService.list(params)"
+            :resolve-option="id => eventsService.get(id)"
             :option-value="(event: TEvent) => event.id"
             :option-label="(event: TEvent) => event.name"
             placeholder="Event"
             class="!w-full"
             aria-label="Filter by event"
+            @update:model-value="(value: string | undefined) => setFilter('eventId', value ?? '')"
           />
         </ListFilterField>
 
         <ListFilterField label="Category" class="w-48">
           <RemoteSelect
-            v-model="categoryFilterModel"
-            :fetch-options="fetchCategoryOptions"
-            :resolve-option="resolveCategoryOption"
+            :model-value="listFilters.categoryId || undefined"
+            :fetch-options="params => categoriesService.list(params)"
+            :resolve-option="id => categoriesService.get(id)"
             :option-value="(category: TCategory) => category.id"
             :option-label="(category: TCategory) => category.name"
             placeholder="Category"
             class="!w-full"
             aria-label="Filter by category"
+            @update:model-value="(value: string | undefined) => setFilter('categoryId', value ?? '')"
           />
         </ListFilterField>
 
@@ -374,10 +295,10 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
           >
             <el-option label="All statuses" value="all" />
             <el-option
-              v-for="option in STATUS_FILTER_OPTIONS"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+              v-for="status in TICKET_STATUSES"
+              :key="status"
+              :label="STATUS_PRESENTATION[status].label"
+              :value="status"
             />
           </el-select>
         </ListFilterField>
@@ -391,12 +312,7 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
             @update:model-value="(value: TCurrency | 'all') => setFilter('currency', value)"
           >
             <el-option label="All currencies" value="all" />
-            <el-option
-              v-for="option in CURRENCY_FILTER_OPTIONS"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
+            <el-option v-for="currency in CURRENCIES" :key="currency" :label="currency" :value="currency" />
           </el-select>
         </ListFilterField>
 
@@ -434,7 +350,7 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
       :loading="loading"
       :error="error"
       :empty-reason="emptyReason"
-      :sort="dataTableSort"
+      :sort="sort"
       :row-actions="rowActions"
       selectable
       :selected-row-keys="selectedIds"

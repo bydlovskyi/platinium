@@ -1,28 +1,12 @@
 import { blobExportTestOverrides } from '@/features/platform/api/helpers'
 
 // priceMin/priceMax are in minor units.
-interface ITicketListParams {
-  search?: string
-  eventId?: string
-  categoryId?: string
-  status?: TTicketStatus
-  currency?: TCurrency
-  priceMin?: number
-  priceMax?: number
-  sort?: string
-  order?: TSortOrder
-  page?: number
-  perPage?: number
-}
+type TTicketListParams = Omit<NonNullable<TRequestQuery<'/tickets', 'get'>>, 'format'>
 
-type TTicketExportParams = Omit<ITicketListParams, 'page' | 'perPage'>
-
-interface ITicketGetOptions {
-  showNotification?: boolean
-}
+type TTicketExportParams = Omit<TTicketListParams, 'page' | 'perPage'>
 
 class TicketsService {
-  list (params: ITicketListParams, signal?: AbortSignal): Promise<TTicketListResponse> {
+  list (params: TTicketListParams, signal?: AbortSignal): Promise<TTicketListResponse> {
     return apiClient.get('/tickets', { params, signal })
   }
 
@@ -30,7 +14,7 @@ class TicketsService {
     return apiClient.post('/tickets', payload)
   }
 
-  get (id: string, { showNotification }: ITicketGetOptions = {}): Promise<TTicket> {
+  get (id: string, { showNotification }: { showNotification?: boolean } = {}): Promise<TTicket> {
     return apiClient.get('/tickets/{id}', { dynamicKeys: { id }, showNotification })
   }
 

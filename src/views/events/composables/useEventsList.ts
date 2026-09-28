@@ -4,7 +4,7 @@ const EVENTS_LIST_QUERY_KEY = 'events'
 
 const EVENT_SORT_FIELDS = ['name', 'startDate', 'endDate', 'status'] as const
 
-const EVENT_STATUS_FILTER_VALUES: (TEventStatus | 'all')[] = ['all', 'draft', 'published', 'cancelled', 'completed']
+const EVENT_STATUS_FILTER_VALUES: (TEventStatus | 'all')[] = ['all', ...EVENT_STATUSES]
 
 export interface IEventsListFilters {
   status: TEventStatus | 'all'
@@ -60,11 +60,7 @@ export function useEventsList () {
   ))
 
   const emptyReason = computed<TDataTableEmptyReason>(() => {
-    if (listResource.data.value.length > 0) {
-      return 'none'
-    }
-
-    if (listResource.loading.value || listResource.error.value) {
+    if (listResource.data.value.length > 0 || listResource.loading.value || listResource.error.value) {
       return 'none'
     }
 
@@ -74,7 +70,7 @@ export function useEventsList () {
   return {
     ...listQuery,
     ...listResource,
-    emptyReason,
-    sortFields: EVENT_SORT_FIELDS
+    query,
+    emptyReason
   }
 }
