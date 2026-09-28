@@ -168,3 +168,56 @@ describe('useUnsavedChangesGuard', () => {
     })
   })
 })
+
+describe('useUnsavedChangesGuard — confirmDiscard', () => {
+  function mountDialogGuard (isDirty: Ref<boolean>) {
+    let guard!: ReturnType<typeof useUnsavedChangesGuard>
+
+    const wrapper = mount(defineComponent({
+      setup () {
+        guard = useUnsavedChangesGuard({
+          isDirty,
+          message: 'Discard them and close this dialog?',
+          confirmButtonText: 'Discard',
+          guardRouteLeave: false
+        })
+
+        return () => null
+      }
+    }), { attachTo: document.body })
+    mountedWrappers.push(wrapper)
+
+    return guard
+  }
+
+  it('resolves true without prompting when clean', async () => {
+    const guard = mountDialogGuard(ref(false))
+
+    await expect(guard.confirmDiscard()).resolves.toBe(true)
+    expect(document.querySelector('.el-message-box')).toBeNull()
+  })
+
+  it('prompts with the given message and button, resolving true on discard', async () => {
+    const guard = mountDialogGuard(ref(true))
+
+    const decision = guard.confirmDiscard()
+    await vi.waitFor(() => {
+      expect(document.querySelector('.el-message-box')?.textContent).toContain('Discard them and close this dialog?')
+    })
+    findMessageBoxButton('Discard').click()
+
+    await expect(decision).resolves.toBe(true)
+  })
+
+  it('resolves false when the administrator chooses to stay', async () => {
+    const guard = mountDialogGuard(ref(true))
+
+    const decision = guard.confirmDiscard()
+    await vi.waitFor(() => {
+      expect(document.querySelector('.el-message-box')).not.toBeNull()
+    })
+    findMessageBoxButton('Stay').click()
+
+    await expect(decision).resolves.toBe(false)
+  })
+})
