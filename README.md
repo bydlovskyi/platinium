@@ -55,6 +55,8 @@ below.
 | **Administrator** | `admin@platinium.test` | `admin123` | Full read and write |
 | **Viewer** | `viewer@platinium.test` | `viewer123` | Read-only: write controls are hidden, write routes redirect to a 403 page, and the mock API rejects writes with `403` |
 
+The dev server pre-fills the admin account in the login form; a build does not.
+
 ## Local installation
 
 Requires **Node.js `^20.19.0 || >=22.12.0`** and **npm 10 or newer**. The pinned version is in
@@ -87,6 +89,7 @@ app reads.
 |---|---|
 | `npm run build` | Type-check, then produce the production bundle in `dist/` |
 | `npm run preview` | Serve the production bundle locally. The mock API is off unless you build with `VITE_ENABLE_MOCKS=true` |
+| `npm run preview:mocks` | Build with the mock API on and serve it on port 4173 (what the e2e suite runs against) |
 
 ### Testing
 
@@ -97,6 +100,7 @@ app reads.
 | `npm run test:integration` | Integration suite only: complete user journeys through the real router, Pinia and the mock API |
 | `npm run test:watch` | Watch mode. Pass a path or `-t <name>` to target one file or test |
 | `npm run test:coverage` | Both suites with a coverage report in `coverage/`. There is no threshold gate |
+| `npm run test:e2e` | Playwright smoke suite in a real Chromium against the built bundle. Set `E2E_BASE_URL` to point it at a running server, e.g. the Docker image |
 
 The testing strategy, the test kit and where each kind of test belongs are described in
 [`TESTING.md`](TESTING.md).
@@ -132,7 +136,7 @@ below). When one exists, build with `--build-arg VITE_ENABLE_MOCKS=false` and se
 |---|---|
 | `pre-commit` (Husky + lint-staged) | ESLint on staged files |
 | `pre-push` (Husky) | `type-check` and the full test suite |
-| CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) | Lint, type-check, both suites with coverage (uploaded as an artifact), then a production build |
+| CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) | Lint without autofix and with zero warnings, type-check, both suites with coverage (uploaded as an artifact), a production build, then a second job that builds the Docker image and runs the Playwright smoke suite against the container |
 
 ## The mock API
 
@@ -144,11 +148,12 @@ on and nothing to remove later.
 - **The contract lives in [`src/mocks/openapi.yaml`](src/mocks/openapi.yaml).** Types in
   [`schema.ts`](src/features/platform/api/schema.ts) are generated from it offline, and
   both the API client and the mock handlers are typed against them.
-- **It behaves like a server.** Search, filtering, sorting, pagination, uniqueness checks,
-  referential integrity (`409` when deleting an event that still has tickets), bulk
-  operations, CSV generation, dashboard aggregation and role checks all run in the mock
-  ([`src/mocks/db/`](src/mocks/db/), [`src/mocks/handlers/`](src/mocks/handlers/)). The UI
-  never receives a full dataset.
+- **It behaves like a server.** Search, filtering, sorting, pagination, validation on create
+  and update, uniqueness checks, referential integrity (`409` when deleting an event that
+  still has tickets), bulk operations, CSV generation, dashboard aggregation and role checks
+  all run in the mock ([`src/mocks/db/`](src/mocks/db/), [`src/mocks/handlers/`](src/mocks/handlers/)).
+  Every write needs a valid bearer token (`401` otherwise, `403` for a viewer); reads are
+  open. The UI never receives a full dataset.
 - **Seed data is deterministic:** 48 events, 6 categories and 400 tickets, generated from
   a fixed seed.
 - **Changes persist** in `localStorage`, so they survive a reload.
@@ -194,9 +199,9 @@ public/               static files, including the MSW service worker
 ralph/                the containerised loop that worked through the issues autonomously
 src/
   assets/styles/        global CSS, design tokens, Element Plus theme bridge
-  components/           shared components: CurrencyInput, RemoteSelect, StatusTag, …
-    data-table/           AppDataTable, ListToolbar, ListFilterField
-  composables/          shared composables: list query/resource, bulk ops, CSV, theme, …
+  components/           shared components: BulkActionBar, BulkResultDialog, CurrencyInput, FormPageFrame, RemoteSelect, StatusTag, …
+    data-table/           AppDataTable, DataTableRowActions, ListToolbar, ListFilterField
+  composables/          shared composables: list query/resource, entity list page, entity form, bulk ops, CSV, theme, …
   features/platform/    route-agnostic infrastructure
     api/                  axios client, interceptors, generated OpenAPI types
     icons/                <Icon> component and SVG assets
@@ -207,7 +212,6 @@ src/
     handlers/             MSW handlers per entity, built from a shared factory
     openapi.yaml          the API contract: the single source of truth
     chaos.ts              forced failures and latency
-  plugins/              Vue plugins
   router/               routes, auth and permission guard, generated route names
   services/             global services: auth, notifications
   store/                Pinia stores (auth is the only one)
@@ -216,6 +220,7 @@ src/
   views/                route-bound pages, one folder per area
     <area>/               page, its routes, service, composables and components
 tests/
+  e2e/                  Playwright smoke suite over the built bundle (playwright.config.ts)
   integration/          user-journey tests against the real router, Pinia and MSW
   support/              test kit: mount helpers, viewport, session and database seams
   setup.ts              global Vitest setup (MSW server lifecycle)
@@ -237,8 +242,10 @@ component  →  composable  →  store  →  service  →  apiClient
   because the guard, the shell and the permission checks all read it. Entity lists are not
   stores.
 - **Composable.** The orchestrator. `useListQuery` keeps list state in the URL,
-  `useListResource` fetches, cancels superseded requests and recovers from errors, and
-  each page composes them.
+  `useListResource` fetches, cancels superseded requests and recovers from errors,
+  `useEntityListPage` owns row actions, bulk operations, CSV export and selection, and
+  `useEntityForm` owns record loading, dirty tracking and submit. A page declares its
+  columns, filters or fields and composes them.
 - **Components** render and emit intent. `AppDataTable` is one descriptor-driven table
   used by all three lists. Below 1024 px (phones and tablets) it switches to cards, with a
   sort control built from the sortable columns.
@@ -293,8 +300,9 @@ The reasoning, the rejected alternatives and the costs are in
   server to set one.
 - **No optimistic updates.** Against a mock with 400 ms latency they would add rollback
   code with no visible benefit.
-- **No Playwright suite.** The mock runs in the browser, so a browser-driven suite would
-  exercise the same handlers the integration suite already covers.
+- **A thin Playwright suite.** The mock runs in the browser, so the journeys stay in the
+  integration suite. Five smoke tests guard only what jsdom cannot see: the service
+  worker, native form validation, real history navigation, and the layout at phone width.
 - **Offset pagination.** Fine at this size; cursor pagination is the path to very large
   datasets.
 - **Selection is scoped to the current page** and clears when the query changes, so a bulk

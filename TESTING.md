@@ -109,8 +109,9 @@ it('formats the date relative to now', () => {
 - **Pre-push** — type-checks, then runs the full suite. Slower, but it runs once per push
   and keeps the shared branches green.
 - **CI** (`.github/workflows/ci.yml`) — on every push and pull request: install from the
-  lockfile, lint, type-check, test with coverage, build. Same commands as local, so a
-  passing hook means a passing CI run.
+  lockfile, lint (without autofix, zero warnings), type-check, test with coverage, build.
+  A second job builds the Docker image and runs the Playwright smoke suite against the
+  running container.
 
 ### Bypassing a hook
 

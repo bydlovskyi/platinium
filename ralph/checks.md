@@ -37,7 +37,7 @@ Only when `src/mocks/openapi.yaml` changed. Read the diff in the generated
 component came through with the types you expect. Stage the spec and the
 generated file in the same commit. Never hand-edit the generated file.
 
-A code slice that finds itself needing this has hit Hard Rule 8: stop, comment on
+A code slice that finds itself needing this has hit Hard Rule 7: stop, comment on
 the owning contract issue, do not edit the spec.
 
 If something genuinely cannot run, say so explicitly in the commit and PR — don't

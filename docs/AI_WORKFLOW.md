@@ -15,7 +15,7 @@ how that was caught.
 | Specifications | 10 PRDs → 41 vertical-slice issues ([#1–#51](https://github.com/bydlovskyi/platinum/issues)) |
 | Pull requests | 38, one per slice, stacked; every merge done by me |
 | Commits | 124 (83 excluding merges) |
-| Tests | 842 across 73 files, all passing |
+| Tests | 917 across 78 Vitest files plus a 5-test Playwright smoke suite, all passing |
 
 ## The trail
 
@@ -237,6 +237,20 @@ The history has two kinds of commits, and you can tell them apart:
 The principle is that the AI applies a decision well and consistently across forty files.
 It should not be the one making the decision, and nothing merges without a human.
 
+## The review pass
+
+After the loop had finished, I ran a separate review session over the whole result: three
+review agents with different briefs (views and forms; composables, components and the
+platform layer; the mock API and the tests), plus a scripted Playwright walkthrough of every
+flow against the dev server and the Docker image. That pass found what the per-slice gates
+had not: a persisted page size that broke the back button, a bulk result dialog that left
+the viewport, a mock that accepted writes without a token, a cancellation check written for
+an error the client never throws, and a technical review that described two of these the
+wrong way round. The fixes, the extractions the review had been promising
+(`useEntityListPage`, `useEntityForm`), the e2e smoke suite and the document corrections
+came out of that session. The lesson is the same one as before, one level up: a review
+brief that is different from the build brief finds different things.
+
 ## Known leftovers
 
 These are honest loose ends in the AI tooling, which I would clean up next:
@@ -246,10 +260,6 @@ These are honest loose ends in the AI tooling, which I would clean up next:
 - **Inherited team roles.** `feature-team.md` still spawns the template's
   `schema-eng`/`backend-eng` roles. `project-context.md` defines this project's roles:
   contract, frontend, test and docs.
-- **The `playwright` skill describes another project**: port 3000 and credentials read from
-  `.env`. The `commit` skill is empty.
-- **Drift inside `ralph/`.** `failure-modes.md` cites a `__mockChaos.reset()` that was
-  removed from `e2e.md`, and two files cite "Hard Rule 8" although there are only seven.
 - **No run logs.** The loop's logs were not kept (`ralph/.run/` is deleted on exit), so run
   counts and costs cannot be reconstructed. The durable record is the commits, the pull
   requests and `lessons-learned.md`.

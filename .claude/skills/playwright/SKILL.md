@@ -1,71 +1,68 @@
 ---
 name: playwright
-description: Shared reference for Playwright MCP tools, test credentials, and dev server info — used by other skills and agents
+description: Shared reference for browser checks on this portal — dev server, demo accounts, Element Plus selector quirks, chaos controls and the e2e smoke suite. Used by other skills and agents.
 ---
 
-# Playwright MCP Reference
+# Playwright reference
 
-## Dev Server
+## Servers
 
-- **URL:** `http://localhost:3000`
-- Ensure the dev server is running (`npm run dev`) before any browser interaction
+| Target | URL | Start with |
+|---|---|---|
+| Vite dev server (HMR, mock API on) | `http://localhost:5173` | `npm run dev` |
+| Built bundle with mocks (what `npm run test:e2e` uses) | `http://localhost:4173` | `npm run preview:mocks` |
+| Docker image | `http://localhost:8080` | `docker compose up --build` |
 
-## Test Credentials
+The mock API is served by an MSW service worker inside the page; there is no separate backend process.
+Its data lives in `localStorage` (`platinum:mock-db`), so **each new browser context starts from the
+deterministic seed** (48 events, 6 categories, 400 tickets). Reload keeps changes; a fresh context does not.
 
-Credentials are **never hardcoded in committed files.** They live in the
-host's `.env` (gitignored). Read them at session start:
+## Demo accounts
 
-```bash
-TEST_ADMIN_EMAIL=$(grep -E '^TEST_ADMIN_EMAIL=' .env | cut -d= -f2-)
-TEST_ADMIN_PASSWORD=$(grep -E '^TEST_ADMIN_PASSWORD=' .env | cut -d= -f2-)
-TEST_USER_EMAIL=$(grep -E '^TEST_USER_EMAIL=' .env | cut -d= -f2-)
-TEST_USER_PASSWORD=$(grep -E '^TEST_USER_PASSWORD=' .env | cut -d= -f2-)
+Seeded in `src/mocks/handlers/auth.ts` and listed in the README; nothing to read from `.env`.
+
+| Role | Email | Password |
+|---|---|---|
+| admin | `admin@platinium.test` | `admin123` |
+| viewer (read-only) | `viewer@platinium.test` | `viewer123` |
+
+The login form is pre-filled with the admin account **on the dev server only**.
+
+## Selectors that work
+
+- Buttons and links by role: `getByRole('button', { name: 'Create event' })`.
+- Search: `getByRole('textbox', { name: 'Search' })`. Filters: `getByRole('combobox', { name: 'Filter by status' })`.
+- **Element Plus selects render the placeholder over the input**, so a plain click on the combobox is
+  intercepted. Click the wrapper: `page.locator('.el-select', { has: page.getByRole('combobox', { name }) })`,
+  then `getByRole('option', { name })`.
+- Form fields with no `aria-label`: find the `.el-form-item` whose `.el-form-item__label` matches, then its
+  `input` / `.el-select` (see `tests/e2e/support.ts`).
+- Table rows: `.el-table__body tr`; cards below 1024 px: `.el-card`. Row menu: `button[aria-label^="Actions for"]`.
+- Row checkboxes are visually hidden inputs: click `.el-checkbox`, not the `checkbox` role.
+- Confirm dialogs: `.el-message-box`. Toasts: `.el-notification`. Bulk result dialog: `.el-dialog`.
+
+## Forcing failures
+
+`window.__mockChaos` exists on the dev server and in the mock-enabled build:
+
+```js
+__mockChaos.failNextRequest({ path: '/events', status: 500 })
+__mockChaos.failNextRequest({ path: '/events', status: 401 })   // expired session
+__mockChaos.setLatency(3000)                                     // see the skeletons
+__mockChaos.clearChaos()
 ```
 
-- **Admin** (role: admin): `$TEST_ADMIN_EMAIL` / `$TEST_ADMIN_PASSWORD`
-- **Client** (role: user): `$TEST_USER_EMAIL` / `$TEST_USER_PASSWORD`
+Paths are MSW route patterns (`/tickets/:id`), not URLs, and the API is mounted at the root (no `/api`).
 
-If you're running inside the ralph sandbox, these are already injected into
-the prompt header by `ralph/afk.sh` / `ralph/test.sh` — use them directly,
-don't read `.env` from inside the sandbox.
+## The e2e smoke suite
 
-## Available Playwright MCP Tools
+`tests/e2e/smoke.spec.ts` runs with `npm run test:e2e` (builds and serves the bundle itself) or against a
+running server with `E2E_BASE_URL=http://localhost:8080 npm run test:e2e`. CI runs it against the Docker
+image. Keep it thin: journeys belong in `tests/integration`; e2e only guards what jsdom cannot see.
 
-### Navigation & Page
+## Checklist for a browser pass
 
-- `browser_navigate` — go to a URL
-- `browser_navigate_back` — go back in history
-- `browser_snapshot` — capture accessibility snapshot (preferred for actions)
-- `browser_take_screenshot` — capture visual screenshot (for evidence)
-- `browser_tabs` — list, create, close, or select tabs
-- `browser_resize` — resize the browser window
-- `browser_close` — close the page
-- `browser_install` — install the browser if missing
-- `browser_wait_for` — wait for text, text disappearance, or time
-
-### Interaction
-
-- `browser_click` — click an element
-- `browser_type` — type text into an element
-- `browser_fill_form` — fill multiple form fields at once
-- `browser_press_key` — press a keyboard key
-- `browser_hover` — hover over an element
-- `browser_select_option` — select dropdown option
-- `browser_drag` — drag and drop between elements
-- `browser_file_upload` — upload files
-- `browser_handle_dialog` — accept/dismiss dialogs
-
-### Inspection
-
-- `browser_console_messages` — check for JS errors and logs
-- `browser_network_requests` — inspect network activity
-- `browser_evaluate` — run JavaScript on the page
-- `browser_run_code` — run a Playwright code snippet
-
-## Usage Tips
-
-- Prefer `browser_snapshot` over `browser_take_screenshot` when you need to interact with the page — snapshots return element refs you can act on.
-- Use `browser_take_screenshot` for visual evidence of pass/fail states.
-- Always check `browser_console_messages` (level: `error`) after page interactions to catch JS errors.
-- Use `browser_fill_form` for login forms — it fills multiple fields in one call.
-- After navigation, use `browser_wait_for` or `browser_snapshot` to confirm the page loaded before interacting.
+1. Sign in, open each list, one create, one edit, one delete.
+2. Force a 500 on a list and on a save; check the message and Retry.
+3. 375 px and 1440 px, light and dark.
+4. Console clean apart from the expected 4xx/5xx resource logs.

@@ -82,7 +82,6 @@ src/
         └── components/       
 ├── layouts/                     # Layout components
 ├── mocks/                       # OpenAPI contract, MSW handlers, in-memory DB, fixtures
-├── plugins/                     # Vue plugins
 ├── router/                      # Routes, guards, route-names
 ├── services/                    # Global services
 ├── store/                       # Global Pinia stores
@@ -97,6 +96,22 @@ src/
         ├── composables/
         └── components/
 ```
+
+## Shared page composables
+
+A route-bound page declares what is specific to its entity and composes the rest:
+
+| Composable | What it owns |
+|---|---|
+| `useListQuery` | list state in the URL: search (debounced), filters, sort, page, page size |
+| `useListResource` | fetching for a query, cancelling superseded requests, loading and error state |
+| `useEntityList` | the two above plus the empty-state reason and stepping back from a page past the end |
+| `useEntityListPage` | row actions, single and bulk delete, bulk archive, CSV export, selection, capability gating |
+| `useEntityForm` | loading a record, dirty tracking with the unsaved-changes guard, server field errors, submit |
+
+`Events.vue`, `Tickets.vue` and `Categories.vue` are columns, filters and a call to `useEntityListPage`;
+`EventForm.vue` and `TicketForm.vue` are fields, rules and a call to `useEntityForm` inside `FormPageFrame`.
+A fourth entity adds a list composable, a page and a form and nothing else.
 
 ## VueUse & Element Plus First
 
@@ -119,7 +134,7 @@ Everything in these paths is auto-imported (no manual imports needed):
 - `src/composables/`, `src/views/**/composables/`, `src/features/**/composables/`
 - `src/utils/` (every exported member of every file in the directory, e.g. `filters.ts`, `helpers.ts`, `countries.ts`, `status-presentation.ts`)
 - `src/services/`, `src/views/**/*.service.ts`, `src/features/**/*.service.ts`
-- `src/store/modules/`, `src/views/**/*.store.ts`, `src/features/**/*.store.ts`
+- `src/store/*.store.ts`, `src/views/**/*.store.ts`, `src/features/**/*.store.ts`
 - `src/components/**/*.vue`, `src/views/**/components/**/*.vue`, `src/features/**/components/**/*.vue`
 - Vue, Vue Router, Pinia, VueUse APIs (all auto-imported)
 
@@ -167,7 +182,7 @@ onUnmounted(() => subscription.remove())
 - NEVER let services know about stores
 - NEVER let stores use project orchestrating composables (utility composables like VueUse are OK)
 - NEVER let features depend on each other directly
-- Root page components must match route name: `Login.vue` → `/auth/login`
+- Root page components must match route name: `Login.vue` → `/login`
 - ALWAYS use named navigation with `routeNames`, NEVER path strings
 - Routes MUST have `name: routeNames.xxx` (camelCase), NEVER static strings like `name: 'my-route', it will be automatically generated inside routeNames`
 - Page/component CSS goes in `.vue` files, global styles in `/assets/styles/`

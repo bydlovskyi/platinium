@@ -8,7 +8,7 @@ prompt's main rules cover the common path.
 - ❌ Spent hours trying to screenshot a skeleton by intercepting requests at the
   browser level — CDP fetch interception, patching `window.fetch`, route handlers,
   timing races. The mock answers in milliseconds, so the state was gone before the
-  capture. → `window.__mockChaos.setLatency(3000)`, capture, `reset()`. Never
+  capture. → `window.__mockChaos.setLatency(3000)`, capture, `clearChaos()`. Never
   instrument the browser to freeze a request.
 - ❌ Kept retrying a verification step that could not be observed. Two attempts, then
   note it in the PR and move on. An unobservable state is not a failing test.

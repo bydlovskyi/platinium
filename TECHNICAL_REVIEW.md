@@ -64,7 +64,9 @@ The UI never receives a full dataset.
   honest rather than aspirational.
 - **Cost:** no request crosses a real network boundary, so CORS, cookies and real latency
   are never exercised. The mock is also more lenient than a real server would be: list and
-  read endpoints do not check the token (`factory.ts`, `auth.ts`).
+  read endpoints do not check the token (`factory.ts`, `auth.ts`). Writes do: no token or an
+  unknown one is a `401`, a viewer's is a `403`, and client-supplied `id`/`createdAt` are
+  ignored.
 
 ### List state lives in the URL
 
@@ -86,7 +88,12 @@ aborts the superseded request and ignores stale responses.
   an edit screen restores the exact list. The deep links from the dashboard to a filtered
   ticket list work by construction.
 - **Cost:** more code than local state. Parsing, defaults and history semantics all have to
-  be right. I treat these as product properties, not developer conveniences.
+  be right. I treat these as product properties, not developer conveniences. The browser
+  walkthrough for this review found one that was wrong: the persisted page-size preference
+  was applied whenever `perPage` was missing from the URL, so the back button and a shared
+  `?page=2` link showed an empty list. The rule is now explicit: the preference applies only
+  to a fresh entry with no list parameters, and is then written into the URL, so every
+  history entry means exactly what it says.
 
 ### Money is stored in integer minor units
 
@@ -97,8 +104,9 @@ value per currency and never adds euros to pounds.
 
 - **Rejected:** floats. Rounding bugs from floats are invisible in a demo and expensive in
   production.
-- **Cost:** every boundary has to convert. One conversion slipped past this rule: the price
-  filter in `useTicketsList` converts at a fixed two decimals
+- **Cost:** every boundary has to convert. One conversion is deliberately outside
+  `CurrencyInput`: the price filter in `useTicketsList` converts at a fixed two decimals,
+  because a filter that spans currencies has no single precision to derive
   ([section 4](#4-what-i-would-refactor-first)).
 
 ### Dependencies point in one direction
@@ -133,6 +141,21 @@ each table.
   they would be incoherent.
 - **Cost:** the descriptor API has to stay general. When an entity screen needs a `v-if`
   inside the table, the abstraction has started to leak.
+
+### One composable per kind of page
+
+The three list pages and the two routed forms started as copies of each other. They now
+compose two composables: [`useEntityListPage`](src/composables/useEntityListPage.ts) owns
+row actions, single and bulk delete, bulk archive, CSV export, selection and the capability
+gating of all of them; [`useEntityForm`](src/composables/useEntityForm.ts) owns loading a
+record, dirty tracking with the unsaved-changes guard, server field errors and submit. A
+page declares its columns and filters, or its fields and rules, and nothing else.
+
+- **Rejected:** a base component with slots. Composition keeps the templates readable and
+  lets each page opt out of a behaviour (categories have no archive) without a prop matrix.
+- **Why:** three copies had already drifted: one form had a mobile button size and a delete
+  button, the other did not. A fourth entity now costs a list composable, a page and a form.
+- **Cost:** two more indirections when reading a page. The names are the map.
 
 ### Element Plus first
 
@@ -193,26 +216,23 @@ The list is ranked. Correctness comes before structure, structure before feature
 cheap fix that prevents a whole class of bug comes before an expensive one that prevents a
 single bug.
 
-1. **Build and smoke-test the Docker image in CI** (half a day). The production image did
-   not build for five days, and when it did, the bundle shipped without its mock API. The
-   first problem only surfaced when I ran `docker compose up` by hand. CI builds with Vite
-   but never builds the image or opens it in a browser. The fix is `docker build` plus one
-   Playwright journey against the running container: sign in, open each list, create a
-   ticket. It costs little and guards the path every reviewer takes first.
-2. **Extract the list-page and form composables** (one day). About 120–150 lines of each
-   list page are the same wiring: bulk delete and archive, single delete with page
-   step-back, CSV export, row actions filtered by capability, and selection. The three forms
-   also re-implement dirty tracking, server field errors, loading with a stale-id guard, and
-   submit. A fourth entity would copy all of it again. See
-   [section 4](#4-what-i-would-refactor-first).
-3. **Optimistic concurrency on updates.** Today two administrators who edit the same ticket
-   get last-write-wins with no warning. The brief names concurrent administrators, and the
-   fix touches the contract, the mock and the form. It ranks below the refactor because it
-   is much easier to add once, in a shared form composable, than three times. See
+Two items that stood at the top of this list when it was first written are done: CI now
+builds the Docker image and runs a Playwright smoke suite against the container
+([`tests/e2e/`](tests/e2e/)), and the list pages and forms share `useEntityListPage` and
+`useEntityForm`. What remains:
+
+1. **Optimistic concurrency on updates** (one day). Today two administrators who edit the
+   same ticket get last-write-wins with no warning. The brief names concurrent
+   administrators, and the fix touches the contract, the mock and the form. With
+   `useEntityForm` in place it is added once, not three times. See
    [section 5.5](#55-concurrent-administrators).
-4. **Lint rules for the layering.** This stops the architecture from eroding as the team
-   grows. It ranks here because nothing violates the rules today.
-5. **A query cache.** See [section 5.3](#53-caching-and-invalidation). It becomes worth doing
+2. **Lint rules for the layering** (half a day). This stops the architecture from eroding as
+   the team grows. Nothing violates the rules today, which is exactly when a rule is cheap
+   to introduce. See [section 6](#6-coding-standards-and-quality-checks-for-the-team).
+3. **Token checks on reads in the mock** (half a day). Writes are guarded; reads are not, so
+   a test can fake a session for a list without signing in. Closing that means every spec
+   signs in through the real handler, which `signInAs` already does for most of them.
+4. **A query cache.** See [section 5.3](#53-caching-and-invalidation). It becomes worth doing
    only once real latency and multiple administrators exist.
 
 ---
@@ -248,18 +268,20 @@ production, and what would change my answer.
   the wait is long enough to notice, and prove the rollback with the existing chaos
   controls.
 
-### No end-to-end (Playwright) suite
+### Only a thin end-to-end (Playwright) suite
 
-- **What:** tests run in Vitest and jsdom. Integration tests mount the real app with a real
-  router, real Pinia and MSW, but no real browser is involved.
-- **Why it is fine here:** the backend is a mock that runs in the page. A browser suite would
-  exercise the same handlers the integration suite already covers, at several times the
-  setup, runtime and CI cost.
-- **Production cost:** jsdom does not render CSS or evaluate media queries, so layout
-  regressions, missing stylesheets and service-worker problems go unnoticed. The Docker
-  defect in [section 2](#2-what-i-would-improve-with-two-more-days) is exactly this kind.
-- **What changes the answer:** a real backend. At that point a thin smoke layer against the
-  built artifact pays for itself. I would add that layer before item 2 above, not after it.
+- **What:** the journeys run in Vitest and jsdom against the real router, real Pinia and MSW.
+  Five Playwright tests ([`tests/e2e/smoke.spec.ts`](tests/e2e/smoke.spec.ts)) run in
+  Chromium against the built bundle, and in CI against the Docker image.
+- **Why it is fine here:** the backend is a mock that runs in the page, so a full browser
+  suite would exercise the same handlers the integration suite already covers, at several
+  times the runtime. The smoke layer guards only what jsdom cannot see: the service worker
+  starting, native form validation, real history navigation, the layout at phone width.
+- **Production cost:** a layout or CSS regression outside those five paths still goes
+  unnoticed until someone opens a browser.
+- **What changes the answer:** a real backend. The smoke suite then grows into the contract
+  check between the client and that backend, and screenshot comparison becomes worth its
+  maintenance.
 
 ### Status transitions are free
 
@@ -325,8 +347,9 @@ production, and what would change my answer.
   migration. It is demo data, and it reseeds deterministically.
 - **No coverage threshold.** Coverage is reported in CI but does not gate the build. A
   threshold rewards tests of trivial code; I would rather review which paths are tested.
-- **Delete conflicts are not linked.** A `409` tells the admin how many tickets block the
-  delete. The PRD asked for a link to that filtered ticket list, and it was not built.
+- **Reads are not authenticated in the mock.** Lists and single records answer without a
+  token. Writes are guarded, which is where the damage would be; guarding reads is listed
+  in [section 2](#2-what-i-would-improve-with-two-more-days).
 
 ---
 
@@ -335,8 +358,8 @@ production, and what would change my answer.
 I identified these from the code as it exists now, not from the plan.
 
 Reading the code this critically, and walking through every flow in a browser against the
-Docker image, turned up three defects. All three are now fixed, each with a test that fails
-without the fix:
+Docker image, turned up defects that green tests had not. All are fixed, each with a test that
+fails without the fix:
 
 - **A price with cents could not be saved.** `CurrencyInput` wraps `el-input-number`, which
   renders `<input type="number">` with the default `step="1"`. The form submits natively,
@@ -349,60 +372,55 @@ without the fix:
   it passed.
 - **Event dates showed one day early west of UTC.** See
   [the dates item in section 3](#dates-are-whole-days-and-timezone-naive).
+- **The back button showed an empty list.** The persisted page size overrode the URL. See
+  [the list-state decision in section 1](#list-state-lives-in-the-url).
+- **The bulk result dialog left the viewport.** Twenty failed rows made it taller than the
+  screen, with the title and the Close button off the top and no scrolling. The body now
+  scrolls inside the dialog.
+- **A page past the end read as an empty database.** `?page=999` showed "Nothing here yet"
+  with a Create button. `useEntityList` now steps back to the last page.
+- **A viewer saw selection checkboxes** that fed a bulk bar with nothing in it.
+- **An expired session bounced to the login page with no explanation.** The message the
+  interceptor published was never shown.
+- **The cancellation check tested a shape axios never produces.** `useListResource` looked
+  for a DOM `AbortError`; axios rejects with `CanceledError`. The spec fixture used the same
+  wrong shape, so it was green. Both now use `axios.isCancel`.
+- **`useBreakpoint` created a media-query listener on every evaluation** of three computed
+  properties, with no disposal.
+- **The mock accepted writes without a token**, and a client-supplied `id`. Both are rejected.
 
 The common lessons: assert on the content, not the envelope; run date tests in more than the
-author's own timezone; and exercise the real browser at least once per form, because jsdom
-skips what the browser enforces.
+author's own timezone; test the error shape the real client produces, not the one the spec
+finds convenient; and exercise the real browser at least once per form, because jsdom skips
+what the browser enforces. The last lesson is now a CI job.
 
-1. **Extract `useEntityListPage` from the three list views.** `Tickets.vue` has 504 lines,
-   `Events.vue` 434 and `Categories.vue` 272. The following blocks are near-verbatim copies:
-   - `dataTableSort`, `rowKey` and the capability-filtered `rowActions`;
-   - bulk delete with "step back a page if everything visible was deleted";
-   - bulk archive;
-   - single delete: confirm, then the leave animation, then page-back or refetch;
-   - CSV export;
-   - the selection handlers;
-   - the bulk action bar;
-   - `BulkResultDialog`.
+The extractions this section first asked for are done. `Tickets.vue` went from 504 lines
+to 340, `Events.vue` from 434 to 280 and `Categories.vue` from 272 to 141, and what is left
+in each is columns, filters and template. `EventForm.vue` and
+`TicketForm.vue` are fields and rules around `useEntityForm`; `CategoryModal.vue` keeps its
+own dialog-specific flow. The mock layer shares one `withChaos`, `errorBody` and
+`readJsonBody`, the template leftovers are gone, and the ESLint rules the architecture
+document promised (`no-explicit-any`) are on. What I would refactor next:
 
-   The dependency-conflict toast with its "View N tickets" action appears three times. The
-   CSV handler also rebuilds the filter-to-request mapping that the list composable already
-   computes, which is how the empty-export bug above got in. After the refactor, each view
-   declares its columns, filters and service, and nothing else.
-2. **Extract `useEntityForm` from `EventForm`, `TicketForm` and `CategoryModal`.** The shared
-   logic is:
-   - the clone and baseline model with a dirty check;
-   - the unsaved-changes guard;
-   - server field errors (`fieldError`, `clearServerError`);
-   - loading a record with a stale-id guard;
-   - submit (validate, create or update, toast, mark clean, navigate, map `400` field errors).
-
-   Optimistic concurrency ([section 5.5](#55-concurrent-administrators)) then goes in once.
-3. **Make error handling consistent.** Four gaps:
-   - The two routed forms catch only validation errors, so any other `409` fails silently.
+1. **Make error handling consistent.** Three gaps remain:
+   - The routed forms catch only validation errors, so a `409` on save fails silently.
    - A `400` without field errors shows nothing.
    - A bulk `5xx` shows two toasts, one from the interceptor and one from
      `useBulkOperations`.
-   - A stale `categoryId` deep link on Tickets toasts a `404`, while the equivalent event
-     chip suppresses it.
 
-   One policy should decide which layer owns the message.
-4. **Restore the single money boundary.** The ticket price filter converts at a fixed two
+   One policy should decide which layer owns the message: the interceptor for anything the
+   form cannot place on a field, the form for the rest.
+2. **Restore the single money boundary.** The ticket price filter converts at a fixed two
    decimals in `useTicketsList.ts`. It should use the same currency-aware conversion as
-   `CurrencyInput`, extracted into a utility that both call.
-5. **Deduplicate the mock layer.** `withChaos` and `errorBody` are each defined three times
-   (the handler factory, `auth.ts` and `dashboard.ts`). Searchable fields are declared in
-   both the database and the handler, and one of the two copies is ignored.
-6. **Remove the template leftovers:**
-   - `Compute.vue` and `general.service.ts`, both unused;
-   - the unused rules in `useFormConfig.ts`;
-   - the `exampleEventName` key;
-   - the deprecated `formatCurrency`;
-   - the host components duplicated inside two spec files, which cause all five lint
-     warnings; one shared `withSetup` test helper replaces them.
-7. **The one Element Plus override without a comment:** `PageHeader.vue` styles
-   `[&>.el-button]` with a Tailwind variant but does not say why no `--el-*` variable could
-   do it.
+   `CurrencyInput`, extracted into a utility that both call, once the filter is scoped to a
+   currency.
+3. **`CategoryModal` on `useEntityForm`.** It re-implements the dirty check and the server
+   field errors because it is dialog-hosted, not routed. A `mode: 'dialog'` option would fold
+   it in.
+4. **`RemoteSelect` should expose its resolved label.** The ticket filter chips resolve the
+   event and category names a second time because the selects are not mounted while the
+   mobile filter drawer is closed. A small shared cache keyed by id would remove the extra
+   requests.
 
 ---
 
@@ -551,33 +569,31 @@ route, from list to form, when the user hovers over "Create".
 |---|---|
 | `pre-commit` | ESLint on staged files |
 | `pre-push` | Type-check and the full test suite |
-| CI | Lint, type-check, both suites with a coverage report, and a production build |
+| CI | Lint without autofix, type-check, both suites with a coverage report, a production build, then the Docker image with the Playwright smoke suite against it |
 | Written conventions | [`architecture.md`](architecture.md), [`TESTING.md`](TESTING.md), [`ELEMENT-PLUS.md`](docs/prd/ELEMENT-PLUS.md) and the [design system](docs/design-system.md) |
 
 For a team, I would add the following, in this order:
 
-1. **CI must not autofix.** `npm run lint` runs `eslint --fix`, so CI can pass on code that
-   was never committed in the shape that passed. CI should run `eslint . --max-warnings 0`
-   without `--fix`.
-2. **Build the Docker image in CI and run a smoke test against it**, as described in
-   [section 2](#2-what-i-would-improve-with-two-more-days). CI should also run the suite
-   under a second timezone west of UTC (`TZ=America/New_York`). That is one extra job, and
-   it would have caught the date bug in [section 4](#4-what-i-would-refactor-first) on the
-   day it was written.
-3. **Enforce the layering mechanically.** Auto-imports hide dependencies from
+CI already lints without autofix and with zero warnings, and a second job builds the Docker
+image and runs the Playwright smoke suite against it.
+
+1. **Run the suite under a second timezone west of UTC** (`TZ=America/New_York`). That is
+   one extra job, and it would have caught the date bug in
+   [section 4](#4-what-i-would-refactor-first) on the day it was written.
+2. **Enforce the layering mechanically.** Auto-imports hide dependencies from
    `no-restricted-imports`. There are two options:
    - Turn off auto-imports for stores and services, so dependencies are visible again.
    - Write a small custom ESLint rule that flags identifiers by file type, for example a
      `use*Store` identifier inside a `*.service.ts` file.
 
    Either way the rules in `architecture.md` become errors instead of review comments.
-4. **Contract governance.** Lint `openapi.yaml` with Spectral, check for breaking changes
+3. **Contract governance.** Lint `openapi.yaml` with Spectral, check for breaking changes
    with `oasdiff` whenever the spec changes, and have CI regenerate `schema.ts` and fail if
    the result differs from the committed file.
-5. **Conventional commits, enforced.** The history already follows them informally.
+4. **Conventional commits, enforced.** The history already follows them informally.
    `commitlint` in a `commit-msg` hook makes them mandatory, and a tool such as
    release-please then generates the changelog.
-6. **A pull request template and CODEOWNERS.** The template asks for:
+5. **A pull request template and CODEOWNERS.** The template asks for:
    - what changed and why;
    - screenshots in light, dark and mobile;
    - the tests added;
@@ -586,20 +602,20 @@ For a team, I would add the following, in this order:
      can make.
 
    CODEOWNERS covers `openapi.yaml` and `src/features/platform/`.
-7. **Dependency and security scanning.** Renovate for updates, the OSV scanner or
+6. **Dependency and security scanning.** Renovate for updates, the OSV scanner or
    `npm audit` in CI, and CodeQL. The CSV export already guards against formula injection,
    and that kind of issue should be found by a tool, not by luck.
-8. **Accessibility checks.** Run `axe` in the integration tests of the main screens.
-9. **A definition of done:**
+7. **Accessibility checks.** Run `axe` in the integration tests of the main screens.
+8. **A definition of done:**
    - The acceptance criteria are met.
    - Tests are written at the level the spec names: unit or integration.
    - Lint and type-check are clean.
    - The feature is checked in a browser in both themes and at mobile width.
    - Error, empty and loading states are designed.
    - Documentation is updated.
-10. **Architecture decision records.** The "Implementation Decisions" sections of the PRDs
-    already serve as ADRs. For a team, I would move them to `docs/adr/` as numbered records
-    that are superseded rather than edited.
+9. **Architecture decision records.** The "Implementation Decisions" sections of the PRDs
+   already serve as ADRs. For a team, I would move them to `docs/adr/` as numbered records
+   that are superseded rather than edited.
 
 ---
 
