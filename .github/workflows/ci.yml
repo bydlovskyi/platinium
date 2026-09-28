@@ -22,7 +22,8 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint
+        # No autofix in CI: the tree must already be in the shape that passes.
+        run: npx eslint . --max-warnings 0
 
       - name: Type-check
         run: npm run type-check
@@ -40,3 +41,37 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    # The image is what a reviewer runs first, so the smoke suite runs against it, not the dev server.
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the Docker image
+        run: docker build -t ticket-admin-portal .
+
+      - name: Start the container
+        run: docker run -d --rm --name portal -p 8080:80 ticket-admin-portal
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke-test the image
+        run: E2E_BASE_URL=http://localhost:8080 npm run test:e2e
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f portal

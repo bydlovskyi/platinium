@@ -1,19 +1,12 @@
 import App from '@/App.vue'
 
-import { mountWithRouterAndPinia, setViewportToBreakpoint } from '../support'
+import { mountWithRouterAndPinia, setViewportToBreakpoint, signInAs } from '../support'
 
 describe('AdminLayout — responsive navigation presentation', () => {
-  function signIn (): void {
-    const authStore = useAuthStore()
-
-    authStore.token = 'mock-token-under-test'
-    authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
-  }
-
   async function mountShell () {
     const result = await mountWithRouterAndPinia(App, { initialRoute: '/' })
 
-    signIn()
+    await signInAs('admin')
     await result.router.push('/')
     await nextTick()
 

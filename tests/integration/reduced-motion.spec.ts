@@ -104,18 +104,23 @@ describe('reduced motion', () => {
 
       const { wrapper } = await mountDashboard()
 
-      const statisticByTitle = (title: string) => (
-        wrapper.findAllComponents({ name: 'ElStatistic' }).find(stat => stat.props('title') === title)
-      )
+      // Reads the rendered figure, not the component prop: a count-up in progress renders a smaller number.
+      const statisticByTitle = (title: string): number | undefined => {
+        const statistic = wrapper.findAll('.el-statistic')
+          .find(candidate => candidate.find('.el-statistic__head').text() === title)
+        const rendered = statistic?.find('.el-statistic__number').text().replace(/,/g, '')
+
+        return rendered === undefined ? undefined : Number(rendered)
+      }
 
       // No `vi.waitFor`: a count-up still animating under the preference would fail here immediately.
       await nextTick()
       await flushPromises()
       await nextTick()
 
-      expect(statisticByTitle('Total events')?.props('value')).toBe(1)
-      expect(statisticByTitle('Total tickets')?.props('value')).toBe(2)
-      expect(statisticByTitle('Total available quantity')?.props('value')).toBe(7 + NEARLY_SOLD_OUT_MAX_QUANTITY)
+      expect(statisticByTitle('Total events')).toBe(1)
+      expect(statisticByTitle('Total tickets')).toBe(2)
+      expect(statisticByTitle('Total available quantity')).toBe(7 + NEARLY_SOLD_OUT_MAX_QUANTITY)
     })
 
     it('counts up under the default (non-reduced) preference, for contrast with the reduced case above', async () => {
@@ -127,14 +132,19 @@ describe('reduced motion', () => {
 
       const { wrapper } = await mountDashboard()
 
-      const statisticByTitle = (title: string) => (
-        wrapper.findAllComponents({ name: 'ElStatistic' }).find(stat => stat.props('title') === title)
-      )
+      // Reads the rendered figure, not the component prop: a count-up in progress renders a smaller number.
+      const statisticByTitle = (title: string): number | undefined => {
+        const statistic = wrapper.findAll('.el-statistic')
+          .find(candidate => candidate.find('.el-statistic__head').text() === title)
+        const rendered = statistic?.find('.el-statistic__number').text().replace(/,/g, '')
+
+        return rendered === undefined ? undefined : Number(rendered)
+      }
 
       // Without the preference the figure may still be mid-transition, so wait for it.
       await vi.waitFor(() => {
-        expect(statisticByTitle('Total events')?.props('value')).toBe(1)
-        expect(statisticByTitle('Total tickets')?.props('value')).toBe(1)
+        expect(statisticByTitle('Total events')).toBe(1)
+        expect(statisticByTitle('Total tickets')).toBe(1)
       })
     })
   })

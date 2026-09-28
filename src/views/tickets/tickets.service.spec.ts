@@ -1,6 +1,6 @@
 import { ticketsService } from './tickets.service'
 
-import { resetDatabase } from '../../../tests/support'
+import { emptyDataset, resetDatabase, seedSession } from '../../../tests/support'
 import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
@@ -67,10 +67,11 @@ function captureRequests (): ICapturedRequest[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 
-beforeEach(() => {
-  resetDatabase({ events: [], categories: [], tickets: [], users: [] })
+beforeEach(async () => {
+  resetDatabase(emptyDataset())
+  await seedSession('admin')
   db.events.insert(buildEvent())
   db.categories.insert(buildCategory())
 })

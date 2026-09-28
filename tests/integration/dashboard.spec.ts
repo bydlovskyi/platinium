@@ -1,10 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 
-import Dashboard from './Dashboard.vue'
+import Dashboard from '@/views/dashboard/Dashboard.vue'
 import { NEARLY_SOLD_OUT_MAX_QUANTITY } from '@/mocks/handlers/dashboard'
 
-import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../../../tests/support'
+import { mountWithRouterAndPinia, resetDatabase, seedSession } from '../support'
 import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
@@ -117,7 +117,7 @@ describe('Dashboard screen', () => {
       // totalAvailableQuantity: 3 + 5 + 40 + NEARLY_SOLD_OUT_MAX_QUANTITY.
       await vi.waitFor(() => {
         expect(statisticByTitle('Total events')?.props('value')).toBe(4)
-        expect(statisticByTitle('Currently running')?.props('value')).toBe(2)
+        expect(statisticByTitle('Published events')?.props('value')).toBe(2)
         expect(statisticByTitle('Draft events')?.props('value')).toBe(1)
         expect(statisticByTitle('Total tickets')?.props('value')).toBe(4)
         expect(statisticByTitle('Total available quantity')?.props('value')).toBe(3 + 5 + 40 + NEARLY_SOLD_OUT_MAX_QUANTITY)
@@ -239,17 +239,17 @@ describe('Dashboard screen', () => {
       })
     })
 
-    it('clicking "Currently running" resolves to the events list filtered to published', async () => {
+    it('clicking "Published events" resolves to the events list filtered to published', async () => {
       seedControlledDashboardDataset()
 
       const { wrapper, router } = await mountDashboard()
 
       await vi.waitFor(() => {
-        expect(wrapper.text()).toContain('Currently running')
+        expect(wrapper.text()).toContain('Published events')
       })
 
       const link = wrapper.findAllComponents({ name: 'RouterLink' })
-        .find((routerLink: VueWrapper) => routerLink.text().includes('Currently running'))!
+        .find((routerLink: VueWrapper) => routerLink.text().includes('Published events'))!
       await link.trigger('click')
 
       await vi.waitFor(() => {

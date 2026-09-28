@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
+    "preview:mocks": "VITE_ENABLE_MOCKS=true vite build && vite preview --port 4173 --strictPort",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix --cache",
@@ -17,7 +18,8 @@
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "lint-staged": {
     "*.{js,ts,mts,tsx,vue}": "eslint --fix --cache"
@@ -32,6 +34,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@stylistic/eslint-plugin": "^5.7.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tsconfig/node24": "^24.0.4",

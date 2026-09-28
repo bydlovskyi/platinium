@@ -84,7 +84,7 @@ describe('EventForm', () => {
 
       await setDate(wrapper, 'Start date', '2027-06-10')
       // Bypasses the picker's :disabled-date so the form-rule validator itself is under test.
-      const vm = wrapper.findComponent(EventForm).vm as unknown as { form: { endDate: string } }
+      const vm = wrapper.vm as unknown as { form: { endDate: string } }
       vm.form.endDate = '2027-06-01'
 
       await submit(wrapper)
@@ -107,7 +107,7 @@ describe('EventForm', () => {
         expect(wrapper.text()).toContain('End date cleared')
       })
 
-      const vm = wrapper.findComponent(EventForm).vm as unknown as { form: { endDate: string } }
+      const vm = wrapper.vm as unknown as { form: { endDate: string } }
       expect(vm.form.endDate).toBe('')
     })
 

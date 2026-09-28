@@ -87,7 +87,7 @@ function captureRequestUrls (): string[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 
 let createObjectUrlSpy: ReturnType<typeof vi.fn>
 let revokeObjectUrlSpy: ReturnType<typeof vi.fn>

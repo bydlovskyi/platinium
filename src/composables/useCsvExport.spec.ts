@@ -124,7 +124,10 @@ describe('useCsvExport', () => {
       expect(anchor.download).toBe(`events-${today}.csv`)
       expect(anchor.href).toBe('blob:mock-url')
 
-      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:mock-url')
+      // Revoked on the next tick, after the click has been handed to the browser.
+      await vi.waitFor(() => {
+        expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:mock-url')
+      })
     })
   })
 

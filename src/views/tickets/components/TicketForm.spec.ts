@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import TicketForm from './TicketForm.vue'
 
-import { mountWithRouterAndPinia, resetDatabase } from '../../../../tests/support'
+import { emptyDataset, mountWithRouterAndPinia, resetDatabase, signInAs } from '../../../../tests/support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent } from '@/mocks/db'
 
@@ -39,9 +39,7 @@ async function mountCreateForm () {
   })
 
   // requiresAuth: without a session the guard redirects before the form mounts.
-  const authStore = useAuthStore()
-  authStore.token = 'mock-token-under-test'
-  authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
+  await signInAs('admin')
 
   await router.push('/tickets/new')
   await flushPromises()
@@ -94,7 +92,7 @@ async function pickCurrency (
 let mountedWrappers: Awaited<ReturnType<typeof mountCreateForm>>['wrapper'][] = []
 
 beforeEach(() => {
-  resetDatabase({ events: [], categories: [], tickets: [], users: [] })
+  resetDatabase(emptyDataset())
 })
 
 afterEach(() => {
@@ -139,7 +137,7 @@ describe('TicketForm', () => {
       await flushPromises()
 
       // el-input-number's :min clamps rather than rejecting, so assert the model never goes negative.
-      const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { quantity: number } }
+      const vm = wrapper.vm as unknown as { form: { quantity: number } }
       expect(vm.form.quantity).toBeGreaterThanOrEqual(0)
     })
 
@@ -153,7 +151,7 @@ describe('TicketForm', () => {
       await quantityInput.trigger('change')
       await flushPromises()
 
-      const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { quantity: number } }
+      const vm = wrapper.vm as unknown as { form: { quantity: number } }
       expect(Number.isInteger(vm.form.quantity)).toBe(true)
     })
 
@@ -247,7 +245,7 @@ describe('TicketForm', () => {
       await quantityInput.trigger('change')
       await flushPromises()
 
-      const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { status: string; quantity: number } }
+      const vm = wrapper.vm as unknown as { form: { status: string; quantity: number } }
       expect(vm.form.quantity).toBe(0)
       expect(vm.form.status).toBe('sold_out')
     })
@@ -265,7 +263,7 @@ describe('TicketForm', () => {
       await draftRadio.find('input').setValue(true)
       await flushPromises()
 
-      const vm = wrapper.findComponent(TicketForm).vm as unknown as { form: { status: string; quantity: number } }
+      const vm = wrapper.vm as unknown as { form: { status: string; quantity: number } }
       expect(vm.form.status).toBe('archived')
       expect(vm.form.quantity).toBe(42)
     })

@@ -1,11 +1,16 @@
 import axios from 'axios'
 
 import { db } from '@/mocks/db/singleton'
+import { createSeedDataset, type ISeedDataset, type TUserRole } from '@/mocks/db'
 import { AUTH_TOKEN_STORAGE_KEY } from '@/features/platform/api/auth-token'
-import type { ISeedDataset, TUserRole } from '@/mocks/db'
 
 export function resetDatabase<T extends ISeedDataset = ISeedDataset> (dataset?: T): void {
   db.reset(dataset)
+}
+
+// No records, but the seeded accounts stay: writes need a real session, so a test can still sign in.
+export function emptyDataset (): ISeedDataset {
+  return { events: [], categories: [], tickets: [], users: createSeedDataset().users }
 }
 
 const SEEDED_PASSWORD_BY_ROLE: Record<TUserRole, string> = {

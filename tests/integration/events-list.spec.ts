@@ -1,9 +1,9 @@
 import { http, HttpResponse } from 'msw'
 import { flushPromises } from '@vue/test-utils'
 
-import Events from './Events.vue'
+import Events from '@/views/events/Events.vue'
 
-import { mountWithRouterAndPinia, resetDatabase, setViewportToBreakpoint } from '../../../tests/support'
+import { mountWithRouterAndPinia, emptyDataset, resetDatabase, setViewportToBreakpoint, signInAs } from '../support'
 import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { IEvent } from '@/mocks/db'
@@ -40,7 +40,7 @@ function captureEventsRequests (): URLSearchParams[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 let mountedWrappers: Awaited<ReturnType<typeof mountWithRouterAndPinia>>['wrapper'][] = []
 
 async function mountEvents () {
@@ -48,9 +48,7 @@ async function mountEvents () {
 
   mountedWrappers.push(result.wrapper)
 
-  const authStore = useAuthStore()
-  authStore.token = 'mock-token-under-test'
-  authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
+  await signInAs('admin')
 
   await result.router.push('/events')
   await flushPromises()
@@ -60,7 +58,7 @@ async function mountEvents () {
 
 describe('Events list screen', () => {
   beforeEach(() => {
-    resetDatabase({ events: [], categories: [], tickets: [], users: [] })
+    resetDatabase(emptyDataset())
   })
 
   afterEach(() => {

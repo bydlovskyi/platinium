@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import CategoryModal from './CategoryModal.vue'
 
-import { mountWithRouterAndPinia } from '../../../../tests/support'
+import { mountWithRouterAndPinia, signInAs } from '../../../../tests/support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory } from '@/mocks/db'
 
@@ -26,6 +26,9 @@ async function mountModal (category?: ICategory) {
     // Unstub <transition>: VTU's default stub skips the hooks that drive el-dialog's focus-on-open/restore.
     global: { stubs: { transition: false } }
   })
+
+  // The modal itself is not route-guarded, but its writes need a real session.
+  await signInAs('admin')
 
   openModal('CategoryModal', { category, onSaved: undefined })
   await result.wrapper.setProps({ category })

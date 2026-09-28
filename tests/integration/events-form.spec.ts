@@ -104,7 +104,7 @@ async function invokeRowAction (
     throw new Error(`No row found containing text "${rowText}"`)
   }
 
-  await row.find('button[aria-label="Row actions"]').trigger('click')
+  await row.find('button[aria-label^="Actions for"]').trigger('click')
   await flushPromises()
 
   const item = Array.from(document.querySelectorAll('.el-dropdown-menu__item'))

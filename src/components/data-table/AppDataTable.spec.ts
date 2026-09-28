@@ -327,7 +327,7 @@ describe('AppDataTable', () => {
       })
       await flushPromises()
 
-      await wrapper.find('button[aria-label="Row actions"]').trigger('click')
+      await wrapper.find('button[aria-label^="Actions for"]').trigger('click')
       await flushPromises()
 
       const editItem = Array.from(document.querySelectorAll('.el-dropdown-menu__item'))

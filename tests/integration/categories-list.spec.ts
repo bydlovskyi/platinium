@@ -1,8 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 
-import Categories from './Categories.vue'
+import Categories from '@/views/categories/Categories.vue'
 
-import { mountWithRouterAndPinia, resetDatabase } from '../../../tests/support'
+import { mountWithRouterAndPinia, emptyDataset, resetDatabase, signInAs } from '../support'
 import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory } from '@/mocks/db'
@@ -35,7 +35,7 @@ function captureCategoriesRequests (): URLSearchParams[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 let mountedWrappers: Awaited<ReturnType<typeof mountWithRouterAndPinia>>['wrapper'][] = []
 
 async function mountCategories () {
@@ -43,9 +43,7 @@ async function mountCategories () {
 
   mountedWrappers.push(result.wrapper)
 
-  const authStore = useAuthStore()
-  authStore.token = 'mock-token-under-test'
-  authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
+  await signInAs('admin')
 
   await result.router.push('/categories')
   await flushPromises()
@@ -55,7 +53,7 @@ async function mountCategories () {
 
 describe('Categories list screen', () => {
   beforeEach(() => {
-    resetDatabase({ events: [], categories: [], tickets: [], users: [] })
+    resetDatabase(emptyDataset())
   })
 
   afterEach(() => {

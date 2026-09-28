@@ -1,8 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 
-import Tickets from './Tickets.vue'
+import Tickets from '@/views/tickets/Tickets.vue'
 
-import { mountWithRouterAndPinia, resetDatabase, setViewportToBreakpoint } from '../../../tests/support'
+import { mountWithRouterAndPinia, emptyDataset, resetDatabase, setViewportToBreakpoint, signInAs } from '../support'
 import { db } from '@/mocks/db/singleton'
 import { server } from '@/mocks/server'
 import type { ICategory, IEvent, ITicket } from '@/mocks/db'
@@ -66,7 +66,7 @@ function captureTicketsRequests (): URLSearchParams[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 let mountedWrappers: Awaited<ReturnType<typeof mountWithRouterAndPinia>>['wrapper'][] = []
 
 async function mountTickets (initialRoute = '/tickets') {
@@ -74,9 +74,7 @@ async function mountTickets (initialRoute = '/tickets') {
 
   mountedWrappers.push(result.wrapper)
 
-  const authStore = useAuthStore()
-  authStore.token = 'mock-token-under-test'
-  authStore.user = { id: 'u1', name: 'Ada Admin', email: 'admin@platinium.test', role: 'admin' }
+  await signInAs('admin')
 
   await result.router.push(initialRoute)
   await flushPromises()
@@ -86,7 +84,7 @@ async function mountTickets (initialRoute = '/tickets') {
 
 describe('Tickets list screen', () => {
   beforeEach(() => {
-    resetDatabase({ events: [], categories: [], tickets: [], users: [] })
+    resetDatabase(emptyDataset())
   })
 
   afterEach(() => {
@@ -501,7 +499,7 @@ describe('Tickets list screen', () => {
         expect(wrapper.text()).toContain('Doomed Ticket')
       })
 
-      const actionsButton = wrapper.find('[aria-label="Row actions"]')
+      const actionsButton = wrapper.find('[aria-label^="Actions for"]')
       await actionsButton.trigger('click')
       await flushPromises()
 

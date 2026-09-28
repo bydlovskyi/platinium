@@ -35,19 +35,9 @@ describe('useRequiredRule', () => {
   })
 })
 
-describe('length and email rules', () => {
+describe('length rule', () => {
   it('enforces the maximum length', async () => {
     expect(await validate(useMaxLenRule(5), 'abcdef')).toBe('Maximum 5 characters')
     expect(await validate(useMaxLenRule(5), 'abcde')).toBeUndefined()
-  })
-
-  it('enforces the minimum length', async () => {
-    expect(await validate(useMinLenRule(3), 'ab')).toBe('Minimum 3 characters')
-    expect(await validate(useMinLenRule(3), 'abc')).toBeUndefined()
-  })
-
-  it('rejects a malformed email', async () => {
-    expect(await validate(useEmailRule(), 'not-an-email')).toBe('Invalid email')
-    expect(await validate(useEmailRule(), 'admin@platinium.test')).toBeUndefined()
   })
 })

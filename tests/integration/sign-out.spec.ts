@@ -38,11 +38,8 @@ function findSignOutItem (): HTMLElement | undefined {
 describe('Signing out from the account menu', () => {
   it('ends the session, revokes the token server-side and sends the next navigation to login', async () => {
     const { wrapper, router, token } = await mountSignedIn()
-    const authStore = useAuthStore()
-    const onSignedOut = vi.fn()
-    const subscription = helpers.eventEmitter.listen('authSignedOut', onSignedOut)
 
-    expect(authStore.isAuthenticated).toBe(true)
+    expect(wrapper.find('header').text()).toContain('Admin')
 
     await wrapper.find('header').findAll('button').find(button => button.text().includes('Admin'))!.trigger('click')
     await vi.waitFor(() => {
@@ -51,19 +48,18 @@ describe('Signing out from the account menu', () => {
 
     findSignOutItem()!.click()
 
+    // The persisted session is gone; the redirect itself is wired in main.ts, so the next navigation proves it.
     await vi.waitFor(() => {
-      expect(onSignedOut).toHaveBeenCalledOnce()
+      expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull()
     })
-
-    expect(authStore.isAuthenticated).toBe(false)
-    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull()
 
     const revoked = await fetch(new URL('/auth/me', window.location.origin), { headers: { Authorization: `Bearer ${token}` } })
     expect(revoked.status).toBe(401)
 
     await router.push({ name: routeNames.events })
     expect(router.currentRoute.value.name).toBe(routeNames.login)
-
-    subscription.remove()
+    await vi.waitFor(() => {
+      expect(wrapper.find('header').exists()).toBe(false)
+    })
   })
 })

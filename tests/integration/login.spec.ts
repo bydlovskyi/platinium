@@ -68,4 +68,22 @@ describe('Login screen', () => {
       expect(router.currentRoute.value.fullPath).toBe('/?highlight=42')
     })
   })
+
+  it.each([
+    ['an absolute URL', 'https://evil.example/phish'],
+    ['a protocol-relative URL', '//evil.example/phish']
+  ])('ignores %s in ?redirect= and lands on home instead', async (_label, redirect) => {
+    const { wrapper, router } = await mountWithRouterAndPinia(Login, {
+      initialRoute: `/login?redirect=${encodeURIComponent(redirect)}`
+    })
+
+    await wrapper.find('input[type="email"]').setValue(SEEDED_EMAIL)
+    await wrapper.find('input[type="password"]').setValue(SEEDED_PASSWORD)
+
+    await submit(wrapper)
+
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.name).toBe(routeNames.home)
+    })
+  })
 })

@@ -22,7 +22,7 @@ function captureRequests (): ICapturedRequest[] {
   return captured
 }
 
-let capturedListeners: ((...args: any[]) => void)[] = []
+let capturedListeners: Parameters<typeof server.events.on<'request:start'>>[1][] = []
 
 beforeEach(async () => {
   resetDatabase()

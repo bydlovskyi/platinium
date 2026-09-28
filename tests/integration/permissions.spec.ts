@@ -102,7 +102,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create event'))).toBe(false)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(false)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(false)
       })
 
       it('renders the categories list with no create button and no row-actions control', async () => {
@@ -113,7 +113,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create category'))).toBe(false)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(false)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(false)
       })
 
       it('renders the tickets list with no create button and no row-actions control', async () => {
@@ -124,7 +124,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create ticket'))).toBe(false)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(false)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(false)
       })
     })
 
@@ -137,7 +137,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create event'))).toBe(true)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(true)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(true)
       })
 
       it('renders the categories list with a create button and a row-actions control', async () => {
@@ -148,7 +148,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create category'))).toBe(true)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(true)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(true)
       })
 
       it('renders the tickets list with a create button and a row-actions control', async () => {
@@ -159,7 +159,7 @@ describe('Role-based permissions', () => {
         })
 
         expect(wrapper.findAll('button').some(button => button.text().includes('Create ticket'))).toBe(true)
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(true)
+        expect(wrapper.find('button[aria-label^="Actions for"]').exists()).toBe(true)
       })
     })
   })
