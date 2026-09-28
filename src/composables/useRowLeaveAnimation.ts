@@ -1,18 +1,3 @@
-// Reads the live `--duration-base` token, which is `0s` under prefers-reduced-motion, so the wait is skipped.
-function currentLeaveDurationMs (): number {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--duration-base').trim()
-
-  if (raw.endsWith('ms')) {
-    return Number.parseFloat(raw)
-  }
-
-  if (raw.endsWith('s')) {
-    return Number.parseFloat(raw) * 1000
-  }
-
-  return 0
-}
-
 function wait (ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -23,7 +8,8 @@ export function useRowLeaveAnimation () {
   async function playLeave (keys: string[]): Promise<void> {
     leavingRowKeys.value = [...leavingRowKeys.value, ...keys]
 
-    await wait(currentLeaveDurationMs())
+    // Under prefers-reduced-motion the token is `0s`, so the wait is skipped.
+    await wait(readDurationToken('--duration-base', 0))
 
     leavingRowKeys.value = leavingRowKeys.value.filter(key => !keys.includes(key))
   }

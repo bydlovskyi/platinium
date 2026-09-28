@@ -33,7 +33,6 @@ export const AutoImportScripts = () => AutoImport({
   imports: [
     'vue',
     '@vueuse/core',
-    '@vueuse/head',
     'pinia',
     'vue-router',
     {

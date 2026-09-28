@@ -1,7 +1,5 @@
-// Tiny Observer pattern implementation as EventEmitter is EventTarget
-// Define event payloads here. Each key is an event name, value is the payload type.
+// Typed pub/sub over EventTarget; each key is an event name, the value its payload.
 interface IEventMap {
-  exampleEventName: string
   sessionExpired: { message: string }
   /** Published after sign-out has cleared the token and user; stores subscribe to reset cached state. */
   authSignedOut: undefined

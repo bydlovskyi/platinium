@@ -1,6 +1,6 @@
 export const CSV_EXPORT_WARNING_THRESHOLD = 2000
 
-type TCsvExportFn<TParams> = (params: TParams, signal?: AbortSignal) => Promise<Blob>
+type TCsvExportFn<TParams> = (params: TParams) => Promise<Blob>
 
 interface IExportCsvOptions<TParams> {
   entity: string
@@ -27,7 +27,8 @@ function triggerDownload (blob: Blob, filename: string): void {
   link.download = filename
   link.click()
 
-  URL.revokeObjectURL(objectUrl)
+  // Revoking in the same tick has cancelled downloads in some browsers; let the click land first.
+  setTimeout(() => URL.revokeObjectURL(objectUrl))
 }
 
 export function useCsvExport () {

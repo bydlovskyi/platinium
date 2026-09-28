@@ -12,9 +12,11 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppDataTable: typeof import('./../../src/components/data-table/AppDataTable.vue')['default']
+    BulkActionBar: typeof import('./../../src/components/BulkActionBar.vue')['default']
     BulkResultDialog: typeof import('./../../src/components/BulkResultDialog.vue')['default']
     CategoryModal: typeof import('./../../src/views/categories/components/CategoryModal.vue')['default']
     CurrencyInput: typeof import('./../../src/components/CurrencyInput.vue')['default']
+    DataTableRowActions: typeof import('./../../src/components/data-table/DataTableRowActions.vue')['default']
     ElAffix: typeof import('element-plus/es')['ElAffix']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
@@ -62,6 +64,7 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     EventForm: typeof import('./../../src/views/events/components/EventForm.vue')['default']
+    FormPageFrame: typeof import('./../../src/components/FormPageFrame.vue')['default']
     Icon: typeof import('./../../src/features/platform/icons/components/Icon.vue')['default']
     ListFilterField: typeof import('./../../src/components/data-table/ListFilterField.vue')['default']
     ListToolbar: typeof import('./../../src/components/data-table/ListToolbar.vue')['default']

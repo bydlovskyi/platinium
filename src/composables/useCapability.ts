@@ -6,16 +6,14 @@ export interface ICapability {
   operation: TCapabilityOperation
 }
 
-const CAPABILITY_ENTITIES: TCapabilityEntity[] = ['events', 'categories', 'tickets']
-const CAPABILITY_OPERATIONS: TCapabilityOperation[] = ['create', 'update', 'delete']
+const WRITE_ROLES: TUserRole[] = ['admin']
 
-// Keyed by entity and operation (not just role) so per-entity exceptions change one entry, not call sites.
-const CAPABILITY_ROLES: Record<TCapabilityEntity, Record<TCapabilityOperation, TUserRole[]>> = Object.fromEntries(
-  CAPABILITY_ENTITIES.map(entity => [
-    entity,
-    Object.fromEntries(CAPABILITY_OPERATIONS.map(operation => [operation, ['admin'] as TUserRole[]]))
-  ])
-) as Record<TCapabilityEntity, Record<TCapabilityOperation, TUserRole[]>>
+// Keyed by entity and operation (not just role) so a per-entity exception changes one entry, not call sites.
+const CAPABILITY_ROLES: Record<TCapabilityEntity, Record<TCapabilityOperation, TUserRole[]>> = {
+  events: { create: WRITE_ROLES, update: WRITE_ROLES, delete: WRITE_ROLES },
+  categories: { create: WRITE_ROLES, update: WRITE_ROLES, delete: WRITE_ROLES },
+  tickets: { create: WRITE_ROLES, update: WRITE_ROLES, delete: WRITE_ROLES }
+}
 
 export function useCapability () {
   const authStore = useAuthStore()

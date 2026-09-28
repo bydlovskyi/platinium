@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { type Component } from 'vue'
-
 const icons = import.meta.glob<Component>(
   '@/features/platform/icons/assets/*.svg',
   { import: 'default' }
@@ -20,7 +18,6 @@ watch(() => props.name, async (name) => {
 
 <template>
   <component
-    v-bind="$attrs"
     :is="icon"
     v-if="icon"
     height="1.25em"

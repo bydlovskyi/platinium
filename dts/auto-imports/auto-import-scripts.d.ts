@@ -7,7 +7,7 @@
 export {}
 declare global {
   const CSV_EXPORT_WARNING_THRESHOLD: typeof import('../../src/composables/useCsvExport').CSV_EXPORT_WARNING_THRESHOLD
-  const CURRENCIES: typeof import('../../src/views/tickets/composables/useTicketsList').CURRENCIES
+  const CURRENCIES: typeof import('../../src/utils/currencies').CURRENCIES
   const EVENT_STATUSES: typeof import('../../src/utils/status-presentation').EVENT_STATUSES
   const EffectScope: typeof import('vue').EffectScope
   const STATUS_PRESENTATION: typeof import('../../src/utils/status-presentation').STATUS_PRESENTATION
@@ -107,6 +107,7 @@ declare global {
   const reactiveComputed: typeof import('@vueuse/core').reactiveComputed
   const reactiveOmit: typeof import('@vueuse/core').reactiveOmit
   const reactivePick: typeof import('@vueuse/core').reactivePick
+  const readDurationToken: typeof import('../../src/utils/motion').readDurationToken
   const readonly: typeof import('vue').readonly
   const ref: typeof import('vue').ref
   const refAutoReset: typeof import('@vueuse/core').refAutoReset
@@ -206,13 +207,14 @@ declare global {
   const useDropZone: typeof import('@vueuse/core').useDropZone
   const useElFormModel: typeof import('../../src/composables/useFormConfig').useElFormModel
   const useElFormRef: typeof import('../../src/composables/useFormConfig').useElFormRef
-  const useElFormRules: typeof import('../../src/composables/useFormConfig').useElFormRules
   const useElementBounding: typeof import('@vueuse/core').useElementBounding
   const useElementByPoint: typeof import('@vueuse/core').useElementByPoint
   const useElementHover: typeof import('@vueuse/core').useElementHover
   const useElementSize: typeof import('@vueuse/core').useElementSize
   const useElementVisibility: typeof import('@vueuse/core').useElementVisibility
-  const useEmailRule: typeof import('../../src/composables/useFormConfig').useEmailRule
+  const useEntityForm: typeof import('../../src/composables/useEntityForm').useEntityForm
+  const useEntityList: typeof import('../../src/composables/useEntityList').useEntityList
+  const useEntityListPage: typeof import('../../src/composables/useEntityListPage').useEntityListPage
   const useEventBus: typeof import('@vueuse/core').useEventBus
   const useEventListener: typeof import('@vueuse/core').useEventListener
   const useEventSource: typeof import('@vueuse/core').useEventSource
@@ -228,7 +230,6 @@ declare global {
   const useFullscreen: typeof import('@vueuse/core').useFullscreen
   const useGamepad: typeof import('@vueuse/core').useGamepad
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
-  const useHead: typeof import('@vueuse/head').useHead
   const useId: typeof import('vue').useId
   const useIdle: typeof import('@vueuse/core').useIdle
   const useImage: typeof import('@vueuse/core').useImage
@@ -249,7 +250,6 @@ declare global {
   const useMediaQuery: typeof import('@vueuse/core').useMediaQuery
   const useMemoize: typeof import('@vueuse/core').useMemoize
   const useMemory: typeof import('@vueuse/core').useMemory
-  const useMinLenRule: typeof import('../../src/composables/useFormConfig').useMinLenRule
   const useModals: typeof import('../../src/features/platform/modals/composables/useModals').useModals
   const useModel: typeof import('vue').useModel
   const useMounted: typeof import('@vueuse/core').useMounted
@@ -292,7 +292,6 @@ declare global {
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
   const useScroll: typeof import('@vueuse/core').useScroll
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
-  const useSeoMeta: typeof import('@vueuse/head').useSeoMeta
   const useSessionStorage: typeof import('@vueuse/core').useSessionStorage
   const useShare: typeof import('@vueuse/core').useShare
   const useSlots: typeof import('vue').useSlots
@@ -389,7 +388,7 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly CSV_EXPORT_WARNING_THRESHOLD: UnwrapRef<typeof import('../../src/composables/useCsvExport')['CSV_EXPORT_WARNING_THRESHOLD']>
-    readonly CURRENCIES: UnwrapRef<typeof import('../../src/views/tickets/composables/useTicketsList')['CURRENCIES']>
+    readonly CURRENCIES: UnwrapRef<typeof import('../../src/utils/currencies')['CURRENCIES']>
     readonly EVENT_STATUSES: UnwrapRef<typeof import('../../src/utils/status-presentation')['EVENT_STATUSES']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly STATUS_PRESENTATION: UnwrapRef<typeof import('../../src/utils/status-presentation')['STATUS_PRESENTATION']>
@@ -489,6 +488,7 @@ declare module 'vue' {
     readonly reactiveComputed: UnwrapRef<typeof import('@vueuse/core')['reactiveComputed']>
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
+    readonly readDurationToken: UnwrapRef<typeof import('../../src/utils/motion')['readDurationToken']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
@@ -588,13 +588,14 @@ declare module 'vue' {
     readonly useDropZone: UnwrapRef<typeof import('@vueuse/core')['useDropZone']>
     readonly useElFormModel: UnwrapRef<typeof import('../../src/composables/useFormConfig')['useElFormModel']>
     readonly useElFormRef: UnwrapRef<typeof import('../../src/composables/useFormConfig')['useElFormRef']>
-    readonly useElFormRules: UnwrapRef<typeof import('../../src/composables/useFormConfig')['useElFormRules']>
     readonly useElementBounding: UnwrapRef<typeof import('@vueuse/core')['useElementBounding']>
     readonly useElementByPoint: UnwrapRef<typeof import('@vueuse/core')['useElementByPoint']>
     readonly useElementHover: UnwrapRef<typeof import('@vueuse/core')['useElementHover']>
     readonly useElementSize: UnwrapRef<typeof import('@vueuse/core')['useElementSize']>
     readonly useElementVisibility: UnwrapRef<typeof import('@vueuse/core')['useElementVisibility']>
-    readonly useEmailRule: UnwrapRef<typeof import('../../src/composables/useFormConfig')['useEmailRule']>
+    readonly useEntityForm: UnwrapRef<typeof import('../../src/composables/useEntityForm')['useEntityForm']>
+    readonly useEntityList: UnwrapRef<typeof import('../../src/composables/useEntityList')['useEntityList']>
+    readonly useEntityListPage: UnwrapRef<typeof import('../../src/composables/useEntityListPage')['useEntityListPage']>
     readonly useEventBus: UnwrapRef<typeof import('@vueuse/core')['useEventBus']>
     readonly useEventListener: UnwrapRef<typeof import('@vueuse/core')['useEventListener']>
     readonly useEventSource: UnwrapRef<typeof import('@vueuse/core')['useEventSource']>
@@ -610,7 +611,6 @@ declare module 'vue' {
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
-    readonly useHead: UnwrapRef<typeof import('@vueuse/head')['useHead']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
@@ -631,7 +631,6 @@ declare module 'vue' {
     readonly useMediaQuery: UnwrapRef<typeof import('@vueuse/core')['useMediaQuery']>
     readonly useMemoize: UnwrapRef<typeof import('@vueuse/core')['useMemoize']>
     readonly useMemory: UnwrapRef<typeof import('@vueuse/core')['useMemory']>
-    readonly useMinLenRule: UnwrapRef<typeof import('../../src/composables/useFormConfig')['useMinLenRule']>
     readonly useModals: UnwrapRef<typeof import('../../src/features/platform/modals/composables/useModals')['useModals']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly useMounted: UnwrapRef<typeof import('@vueuse/core')['useMounted']>
@@ -674,7 +673,6 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
-    readonly useSeoMeta: UnwrapRef<typeof import('@vueuse/head')['useSeoMeta']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>

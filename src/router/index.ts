@@ -9,3 +9,9 @@ export const router = createRouter({
 })
 
 router.beforeEach(routeGuard)
+
+const APP_TITLE = 'Ticket Admin'
+
+router.afterEach((to) => {
+  document.title = to.meta.label ? `${to.meta.label} · ${APP_TITLE}` : APP_TITLE
+})

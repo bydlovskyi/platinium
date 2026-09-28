@@ -13,7 +13,9 @@ const requestInterceptor = (requestConfig: InternalAxiosRequestConfig): Internal
   }
 
   if (requestConfig.url) {
-    requestConfig.url = parseDynamicKeys(requestConfig.url, requestConfig.dynamicKeys as TIndexedObject | undefined)
+    const dynamicKeys = requestConfig.dynamicKeys as Record<string, string | number> | undefined
+
+    requestConfig.url = parseDynamicKeys(requestConfig.url, dynamicKeys)
   }
 
   return requestConfig

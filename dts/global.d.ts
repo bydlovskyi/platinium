@@ -7,6 +7,7 @@ import type { ICapability } from '@/composables/useCapability'
 
 declare module 'vue-router' {
   interface RouteMeta {
+    /** Shown as the document title (`src/router/index.ts`). */
     label?: string
     /** Route requires an authenticated session; unauthenticated visitors are redirected to login (`src/router/route-guard.ts`). */
     requiresAuth?: boolean
@@ -29,12 +30,6 @@ declare module 'vue-router' {
     requiredCapability?: ICapability
   }
 }
-
-// TODO: Here you define you global vue definitions. Uncomment if needed
-// declare module 'vue' {
-// interface ComponentCustomProperties {
-// }
-// }
 
 declare global {
   interface Window {

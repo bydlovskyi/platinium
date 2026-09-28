@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import { ValidationFieldError } from '@/features/platform/api/interceptors/response.interceptor'
-
 interface IEventFormModel {
   name: string
   country: string
@@ -10,8 +8,6 @@ interface IEventFormModel {
   status: TEventStatus
 }
 
-const route = useRoute()
-const router = useRouter()
 const { canDo } = useCapability()
 const { isMobile } = useBreakpoint()
 const { confirm } = useConfirm()
@@ -19,36 +15,42 @@ const { notifyDependencyConflict } = useDependencyConflictNotice()
 
 const actionButtonSize = computed(() => (isMobile.value ? 'small' : 'default'))
 
-const eventId = computed(() => (typeof route.params.id === 'string' ? route.params.id : undefined))
-const isEditMode = computed(() => eventId.value !== undefined)
-
-// The list passes its fullPath as `from` so returning keeps its filters/sort/page.
-const returnTo = computed(() => (typeof route.query.from === 'string' ? route.query.from : { name: routeNames.events }))
-
-const loadingRecord = ref(isEditMode.value)
-const loadError = ref(false)
-
-const formRef = useElFormRef<IElementPlus['FormInstance']>(null)
-const form = useElFormModel<IEventFormModel>({
-  name: '',
-  country: '',
-  venue: '',
-  startDate: '',
-  endDate: '',
-  status: 'draft'
+const {
+  form,
+  formRef,
+  recordId: eventId,
+  isEditMode,
+  loadingRecord,
+  loadError,
+  loading,
+  serverFieldErrors,
+  clearServerError,
+  goBack,
+  submit,
+  markClean
+} = useEntityForm<IEventFormModel, TEvent>({
+  initialModel: {
+    name: '',
+    country: '',
+    venue: '',
+    startDate: '',
+    endDate: '',
+    status: 'draft'
+  },
+  load: id => eventsService.get(id, { showNotification: false }),
+  toModel: event => ({
+    name: event.name,
+    country: event.country,
+    venue: event.venue,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    status: event.status
+  }),
+  create: model => eventsService.create({ ...model }),
+  update: (id, model) => eventsService.update(id, { ...model }),
+  messages: { created: 'Event created.', updated: 'Event updated.' },
+  listRoute: { name: routeNames.events }
 })
-
-// Undefined until the record loads, so the empty form an edit starts with never counts as dirty.
-let baseline = isEditMode.value ? undefined : JSON.stringify(form)
-
-const isDirty = ref(false)
-watch(form, () => {
-  isDirty.value = baseline !== undefined && JSON.stringify(form) !== baseline
-})
-
-const { markClean } = useUnsavedChangesGuard({ isDirty })
-
-const serverFieldErrors = ref<Partial<Record<keyof IEventFormModel, string>>>({})
 
 // Tracked separately: re-deriving "start > end" would keep the alert up forever, not just right after clearing.
 const justClearedEndDate = ref(false)
@@ -72,7 +74,7 @@ function validateEndDate (_rule: unknown, value: string, callback: (error?: Erro
 }
 
 function onStartDateChange (value: string | null): void {
-  serverFieldErrors.value.startDate = undefined
+  clearServerError('startDate')
   justClearedEndDate.value = Boolean(value && form.endDate && form.endDate < value)
 
   if (justClearedEndDate.value) {
@@ -81,7 +83,7 @@ function onStartDateChange (value: string | null): void {
 }
 
 function onEndDateChange (): void {
-  serverFieldErrors.value.endDate = undefined
+  clearServerError('endDate')
   justClearedEndDate.value = false
 }
 
@@ -103,73 +105,6 @@ const rules: IElementPlus['FormRules'] = {
   status: [useRequiredRule()]
 }
 
-// A watcher, not onMounted: the id may arrive after mount (e.g. auth guard redirecting back).
-watch(eventId, async (id) => {
-  if (id === undefined) {
-    return
-  }
-
-  loadingRecord.value = true
-  loadError.value = false
-
-  try {
-    const event = await eventsService.get(id, { showNotification: false })
-
-    Object.assign(form, {
-      name: event.name,
-      country: event.country,
-      venue: event.venue,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      status: event.status
-    })
-    baseline = JSON.stringify(form)
-  } catch {
-    loadError.value = true
-  } finally {
-    loadingRecord.value = false
-  }
-}, { immediate: true })
-
-const loading = ref(false)
-
-async function onSubmit (): Promise<void> {
-  if (loading.value) {
-    return
-  }
-
-  loading.value = true
-
-  try {
-    const isValid = await formRef.value?.validate().catch(() => false)
-
-    if (!isValid) {
-      return
-    }
-
-    serverFieldErrors.value = {}
-
-    if (eventId.value) {
-      await eventsService.update(eventId.value, { ...form })
-    } else {
-      await eventsService.create({ ...form })
-    }
-
-    notificationService.success({
-      message: isEditMode.value ? 'Event updated.' : 'Event created.'
-    })
-
-    markClean()
-    await router.push(returnTo.value)
-  } catch (error) {
-    if (error instanceof ValidationFieldError) {
-      serverFieldErrors.value = error.fieldErrors
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
 // Re-throws so useConfirm keeps the dialog open on a 409.
 async function deleteEvent (id: string): Promise<void> {
   await confirm({
@@ -185,146 +120,131 @@ async function deleteEvent (id: string): Promise<void> {
       notificationService.success({ message: 'Event deleted.' })
 
       markClean()
-      await router.push(returnTo.value)
+      await goBack()
     }
   })
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <PageHeader :title="isEditMode ? 'Edit event' : 'Create event'" />
+  <FormPageFrame
+    :title="isEditMode ? 'Edit event' : 'Create event'"
+    :loading="loadingRecord"
+    :load-error="loadError"
+    not-found-title="Event not found"
+    not-found-subtitle="This event may have been deleted or the link is incorrect."
+    @back-requested="goBack"
+  >
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      class="max-w-lg"
+      @submit.prevent="submit"
+    >
+      <el-form-item label="Name" prop="name" :error="serverFieldErrors.name">
+        <el-input
+          v-model="form.name"
+          maxlength="120"
+          show-word-limit
+          placeholder="Summer Jazz Festival"
+          @input="clearServerError('name')"
+        />
+      </el-form-item>
 
-    <Transition name="skeleton-fade" mode="out-in">
-      <el-skeleton v-if="loadingRecord" key="skeleton" :rows="6" animated />
-
-      <div v-else-if="loadError" key="error" class="rounded-token-md border border-border">
-        <el-result
-          icon="warning"
-          title="Event not found"
-          sub-title="This event may have been deleted or the link is incorrect."
+      <el-form-item label="Country" prop="country" :error="serverFieldErrors.country">
+        <el-select
+          v-model="form.country"
+          filterable
+          placeholder="Select a country"
+          class="w-full"
+          @change="clearServerError('country')"
         >
-          <template #extra>
-            <el-button type="primary" @click="router.push(returnTo)">
-              Back to list
-            </el-button>
-          </template>
-        </el-result>
-      </div>
-
-      <el-form
-        v-else
-        key="form"
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        class="max-w-lg"
-        @submit.prevent="onSubmit"
-      >
-        <el-form-item label="Name" prop="name" :error="serverFieldErrors.name">
-          <el-input
-            v-model="form.name"
-            maxlength="120"
-            show-word-limit
-            placeholder="Summer Jazz Festival"
-            @input="serverFieldErrors.name = undefined"
+          <el-option
+            v-for="option in countries.options"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
           />
-        </el-form-item>
+        </el-select>
+      </el-form-item>
 
-        <el-form-item label="Country" prop="country" :error="serverFieldErrors.country">
-          <el-select
-            v-model="form.country"
-            filterable
-            placeholder="Select a country"
-            class="w-full"
-            @change="serverFieldErrors.country = undefined"
-          >
-            <el-option
-              v-for="option in countries.options"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </el-form-item>
+      <el-form-item label="Venue" prop="venue" :error="serverFieldErrors.venue">
+        <el-input
+          v-model="form.venue"
+          maxlength="120"
+          show-word-limit
+          placeholder="Skyline Terrace"
+          @input="clearServerError('venue')"
+        />
+      </el-form-item>
 
-        <el-form-item label="Venue" prop="venue" :error="serverFieldErrors.venue">
-          <el-input
-            v-model="form.venue"
-            maxlength="120"
-            show-word-limit
-            placeholder="Skyline Terrace"
-            @input="serverFieldErrors.venue = undefined"
-          />
-        </el-form-item>
+      <el-form-item label="Start date" prop="startDate" :error="serverFieldErrors.startDate">
+        <el-date-picker
+          v-model="form.startDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="Select a start date"
+          class="!w-full"
+          @change="onStartDateChange"
+        />
+      </el-form-item>
 
-        <el-form-item label="Start date" prop="startDate" :error="serverFieldErrors.startDate">
-          <el-date-picker
-            v-model="form.startDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="Select a start date"
-            class="!w-full"
-            @change="onStartDateChange"
-          />
-        </el-form-item>
+      <el-form-item label="End date" prop="endDate" :error="serverFieldErrors.endDate">
+        <el-date-picker
+          v-model="form.endDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="Select an end date"
+          class="!w-full"
+          :disabled-date="disabledEndDate"
+          @change="onEndDateChange"
+        />
+        <el-alert
+          v-if="justClearedEndDate"
+          type="warning"
+          :closable="false"
+          class="mt-2"
+          title="End date cleared"
+          description="The end date was cleared because it fell before the new start date. Choose a new end date."
+        />
+      </el-form-item>
 
-        <el-form-item label="End date" prop="endDate" :error="serverFieldErrors.endDate">
-          <el-date-picker
-            v-model="form.endDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="Select an end date"
-            class="!w-full"
-            :disabled-date="disabledEndDate"
-            @change="onEndDateChange"
-          />
-          <el-alert
-            v-if="justClearedEndDate"
-            type="warning"
-            :closable="false"
-            class="mt-2"
-            title="End date cleared"
-            description="The end date was cleared because it fell before the new start date. Choose a new end date."
-          />
-        </el-form-item>
+      <el-form-item label="Status" prop="status" :error="serverFieldErrors.status">
+        <el-radio-group v-model="form.status" @change="clearServerError('status')">
+          <el-radio v-for="status in EVENT_STATUSES" :key="status" :value="status">
+            {{ STATUS_PRESENTATION[status].label }}
+          </el-radio>
+        </el-radio-group>
+      </el-form-item>
 
-        <el-form-item label="Status" prop="status" :error="serverFieldErrors.status">
-          <el-radio-group v-model="form.status" @change="serverFieldErrors.status = undefined">
-            <el-radio v-for="status in EVENT_STATUSES" :key="status" :value="status">
-              {{ STATUS_PRESENTATION[status].label }}
-            </el-radio>
-          </el-radio-group>
-        </el-form-item>
-
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex gap-2">
-            <el-button
-              :size="actionButtonSize"
-              type="primary"
-              native-type="submit"
-              :loading="loading"
-            >
-              {{ isEditMode ? 'Save changes' : 'Create event' }}
-            </el-button>
-            <el-button :size="actionButtonSize" :disabled="loading" @click="router.push(returnTo)">
-              Cancel
-            </el-button>
-          </div>
-
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex gap-2">
           <el-button
-            v-if="eventId && canDo('events', 'delete')"
             :size="actionButtonSize"
-            type="danger"
-            plain
-            :disabled="loading"
-            @click="deleteEvent(eventId)"
+            type="primary"
+            native-type="submit"
+            :loading="loading"
           >
-            Delete event
+            {{ isEditMode ? 'Save changes' : 'Create event' }}
+          </el-button>
+          <el-button :size="actionButtonSize" :disabled="loading" @click="goBack">
+            Cancel
           </el-button>
         </div>
-      </el-form>
-    </Transition>
-  </div>
+
+        <el-button
+          v-if="eventId && canDo('events', 'delete')"
+          :size="actionButtonSize"
+          type="danger"
+          plain
+          :disabled="loading"
+          @click="deleteEvent(eventId)"
+        >
+          Delete event
+        </el-button>
+      </div>
+    </el-form>
+  </FormPageFrame>
 </template>

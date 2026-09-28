@@ -37,7 +37,8 @@ defineProps<{
       </h1>
     </div>
 
-    <!-- Below `sm` the actions take their own full-width row of equal buttons. -->
+    <!-- Below `sm` the actions take their own full-width row of equal buttons. The `.el-button` selector is
+         layout only: Element Plus exposes no variable for a button's flex basis or the sibling margin it adds. -->
     <div
       v-if="$slots.actions"
       class="

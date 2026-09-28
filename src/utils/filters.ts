@@ -1,13 +1,5 @@
 const DEFAULT_LOCALE = 'en-US'
 
-/** @deprecated Takes a decimal amount; API money is integer minor units, use formatMoney. */
-const formatCurrency = (value: number, currency = 'USD', locale = DEFAULT_LOCALE) => {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency
-  }).format(value)
-}
-
 const DEFAULT_MINOR_UNIT_DIGITS = 2
 
 const getCurrencyPrecision = (currency: TCurrency, locale = DEFAULT_LOCALE): number => {
@@ -59,7 +51,6 @@ const formatDateRange = (start: string | Date, end: string | Date, locale = DEFA
 }
 
 export const filters = {
-  formatCurrency,
   formatMoney,
   formatDate,
   formatDateRange,

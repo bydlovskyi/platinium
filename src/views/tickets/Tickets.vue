@@ -1,27 +1,17 @@
 <script lang="ts" setup>
-import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
+import type { IDataTableColumn } from '@/components/data-table/data-table.types'
 
 const route = useRoute()
 const router = useRouter()
-const { confirm } = useConfirm()
-const { canDo } = useCapability()
-const {
-  selectedIds,
-  isRunning: bulkRunning,
-  lastResult: bulkResult,
-  resultVisible: bulkResultVisible,
-  clearSelection,
-  runBulkOperation
-} = useBulkOperations()
-const { loading: csvExportLoading, exportCsv } = useCsvExport()
 
+const list = useTicketsList()
 const {
   search,
   filters: listFilters,
   sort,
-  page,
   setSearch,
   setFilter,
+  setFilters,
   setSort,
   applySort,
   setPage,
@@ -32,11 +22,36 @@ const {
   loading,
   error,
   refetch,
-  query,
   emptyReason
-} = useTicketsList()
+} = list
 
-const { leavingRowKeys, removeRows } = useRowRemoval({ rows: data, page, setPage, refetch })
+const {
+  canCreate,
+  canSelectRows,
+  canBulkDelete,
+  canBulkArchive,
+  rowKey,
+  rowActions,
+  selectedIds,
+  bulkRunning,
+  bulkResult,
+  bulkResultVisible,
+  bulkResultNames,
+  clearSelection,
+  leavingRowKeys,
+  bulkDelete,
+  bulkArchive,
+  deleteRow,
+  csvExportLoading,
+  exportCsv,
+  onSelectionChanged
+} = useEntityListPage<TTicket, typeof list.query.value>({
+  entity: 'tickets',
+  label: { singular: 'ticket', plural: 'tickets' },
+  list,
+  service: ticketsService,
+  archive: { message: 'This sets their status to archived.' }
+})
 
 const columns: IDataTableColumn<TTicket>[] = [
   { key: 'name', label: 'Name', sortable: true },
@@ -62,6 +77,41 @@ const priceMaxModel = computed<number | undefined>({
     void setFilter('priceMax', value === undefined ? undefined : priceFilterToMinorUnits(value))
   }
 })
+
+// The chip labels are resolved here rather than taken from the RemoteSelects, which aren't mounted while the
+// mobile filter drawer is closed. A missing record is expected after a delete, so no toast for it.
+const eventChipLabel = useResolvedName(
+  () => listFilters.eventId, id => eventsService.get(id, { showNotification: false }))
+const categoryChipLabel = useResolvedName(
+  () => listFilters.categoryId, id => categoriesService.get(id, { showNotification: false }))
+
+function useResolvedName (id: () => string, resolve: (id: string) => Promise<{ name: string }>): Ref<string> {
+  const label = ref('…')
+  let latestId = ''
+
+  watch(id, async (value) => {
+    latestId = value
+    label.value = '…'
+
+    if (value === '') {
+      return
+    }
+
+    try {
+      const record = await resolve(value)
+
+      if (latestId === value) {
+        label.value = record.name
+      }
+    } catch {
+      if (latestId === value) {
+        label.value = 'Unknown'
+      }
+    }
+  }, { immediate: true })
+
+  return label
+}
 
 const activeFilters = computed(() => {
   const chips: { key: string; label: string }[] = []
@@ -91,39 +141,6 @@ const activeFilters = computed(() => {
   return chips
 })
 
-const eventChipLabel = ref('…')
-const categoryChipLabel = ref('…')
-
-watch(() => listFilters.eventId, async (id) => {
-  if (id === '') {
-    return
-  }
-
-  eventChipLabel.value = '…'
-
-  try {
-    const event = await eventsService.get(id, { showNotification: false })
-    eventChipLabel.value = event.name
-  } catch {
-    eventChipLabel.value = 'Unknown'
-  }
-}, { immediate: true })
-
-watch(() => listFilters.categoryId, async (id) => {
-  if (id === '') {
-    return
-  }
-
-  categoryChipLabel.value = '…'
-
-  try {
-    const category = await categoriesService.get(id)
-    categoryChipLabel.value = category.name
-  } catch {
-    categoryChipLabel.value = 'Unknown'
-  }
-}, { immediate: true })
-
 function onFilterRemoved (key: string): void {
   if (key === 'eventId') {
     void setFilter('eventId', '')
@@ -134,112 +151,32 @@ function onFilterRemoved (key: string): void {
   } else if (key === 'currency') {
     void setFilter('currency', 'all')
   } else if (key === 'priceRange') {
-    void setFilter('priceMin', undefined)
-    void setFilter('priceMax', undefined)
+    void setFilters({ priceMin: undefined, priceMax: undefined })
   }
-}
-
-function rowKey (row: TTicket): string {
-  return row.id
-}
-
-const rowActions = computed<IDataTableRowAction<TTicket>[]>(() => {
-  const actions: IDataTableRowAction<TTicket>[] = []
-
-  if (canDo('tickets', 'update')) {
-    actions.push({ key: 'edit', label: 'Edit' })
-  }
-
-  if (canDo('tickets', 'delete')) {
-    actions.push({ key: 'delete', label: 'Delete', danger: true })
-  }
-
-  return actions
-})
-
-const canBulkDelete = computed(() => canDo('tickets', 'delete'))
-const canBulkArchive = computed(() => canDo('tickets', 'update'))
-
-function selectionSubject (): string {
-  const count = selectedIds.value.length
-  return `${count} ticket${count === 1 ? '' : 's'}`
-}
-
-function onBulkDeleteComplete (): Promise<void> {
-  return removeRows(bulkResult.value?.succeeded ?? [])
-}
-
-async function bulkDeleteTickets (): Promise<void> {
-  await runBulkOperation('delete', {
-    confirmSubject: selectionSubject(),
-    bulk: body => ticketsService.bulk(body),
-    onComplete: onBulkDeleteComplete
-  })
-}
-
-async function bulkArchiveTickets (): Promise<void> {
-  await runBulkOperation('archive', {
-    confirmSubject: selectionSubject(),
-    confirmMessage: `Archive ${selectionSubject()}? This sets their status to archived.`,
-    confirmButtonText: 'Archive',
-    danger: false,
-    bulk: body => ticketsService.bulk(body),
-    onComplete: refetch
-  })
-}
-
-// Tickets are leaves: no DependencyConflictError is possible here.
-async function deleteTicket (ticket: TTicket): Promise<void> {
-  await confirm({
-    subject: ticket.name,
-    onConfirm: async () => {
-      await ticketsService.delete(ticket.id)
-
-      notificationService.success({ message: 'Ticket deleted.' })
-
-      await removeRows([ticket.id])
-    }
-  })
 }
 
 function onRowAction ({ action, row }: { action: string; row: TTicket }): void {
   if (action === 'edit') {
     void router.push({ name: routeNames.ticketEdit, params: { id: row.id }, query: { from: route.fullPath } })
   } else if (action === 'delete') {
-    void deleteTicket(row)
+    void deleteRow(row)
   }
 }
 
 function onCreateClicked (): void {
   void router.push({ name: routeNames.ticketCreate, query: { from: route.fullPath } })
 }
-
-function onExportCsvClicked (): void {
-  // The interceptor already toasts failures; this only prevents an unhandled rejection.
-  exportCsv({
-    entity: 'tickets',
-    exportFn: params => ticketsService.exportCsv(params),
-    params: { ...query.value, page: undefined, perPage: undefined },
-    total: meta.value?.total ?? 0
-  }).catch(() => undefined)
-}
-
-function onSelectionChanged (keys: string[]): void {
-  selectedIds.value = keys
-}
-
-const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket => [ticket.id, ticket.name])))
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
     <PageHeader title="Tickets">
       <template #actions>
-        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+        <el-button :loading="csvExportLoading" @click="exportCsv">
           Export CSV
         </el-button>
 
-        <el-button v-if="canDo('tickets', 'create')" type="primary" @click="onCreateClicked">
+        <el-button v-if="canCreate" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>
@@ -261,7 +198,7 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
           <RemoteSelect
             :model-value="listFilters.eventId || undefined"
             :fetch-options="params => eventsService.list(params)"
-            :resolve-option="id => eventsService.get(id)"
+            :resolve-option="id => eventsService.get(id, { showNotification: false })"
             :option-value="(event: TEvent) => event.id"
             :option-label="(event: TEvent) => event.name"
             placeholder="Event"
@@ -275,7 +212,7 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
           <RemoteSelect
             :model-value="listFilters.categoryId || undefined"
             :fetch-options="params => categoriesService.list(params)"
-            :resolve-option="id => categoriesService.get(id)"
+            :resolve-option="id => categoriesService.get(id, { showNotification: false })"
             :option-value="(category: TCategory) => category.id"
             :option-label="(category: TCategory) => category.name"
             placeholder="Category"
@@ -352,7 +289,8 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
       :empty-reason="emptyReason"
       :sort="sort"
       :row-actions="rowActions"
-      selectable
+      :can-create="canCreate"
+      :selectable="canSelectRows"
       :selected-row-keys="selectedIds"
       :leaving-row-keys="leavingRowKeys"
       caption="Tickets"
@@ -363,6 +301,7 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
       @row-action-invoked="onRowAction"
+      @create-requested="onCreateClicked"
       @selection-changed="onSelectionChanged"
     >
       <template #cell-price="{ row }">
@@ -386,34 +325,15 @@ const bulkResultNames = computed(() => Object.fromEntries(data.value.map(ticket 
       </template>
     </AppDataTable>
 
-    <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
-      <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">
-        <el-tag size="large">
-          {{ selectedIds.length }} selected on this page
-        </el-tag>
-
-        <el-button
-          v-if="canBulkDelete"
-          type="danger"
-          :loading="bulkRunning"
-          @click="bulkDeleteTickets"
-        >
-          Delete
-        </el-button>
-
-        <el-button
-          v-if="canBulkArchive"
-          :loading="bulkRunning"
-          @click="bulkArchiveTickets"
-        >
-          Archive
-        </el-button>
-
-        <el-button link @click="clearSelection">
-          Clear selection
-        </el-button>
-      </el-card>
-    </el-affix>
+    <BulkActionBar
+      :selected-count="selectedIds.length"
+      :can-delete="canBulkDelete"
+      :can-archive="canBulkArchive"
+      :running="bulkRunning"
+      @delete-requested="bulkDelete"
+      @archive-requested="bulkArchive"
+      @clear-requested="clearSelection"
+    />
 
     <BulkResultDialog v-model="bulkResultVisible" :result="bulkResult" entity-label="ticket" :names="bulkResultNames" />
   </div>

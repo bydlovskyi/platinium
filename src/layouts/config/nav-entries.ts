@@ -2,7 +2,6 @@ interface INavEntry {
   label: string
   icon: TIcons
   routeName: string
-  requiresRole?: TUserRole
 }
 
 export const navEntries: INavEntry[] = [

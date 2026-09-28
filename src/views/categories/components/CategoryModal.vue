@@ -59,7 +59,7 @@ async function onSubmit (): Promise<void> {
   loading.value = true
 
   try {
-    const isValid = await formRef.value?.validate().catch(() => false)
+    const isValid = await formRef.value?.validate(() => undefined).catch(() => false)
 
     if (!isValid) {
       return

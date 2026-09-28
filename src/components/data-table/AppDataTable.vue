@@ -244,21 +244,19 @@ function toggleCardSelectAll (value: IElementPlus['CheckboxValueType']): void {
   emitPageSelection(value ? pageRowKeys.value : [])
 }
 
-function isActionDisabled (action: IDataTableRowAction<TRow>, row: TRow): boolean {
-  return action.disabled ? action.disabled(row) : false
+function rowLabel (row: TRow): string {
+  const title = cardLayout.value.title ? row[cardLayout.value.title.key] : undefined
+
+  return typeof title === 'string' || typeof title === 'number' ? String(title) : props.rowKey(row)
 }
 
 function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
-  if (isActionDisabled(action, row)) {
-    return
-  }
-
   emit('row-action-invoked', { action: action.key, row })
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3" role="region" :aria-label="caption">
     <div v-if="presentationMode === 'error'" role="alert" class="rounded-token-md border border-border">
       <el-result
         title="Something went wrong while loading this list."
@@ -350,7 +348,6 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
           :row-key="tableRowKey"
           :default-sort="defaultSort"
           :row-class-name="rowClassName"
-          :aria-label="caption"
           @sort-change="onSortChange"
           @selection-change="onTableSelectionChange"
         >
@@ -390,28 +387,13 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
             </template>
             <template #default="{ row }">
               <el-skeleton-item v-if="isSkeleton" variant="text" class="!w-6" />
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <el-button text circle aria-label="Row actions">
-                  <template #icon>
-                    <Icon name="more" />
-                  </template>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item
-                      v-for="action in rowActions"
-                      :key="action.key"
-                      :disabled="isActionDisabled(action, row)"
-                      :divided="action.danger"
-                      :class="{ '!text-danger': action.danger }"
-                      @click="onRowAction(action, row)"
-                    >
-                      <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
-                      {{ action.label }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <DataTableRowActions
+                v-else
+                :row="row"
+                :actions="rowActions"
+                :row-label="rowLabel(row)"
+                @invoked="action => onRowAction(action, row)"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -509,28 +491,14 @@ function onRowAction (action: IDataTableRowAction<TRow>, row: TRow): void {
                   <template v-else>{{ row[cardLayout.badge.key] }}</template>
                 </div>
 
-                <el-dropdown v-if="hasActions" trigger="click" placement="bottom-end" class="-my-1 -mr-2">
-                  <el-button text circle aria-label="Row actions">
-                    <template #icon>
-                      <Icon name="more" />
-                    </template>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item
-                        v-for="action in rowActions"
-                        :key="action.key"
-                        :disabled="isActionDisabled(action, row)"
-                        :divided="action.danger"
-                        :class="{ '!text-danger': action.danger }"
-                        @click="onRowAction(action, row)"
-                      >
-                        <Icon v-if="action.icon" :name="action.icon" class="mr-2 size-4" />
-                        {{ action.label }}
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                <DataTableRowActions
+                  v-if="hasActions"
+                  :row="row"
+                  :actions="rowActions"
+                  :row-label="rowLabel(row)"
+                  class="-my-1 -mr-2"
+                  @invoked="action => onRowAction(action, row)"
+                />
               </div>
 
               <dl

@@ -27,11 +27,7 @@ export function useUnsavedChangesGuard ({
     event.returnValue = ''
   }
 
-  window.addEventListener('beforeunload', onBeforeUnload)
-
-  onUnmounted(() => {
-    window.removeEventListener('beforeunload', onBeforeUnload)
-  })
+  useEventListener(window, 'beforeunload', onBeforeUnload)
 
   async function confirmDiscard (): Promise<boolean> {
     if (!isDirty.value) {

@@ -1,29 +1,18 @@
 <script lang="ts" setup>
-import type { IDataTableColumn, IDataTableRowAction } from '@/components/data-table/data-table.types'
+import type { IDataTableColumn } from '@/components/data-table/data-table.types'
 
-const router = useRouter()
 const route = useRoute()
-const { confirm } = useConfirm()
-const { canDo } = useCapability()
+const router = useRouter()
 const { isMobile } = useBreakpoint()
-const {
-  selectedIds,
-  isRunning: bulkRunning,
-  lastResult: bulkResult,
-  resultVisible: bulkResultVisible,
-  clearSelection,
-  runBulkOperation
-} = useBulkOperations()
-const { loading: csvExportLoading, exportCsv } = useCsvExport()
-const { notifyDependencyConflict } = useDependencyConflictNotice()
 
+const list = useEventsList()
 const {
   search,
   filters: listFilters,
   sort,
-  page,
   setSearch,
   setFilter,
+  setFilters,
   setSort,
   applySort,
   setPage,
@@ -34,11 +23,38 @@ const {
   loading,
   error,
   refetch,
-  query,
   emptyReason
-} = useEventsList()
+} = list
 
-const { leavingRowKeys, removeRows } = useRowRemoval({ rows: data, page, setPage, refetch })
+const {
+  canCreate,
+  canSelectRows,
+  canBulkDelete,
+  canBulkArchive,
+  rowKey,
+  rowActions,
+  selectedIds,
+  bulkRunning,
+  bulkResult,
+  bulkResultVisible,
+  bulkResultNames,
+  bulkBlockingLink,
+  clearSelection,
+  leavingRowKeys,
+  bulkDelete,
+  bulkArchive,
+  deleteRow,
+  csvExportLoading,
+  exportCsv,
+  onSelectionChanged
+} = useEntityListPage<TEvent, typeof list.query.value>({
+  entity: 'events',
+  label: { singular: 'event', plural: 'events' },
+  list,
+  service: eventsService,
+  archive: { message: 'This sets their status to completed.' },
+  blockingRecordsRoute: id => ({ name: routeNames.tickets, query: { eventId: id } })
+})
 
 const columns: IDataTableColumn<TEvent>[] = [
   { key: 'name', label: 'Name', sortable: true },
@@ -76,8 +92,7 @@ const dateRangeModel = computed<[string, string] | null>({
       : null
   ),
   set: (value: [string, string] | null) => {
-    void setFilter('startDateFrom', value?.[0] ?? '')
-    void setFilter('startDateTo', value?.[1] ?? '')
+    void setFilters({ startDateFrom: value?.[0] ?? '', startDateTo: value?.[1] ?? '' })
   }
 })
 
@@ -91,112 +106,16 @@ function onFilterRemoved (key: string): void {
   }
 }
 
-function rowKey (row: TEvent): string {
-  return row.id
-}
-
-// Filtered, not disabled: AppDataTable renders rowActions as given, so this keeps viewer-forbidden actions out of the DOM.
-const rowActions = computed<IDataTableRowAction<TEvent>[]>(() => {
-  const actions: IDataTableRowAction<TEvent>[] = []
-
-  if (canDo('events', 'update')) {
-    actions.push({ key: 'edit', label: 'Edit' })
-  }
-
-  if (canDo('events', 'delete')) {
-    actions.push({ key: 'delete', label: 'Delete', danger: true })
-  }
-
-  return actions
-})
-
-const canBulkDelete = computed(() => canDo('events', 'delete'))
-const canBulkArchive = computed(() => canDo('events', 'update'))
-
-function selectionSubject (): string {
-  const count = selectedIds.value.length
-  return `${count} event${count === 1 ? '' : 's'}`
-}
-
-function onBulkDeleteComplete (): Promise<void> {
-  return removeRows(bulkResult.value?.succeeded ?? [])
-}
-
-async function bulkDeleteEvents (): Promise<void> {
-  await runBulkOperation('delete', {
-    confirmSubject: selectionSubject(),
-    bulk: body => eventsService.bulk(body),
-    onComplete: onBulkDeleteComplete
-  })
-}
-
-async function bulkArchiveEvents (): Promise<void> {
-  await runBulkOperation('archive', {
-    confirmSubject: selectionSubject(),
-    confirmMessage: `Archive ${selectionSubject()}? This sets their status to completed.`,
-    confirmButtonText: 'Archive',
-    danger: false,
-    bulk: body => eventsService.bulk(body),
-    onComplete: refetch
-  })
-}
-
-// Re-throws on 409 so useConfirm keeps the dialog open.
-async function deleteEvent (event: TEvent): Promise<void> {
-  await confirm({
-    subject: event.name,
-    onConfirm: async () => {
-      try {
-        await eventsService.delete(event.id)
-      } catch (error) {
-        notifyDependencyConflict(error, { entity: 'event', to: { name: routeNames.tickets, query: { eventId: event.id } } })
-        throw error
-      }
-
-      notificationService.success({ message: 'Event deleted.' })
-
-      await removeRows([event.id])
-    }
-  })
-}
-
 function onRowAction ({ action, row }: { action: string; row: TEvent }): void {
   if (action === 'edit') {
     void router.push({ name: routeNames.eventEdit, params: { id: row.id }, query: { from: route.fullPath } })
   } else if (action === 'delete') {
-    void deleteEvent(row)
+    void deleteRow(row)
   }
 }
 
 function onCreateClicked (): void {
   void router.push({ name: routeNames.eventCreate, query: { from: route.fullPath } })
-}
-
-function onExportCsvClicked (): void {
-  // The interceptor already toasts failures; this only prevents an unhandled rejection.
-  exportCsv({
-    entity: 'events',
-    exportFn: params => eventsService.exportCsv(params),
-    params: { ...query.value, page: undefined, perPage: undefined },
-    total: meta.value?.total ?? 0
-  }).catch(() => undefined)
-}
-
-function onSelectionChanged (keys: string[]): void {
-  selectedIds.value = keys
-}
-
-const bulkResultNames = computed(() => Object.fromEntries(data.value.map(event => [event.id, event.name])))
-
-function bulkBlockingLink (failure: TBulkFailure) {
-  if (failure.code !== 'CONFLICT' || failure.count === undefined) {
-    return undefined
-  }
-
-  return {
-    to: { name: routeNames.tickets, query: { eventId: failure.id } },
-    label: `View ${failure.count} ticket${failure.count === 1 ? '' : 's'}`
-  }
 }
 </script>
 
@@ -204,11 +123,11 @@ function bulkBlockingLink (failure: TBulkFailure) {
   <div class="flex flex-col gap-4">
     <PageHeader title="Events">
       <template #actions>
-        <el-button :loading="csvExportLoading" @click="onExportCsvClicked">
+        <el-button :loading="csvExportLoading" @click="exportCsv">
           Export CSV
         </el-button>
 
-        <el-button v-if="canDo('events', 'create')" type="primary" @click="onCreateClicked">
+        <el-button v-if="canCreate" type="primary" @click="onCreateClicked">
           <template #icon>
             <Icon name="plus" />
           </template>
@@ -312,7 +231,8 @@ function bulkBlockingLink (failure: TBulkFailure) {
       :empty-reason="emptyReason"
       :sort="sort"
       :row-actions="rowActions"
-      selectable
+      :can-create="canCreate"
+      :selectable="canSelectRows"
       :selected-row-keys="selectedIds"
       :leaving-row-keys="leavingRowKeys"
       caption="Events"
@@ -323,6 +243,7 @@ function bulkBlockingLink (failure: TBulkFailure) {
       @clear-filters-requested="resetFilters"
       @retry-requested="refetch"
       @row-action-invoked="onRowAction"
+      @create-requested="onCreateClicked"
       @selection-changed="onSelectionChanged"
     >
       <template #cell-country="{ row }">
@@ -338,34 +259,15 @@ function bulkBlockingLink (failure: TBulkFailure) {
       </template>
     </AppDataTable>
 
-    <el-affix v-if="selectedIds.length > 0" position="bottom" :offset="16">
-      <el-card shadow="always" body-class="flex flex-wrap items-center gap-2 !py-3">
-        <el-tag size="large">
-          {{ selectedIds.length }} selected on this page
-        </el-tag>
-
-        <el-button
-          v-if="canBulkDelete"
-          type="danger"
-          :loading="bulkRunning"
-          @click="bulkDeleteEvents"
-        >
-          Delete
-        </el-button>
-
-        <el-button
-          v-if="canBulkArchive"
-          :loading="bulkRunning"
-          @click="bulkArchiveEvents"
-        >
-          Archive
-        </el-button>
-
-        <el-button link @click="clearSelection">
-          Clear selection
-        </el-button>
-      </el-card>
-    </el-affix>
+    <BulkActionBar
+      :selected-count="selectedIds.length"
+      :can-delete="canBulkDelete"
+      :can-archive="canBulkArchive"
+      :running="bulkRunning"
+      @delete-requested="bulkDelete"
+      @archive-requested="bulkArchive"
+      @clear-requested="clearSelection"
+    />
 
     <BulkResultDialog
       v-model="bulkResultVisible"

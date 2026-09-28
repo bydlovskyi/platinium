@@ -61,8 +61,9 @@ const HTTP_STATUS = {
 // A 401 here is a rejected credential, not an expired session: surface the server message, don't publish sessionExpired.
 const LOGIN_PATH = '/auth/login'
 
-const responseInterceptor = (response: AxiosResponse): Promise<AxiosResponse> => {
-  return response.data
+// Unwraps the body: the client's augmented types (`dts/axios.d.ts`) already describe the body, not the envelope.
+const responseInterceptor = (response: AxiosResponse): AxiosResponse => {
+  return response.data as AxiosResponse
 }
 
 function shouldNotify (error: AxiosError): boolean {

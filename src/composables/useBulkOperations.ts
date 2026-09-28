@@ -81,7 +81,7 @@ export function useBulkOperations () {
 
         lastResult.value = result
         clearSelection()
-        onComplete()
+        await onComplete()
       }
     })
   }

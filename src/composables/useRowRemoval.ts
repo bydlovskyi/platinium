@@ -15,9 +15,9 @@ export function useRowRemoval ({ rows, page, setPage, refetch }: IUseRowRemovalO
     await playLeave(ids)
 
     if (pageEmptied && page.value > 1) {
-      void setPage(page.value - 1)
+      await setPage(page.value - 1)
     } else {
-      void refetch()
+      await refetch()
     }
   }
 

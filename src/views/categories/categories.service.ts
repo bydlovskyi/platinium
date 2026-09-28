@@ -1,5 +1,3 @@
-import { blobExportTestOverrides } from '@/features/platform/api/helpers'
-
 type TCategoryListParams = Omit<NonNullable<TRequestQuery<'/categories', 'get'>>, 'format'>
 
 type TCategoryExportParams = Omit<TCategoryListParams, 'page' | 'perPage'>
@@ -13,8 +11,8 @@ class CategoriesService {
     return apiClient.post('/categories', payload)
   }
 
-  get (id: string): Promise<TCategory> {
-    return apiClient.get('/categories/{id}', { dynamicKeys: { id } })
+  get (id: string, { showNotification }: { showNotification?: boolean } = {}): Promise<TCategory> {
+    return apiClient.get('/categories/{id}', { dynamicKeys: { id }, showNotification })
   }
 
   update (id: string, payload: TCategoryPayload): Promise<TCategory> {
@@ -32,7 +30,6 @@ class CategoriesService {
 
   exportCsv (params: TCategoryExportParams, signal?: AbortSignal): Promise<Blob> {
     return apiClient.get('/categories', {
-      ...blobExportTestOverrides(apiClient.defaults.baseURL),
       params: { ...params, format: 'csv' },
       responseType: 'blob',
       signal

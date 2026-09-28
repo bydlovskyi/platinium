@@ -1,5 +1,3 @@
-import { blobExportTestOverrides } from '@/features/platform/api/helpers'
-
 type TEventListParams = Omit<NonNullable<TRequestQuery<'/events', 'get'>>, 'format'>
 
 type TEventExportParams = Omit<TEventListParams, 'page' | 'perPage'>
@@ -33,7 +31,6 @@ class EventsService {
   // The schema types CSV responses as the JSON envelope; responseType 'blob' yields a Blob at runtime, hence the cast.
   exportCsv (params: TEventExportParams, signal?: AbortSignal): Promise<Blob> {
     return apiClient.get('/events', {
-      ...blobExportTestOverrides(apiClient.defaults.baseURL),
       params: { ...params, format: 'csv' },
       responseType: 'blob',
       signal

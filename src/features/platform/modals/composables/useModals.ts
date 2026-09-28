@@ -4,17 +4,27 @@ type TModalsType = typeof Modals
 
 type TModalsKeys = keyof TModalsType
 
-type TInferProps<T> = T extends new (...args: any[]) => infer R ? R extends { $props: infer P } ? P : never : never
+type TInferProps<T> = T extends new (...args: never[]) => infer R ? R extends { $props: infer P } ? P : never : never
 
 type TComponentProps = {
   [K in TModalsKeys]: TInferProps<ReturnType<TModalsType[K]>>
 }
 
-const modals = ref(new Map<TModalsKeys, { component: any; props?: any; isOpen: boolean }>())
+interface IOpenModal {
+  component: Component
+  props?: Record<string, unknown>
+  isOpen: boolean
+}
+
+const modals = ref(new Map<TModalsKeys, IOpenModal>())
 
 export function useModals () {
   const openModal = <K extends TModalsKeys>(name: K, props?: TComponentProps[K]) => {
-    modals.value.set(name, { component: markRaw(Modals[name]() as Component), props, isOpen: true })
+    modals.value.set(name, {
+      component: markRaw(Modals[name]()),
+      props: props as Record<string, unknown> | undefined,
+      isOpen: true
+    })
   }
 
   const closeModal = (name: TModalsKeys) => {

@@ -11,13 +11,8 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const router = useRouter()
-const { role } = useCapability()
 
 const activeRouteName = computed(() => String(route.name ?? ''))
-
-const visibleNavEntries = computed(() => (
-  navEntries.filter(entry => entry.requiresRole === undefined || entry.requiresRole === role.value)
-))
 
 // Named-route push rather than `el-menu`'s path-based `router` mode.
 async function onSelect (routeName: string): Promise<void> {
@@ -48,7 +43,7 @@ async function onSelect (routeName: string): Promise<void> {
         @select="onSelect"
       >
         <el-menu-item
-          v-for="entry in visibleNavEntries"
+          v-for="entry in navEntries"
           :key="entry.routeName"
           :index="entry.routeName"
           :aria-current="activeRouteName === entry.routeName ? 'page' : undefined"

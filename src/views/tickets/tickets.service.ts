@@ -1,5 +1,3 @@
-import { blobExportTestOverrides } from '@/features/platform/api/helpers'
-
 // priceMin/priceMax are in minor units.
 type TTicketListParams = Omit<NonNullable<TRequestQuery<'/tickets', 'get'>>, 'format'>
 
@@ -33,7 +31,6 @@ class TicketsService {
 
   exportCsv (params: TTicketExportParams, signal?: AbortSignal): Promise<Blob> {
     return apiClient.get('/tickets', {
-      ...blobExportTestOverrides(apiClient.defaults.baseURL),
       params: { ...params, format: 'csv' },
       responseType: 'blob',
       signal

@@ -30,5 +30,14 @@ export default defineConfigWithVueTs(
     languageOptions: {
       globals: autoImport.globals
     }
+  },
+
+  {
+    name: 'app/spec-hosts',
+    files: ['**/*.spec.ts'],
+    rules: {
+      // Specs define small host components inline; the one-per-file rule is for SFCs.
+      'vue/one-component-per-file': 'off'
+    }
   }
 )
