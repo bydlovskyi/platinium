@@ -4,7 +4,8 @@ import { onBeforeRouteLeave } from 'vue-router'
 interface IUseUnsavedChangesGuardOptions {
   isDirty: Ref<boolean>
   message?: string
-  // Pass `false` for dialog-hosted forms: no route change happens on close; wire `:before-close` instead.
+  confirmButtonText?: string
+  // Pass `false` for dialog-hosted forms: no route change happens on close; call `confirmDiscard` from `:before-close`.
   guardRouteLeave?: boolean
 }
 
@@ -13,6 +14,7 @@ const DEFAULT_MESSAGE = 'You have unsaved changes. Leave this page and discard t
 export function useUnsavedChangesGuard ({
   isDirty,
   message = DEFAULT_MESSAGE,
+  confirmButtonText = 'Leave',
   guardRouteLeave = true
 }: IUseUnsavedChangesGuardOptions) {
   function onBeforeUnload (event: BeforeUnloadEvent): void {
@@ -31,30 +33,32 @@ export function useUnsavedChangesGuard ({
     window.removeEventListener('beforeunload', onBeforeUnload)
   })
 
+  async function confirmDiscard (): Promise<boolean> {
+    if (!isDirty.value) {
+      return true
+    }
+
+    try {
+      await ElMessageBox.confirm(message, 'Unsaved changes', {
+        confirmButtonText,
+        cancelButtonText: 'Stay',
+        type: 'warning',
+        distinguishCancelAndClose: true
+      })
+
+      return true
+    } catch {
+      return false
+    }
+  }
+
   if (guardRouteLeave) {
-    onBeforeRouteLeave(async () => {
-      if (!isDirty.value) {
-        return true
-      }
-
-      try {
-        await ElMessageBox.confirm(message, 'Unsaved changes', {
-          confirmButtonText: 'Leave',
-          cancelButtonText: 'Stay',
-          type: 'warning',
-          distinguishCancelAndClose: true
-        })
-
-        return true
-      } catch {
-        return false
-      }
-    })
+    onBeforeRouteLeave(confirmDiscard)
   }
 
   function markClean (): void {
     isDirty.value = false
   }
 
-  return { markClean }
+  return { markClean, confirmDiscard }
 }

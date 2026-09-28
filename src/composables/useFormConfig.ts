@@ -14,8 +14,11 @@ export function useElFormRules (model: IElementPlus['FormRules']) {
   return ref(model)
 }
 
-export function useRequiredRule ({ required = true } = {}): IElementPlus['FormItemRule'] {
-  return { required, message: 'Required field', trigger: 'change' }
+// `whitespace` switches async-validator to its string validator, so enable it only on text fields.
+export function useRequiredRule ({ required = true, whitespace = false } = {}): IElementPlus['FormItemRule'] {
+  return whitespace
+    ? { required, whitespace, message: 'Required field', trigger: 'change' }
+    : { required, message: 'Required field', trigger: 'change' }
 }
 
 export function useEmailRule (): IElementPlus['FormItemRule'] {

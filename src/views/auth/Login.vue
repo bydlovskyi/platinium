@@ -4,8 +4,6 @@ interface ILoginForm {
   password: string
 }
 
-const GENERIC_SIGN_IN_ERROR_MESSAGE = 'Something went wrong. Please try again.'
-
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -44,7 +42,7 @@ async function onSubmit (): Promise<void> {
 
   const isValid = await formRef.value?.validate().catch(() => false)
 
-  if (isValid !== true) {
+  if (!isValid) {
     return
   }
 
@@ -57,13 +55,12 @@ async function onSubmit (): Promise<void> {
     const redirect = safeRedirectTarget()
 
     if (redirect !== null) {
-      // Navigates by path: an arbitrary preserved deep link has no route name.
       await router.push(redirect)
     } else {
       await router.push({ name: routeNames.home })
     }
   } catch (error) {
-    submitError.value = error instanceof Error ? error.message : GENERIC_SIGN_IN_ERROR_MESSAGE
+    submitError.value = error instanceof Error ? error.message : 'Something went wrong. Please try again.'
   } finally {
     loading.value = false
   }
