@@ -1,0 +1,8 @@
+@import 'element-plus/theme-chalk/el-drawer.css';
+
+/* The navigation drawer's sidebar brings its own gutters, so the body padding would double them. */
+.el-drawer.admin-shell-mobile-drawer {
+  .el-drawer__body {
+    @apply p-0;
+  }
+}
