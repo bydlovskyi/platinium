@@ -158,13 +158,15 @@ describe('CategoryModal', () => {
 
       const form = document.querySelector('.el-dialog form')
       form?.dispatchEvent(new Event('submit', { cancelable: true }))
-      await flushPromises()
 
-      await flushPromises()
+      // The save succeeding is the proof: a required rule on the description would have blocked it. The dialog
+      // closes (and its form is destroyed) as soon as the save lands, so there is no form left to inspect after.
+      await vi.waitFor(() => {
+        const created = db.categories.list({ perPage: Number.MAX_SAFE_INTEGER }).data
+          .find(category => category.name === 'Valid Name')
 
-      const descriptionItem = Array.from(document.querySelectorAll('.el-dialog .el-form-item'))
-        .find(item => item.textContent?.includes('Description'))
-      expect(descriptionItem?.querySelector('.el-form-item__error')).toBeNull()
+        expect(created?.description).toBe('')
+      })
     })
   })
 

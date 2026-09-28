@@ -8,6 +8,8 @@ export { emptyDataset, resetDatabase, seedSession } from './seams'
 
 export { signInAs } from './session'
 
+export { preloadRoutes } from './routes'
+
 export { setPreferredColorScheme, setPreferredReducedMotion } from './match-media'
 
 export { hasIcon } from './icons'

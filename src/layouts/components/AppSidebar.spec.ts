@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import AppSidebar from './AppSidebar.vue'
 
-import { mountWithRouterAndPinia } from '../../../tests/support'
+import { mountWithRouterAndPinia, preloadRoutes } from '../../../tests/support'
 
 function signIn (): void {
   const authStore = useAuthStore()
@@ -12,6 +12,8 @@ function signIn (): void {
 }
 
 describe('AppSidebar', () => {
+  beforeAll(() => preloadRoutes(routeNames.home))
+
   it('navigates by route name when an entry is selected, and announces it', async () => {
     const { wrapper, router } = await mountWithRouterAndPinia(AppSidebar, { initialRoute: '/login' })
 
@@ -19,7 +21,6 @@ describe('AppSidebar', () => {
     await wrapper.get('li.el-menu-item').trigger('click')
     await flushPromises()
 
-    // The route component is lazy-loaded, so the push settles after a tick.
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe(routeNames.home))
     expect(wrapper.emitted('navigate')).toHaveLength(1)
   })

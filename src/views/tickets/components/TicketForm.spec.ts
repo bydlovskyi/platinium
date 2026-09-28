@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import TicketForm from './TicketForm.vue'
 
-import { emptyDataset, mountWithRouterAndPinia, resetDatabase, signInAs } from '../../../../tests/support'
+import { emptyDataset, mountWithRouterAndPinia, preloadRoutes, resetDatabase, signInAs } from '../../../../tests/support'
 import { db } from '@/mocks/db/singleton'
 import type { ICategory, IEvent } from '@/mocks/db'
 
@@ -90,6 +90,9 @@ async function pickCurrency (
 }
 
 let mountedWrappers: Awaited<ReturnType<typeof mountCreateForm>>['wrapper'][] = []
+
+// A successful save navigates to the tickets list, which is lazy-loaded.
+beforeAll(() => preloadRoutes(routeNames.tickets))
 
 beforeEach(() => {
   resetDatabase(emptyDataset())
