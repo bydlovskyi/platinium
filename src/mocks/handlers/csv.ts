@@ -10,8 +10,8 @@ export function formatMoneyMinorUnits (minorUnits: number): string {
   return (minorUnits / MINOR_UNITS_PER_MAJOR).toFixed(DECIMAL_PLACES)
 }
 
-// Spreadsheets evaluate fields starting with these as formulas (CSV injection).
-const FORMULA_TRIGGER_CHARACTERS = ['=', '+', '-', '@']
+// Spreadsheets evaluate fields starting with these as formulas (CSV injection); the OWASP list includes tab and CR.
+const FORMULA_TRIGGER_CHARACTERS = ['=', '+', '-', '@', '\t', '\r']
 
 // Apostrophe prefix is the standard force-text convention; numbers stay bare so they remain summable.
 function neutraliseFormulaInjection (value: string | number): string {

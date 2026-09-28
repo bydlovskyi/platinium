@@ -42,7 +42,6 @@ function registerTestEventsHandler (): void {
     path: TEST_PATH,
     collection,
     fields: {
-      searchableFields: ['name', 'venue', 'country'],
       sortableFields: ['name', 'startDate'],
       equalityFilters: [{ field: 'status', parse: raw => raw as TEventStatus }]
     }

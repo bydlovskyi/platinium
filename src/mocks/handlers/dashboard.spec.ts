@@ -241,6 +241,48 @@ describe('dashboard handlers', () => {
       })
     })
 
+    describe('upcomingEvents', () => {
+      function upcomingDataset (): ISeedDataset {
+        const base = controlledDataset()
+
+        return {
+          ...base,
+          events: [
+            buildEvent({ id: 'up-published-b', status: 'published', startDate: '2099-01-01', endDate: '2099-01-02' }),
+            buildEvent({ id: 'up-published-a', status: 'published', startDate: '2099-01-01', endDate: '2099-01-02' }),
+            buildEvent({ id: 'up-draft', status: 'draft', startDate: '2099-02-01', endDate: '2099-02-02' }),
+            buildEvent({ id: 'up-cancelled', status: 'cancelled', startDate: '2098-01-01', endDate: '2098-01-02' }),
+            buildEvent({ id: 'up-completed', status: 'completed', startDate: '2098-06-01', endDate: '2098-06-02' }),
+            buildEvent({ id: 'past-published', status: 'published', startDate: '2000-01-01', endDate: '2000-01-02' })
+          ],
+          tickets: []
+        }
+      }
+
+      it('lists only draft and published events starting today or later, soonest first', async () => {
+        resetDatabase(upcomingDataset())
+        const token = await loginAsSeededAdmin()
+
+        const { body } = await requestFor('/dashboard/stats', { token })
+        const ids = (body as TDashboardStats).upcomingEvents.map(event => event.id)
+
+        expect(ids).not.toContain('up-cancelled')
+        expect(ids).not.toContain('up-completed')
+        expect(ids).not.toContain('past-published')
+        expect(ids[ids.length - 1]).toBe('up-draft')
+      })
+
+      it('breaks a start-date tie by id so the order is stable', async () => {
+        resetDatabase(upcomingDataset())
+        const token = await loginAsSeededAdmin()
+
+        const { body } = await requestFor('/dashboard/stats', { token })
+        const ids = (body as TDashboardStats).upcomingEvents.map(event => event.id)
+
+        expect(ids.slice(0, 2)).toEqual(['up-published-a', 'up-published-b'])
+      })
+    })
+
     it('is readable by a viewer (a read, not a write)', async () => {
       resetDatabase(controlledDataset())
 

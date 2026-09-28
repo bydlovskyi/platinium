@@ -3,23 +3,22 @@ import type { HttpHandler } from 'msw'
 import { db } from '../db/singleton'
 import { requireWriteAccess } from './auth'
 import { formatMoneyMinorUnits } from './csv'
-import { createBulkHandler, createEntityHandlers } from './factory'
-import type { TBulkApplier, IBulkFailureReason, IValidateContext } from './factory'
+import { createBulkHandler, createEntityHandlers, notFoundFailure } from './factory'
+import type { TBulkApplier, IValidateContext } from './factory'
+import { CURRENCIES, TICKET_STATUSES } from '../db'
 import type { IEntityCollection, IListQuery, IListResult, ITicket } from '../db'
 
-// `search` matching is governed by `TICKET_SEARCHABLE_FIELDS` in db/database.ts, not the `searchableFields` below.
 // `eventName`/`categoryName` are never stored; they're joined in on read so they can't drift from the referenced records.
 
 type TTicketWithNames = ITicket & { eventName: string; categoryName: string }
 
-const VALID_TICKET_STATUSES = ['draft', 'on_sale', 'sold_out', 'archived']
-const VALID_CURRENCIES = ['USD', 'EUR', 'GBP']
 // Keep in sync with the `quantity` `maximum` in openapi.yaml.
 const MAX_TICKET_QUANTITY = 100000
 
 const UNKNOWN_REFERENCE_NAME = 'Unknown'
 
-function denormalise (record: ITicket): TTicketWithNames {
+// The fallback only guards records inserted directly (e.g. in tests); the API rejects dangling references.
+export function denormaliseTicket (record: ITicket): TTicketWithNames {
   return {
     ...record,
     eventName: db.events.get(record.eventId)?.name ?? UNKNOWN_REFERENCE_NAME,
@@ -33,31 +32,30 @@ function withoutNames<T extends Partial<TTicketWithNames>> (input: T): Omit<T, '
   return rest
 }
 
-// The `Unknown` fallback only guards records inserted directly (e.g. in tests); the API rejects dangling references.
 function withDenormalisedNames (collection: IEntityCollection<ITicket>): IEntityCollection<TTicketWithNames> {
   return {
     list: (query: IListQuery<TTicketWithNames>): IListResult<TTicketWithNames> => {
       const result = collection.list(query as IListQuery<ITicket>)
 
-      return { ...result, data: result.data.map(denormalise) }
+      return { ...result, data: result.data.map(denormaliseTicket) }
     },
 
     get: (id) => {
       const record = collection.get(id)
 
-      return record === undefined ? undefined : denormalise(record)
+      return record === undefined ? undefined : denormaliseTicket(record)
     },
 
     insert: (record) => {
       const inserted = collection.insert(withoutNames(record) as ITicket)
 
-      return denormalise(inserted)
+      return denormaliseTicket(inserted)
     },
 
     update: (id, patch) => {
       const updated = collection.update(id, withoutNames(patch))
 
-      return updated === undefined ? undefined : denormalise(updated)
+      return updated === undefined ? undefined : denormaliseTicket(updated)
     },
 
     remove: id => collection.remove(id),
@@ -69,7 +67,7 @@ function withDenormalisedNames (collection: IEntityCollection<ITicket>): IEntity
 function requiredFieldErrors (input: Partial<ITicket>): Record<string, string> {
   const errors: Record<string, string> = {}
 
-  if (input.name === undefined || input.name === '') {
+  if (input.name === undefined) {
     errors.name = 'Name is required.'
   }
 
@@ -89,15 +87,28 @@ function requiredFieldErrors (input: Partial<ITicket>): Record<string, string> {
     errors.status = 'Status is required.'
   }
 
-  if (input.eventId === undefined || input.eventId === '') {
+  if (input.eventId === undefined) {
     errors.eventId = 'Event is required.'
   }
 
-  if (input.categoryId === undefined || input.categoryId === '') {
+  if (input.categoryId === undefined) {
     errors.categoryId = 'Category is required.'
   }
 
   return errors
+}
+
+// Type-check before `.trim()` so a payload like `{ "name": 123 }` is a 400, not a resolver exception.
+function nameFormatError (input: Partial<ITicket>): Record<string, string> {
+  if (input.name === undefined) {
+    return {}
+  }
+
+  if (typeof input.name !== 'string') {
+    return { name: 'Name must be text.' }
+  }
+
+  return input.name.trim() === '' ? { name: 'Name is required.' } : {}
 }
 
 function priceFormatError (input: Partial<ITicket>): Record<string, string> {
@@ -120,16 +131,16 @@ function quantityFormatError (input: Partial<ITicket>): Record<string, string> {
 }
 
 function currencyFormatError (input: Partial<ITicket>): Record<string, string> {
-  if (input.currency !== undefined && !VALID_CURRENCIES.includes(input.currency)) {
-    return { currency: 'Currency must be one of: USD, EUR, GBP.' }
+  if (input.currency !== undefined && !CURRENCIES.includes(input.currency)) {
+    return { currency: `Currency must be one of: ${CURRENCIES.join(', ')}.` }
   }
 
   return {}
 }
 
 function statusFormatError (input: Partial<ITicket>): Record<string, string> {
-  if (input.status !== undefined && !VALID_TICKET_STATUSES.includes(input.status)) {
-    return { status: 'Status must be one of: draft, on_sale, sold_out, archived.' }
+  if (input.status !== undefined && !TICKET_STATUSES.includes(input.status)) {
+    return { status: `Status must be one of: ${TICKET_STATUSES.join(', ')}.` }
   }
 
   return {}
@@ -137,19 +148,29 @@ function statusFormatError (input: Partial<ITicket>): Record<string, string> {
 
 // An unknown reference is a 400 field error, not a 409, so there's deliberately no `conflictCheck`.
 function eventReferenceError (input: Partial<ITicket>): Record<string, string> {
-  if (input.eventId !== undefined && db.events.get(input.eventId) === undefined) {
-    return { eventId: 'References an event that does not exist.' }
+  if (input.eventId === undefined) {
+    return {}
   }
 
-  return {}
+  if (typeof input.eventId !== 'string' || input.eventId === '') {
+    return { eventId: 'Event is required.' }
+  }
+
+  return db.events.get(input.eventId) === undefined ? { eventId: 'References an event that does not exist.' } : {}
 }
 
 function categoryReferenceError (input: Partial<ITicket>): Record<string, string> {
-  if (input.categoryId !== undefined && db.categories.get(input.categoryId) === undefined) {
-    return { categoryId: 'References a category that does not exist.' }
+  if (input.categoryId === undefined) {
+    return {}
   }
 
-  return {}
+  if (typeof input.categoryId !== 'string' || input.categoryId === '') {
+    return { categoryId: 'Category is required.' }
+  }
+
+  return db.categories.get(input.categoryId) === undefined
+    ? { categoryId: 'References a category that does not exist.' }
+    : {}
 }
 
 function validateTicket (
@@ -158,6 +179,7 @@ function validateTicket (
 ): Record<string, string> | undefined {
   const errors: Record<string, string> = {
     ...(context.action === 'create' ? requiredFieldErrors(input) : {}),
+    ...nameFormatError(input),
     ...priceFormatError(input),
     ...quantityFormatError(input),
     ...currencyFormatError(input),
@@ -169,26 +191,9 @@ function validateTicket (
   return Object.keys(errors).length > 0 ? errors : undefined
 }
 
-function stampTimestamps (input: Partial<TTicketWithNames>): TTicketWithNames {
-  const now = new Date().toISOString()
-
-  return {
-    ...input,
-    createdAt: now,
-    updatedAt: now
-  } as TTicketWithNames
-}
-
-function bumpUpdatedAt (input: Partial<TTicketWithNames>): Partial<TTicketWithNames> {
-  return { ...input, updatedAt: new Date().toISOString() }
-}
-
 const TICKET_ARCHIVE_STATUS: ITicket['status'] = 'archived'
 
-const NOT_FOUND_FAILURE: IBulkFailureReason = {
-  code: 'NOT_FOUND',
-  reason: 'No ticket exists with this identifier.'
-}
+const NOT_FOUND_FAILURE = notFoundFailure('ticket')
 
 const deleteOne: TBulkApplier = (id) => {
   return db.tickets.remove(id) ? undefined : NOT_FOUND_FAILURE
@@ -204,7 +209,6 @@ const entityHandlers: HttpHandler[] = createEntityHandlers<TTicketWithNames>({
   path: '/tickets',
   collection: withDenormalisedNames(db.tickets),
   fields: {
-    searchableFields: ['name'],
     sortableFields: ['name', 'price', 'quantity', 'status', 'createdAt'],
     equalityFilters: [
       { field: 'eventId' },
@@ -217,8 +221,6 @@ const entityHandlers: HttpHandler[] = createEntityHandlers<TTicketWithNames>({
     ]
   },
   validate: validateTicket,
-  createRecord: stampTimestamps,
-  buildUpdatePatch: bumpUpdatedAt,
   authorize: requireWriteAccess,
   csv: {
     entity: 'tickets',

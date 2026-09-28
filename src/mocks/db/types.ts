@@ -6,6 +6,12 @@ export type TTicketStatus = 'draft' | 'on_sale' | 'sold_out' | 'archived'
 
 export type TCurrency = 'USD' | 'EUR' | 'GBP'
 
+export const EVENT_STATUSES: readonly TEventStatus[] = ['draft', 'published', 'cancelled', 'completed']
+
+export const TICKET_STATUSES: readonly TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archived']
+
+export const CURRENCIES: readonly TCurrency[] = ['USD', 'EUR', 'GBP']
+
 export type TSortOrder = 'asc' | 'desc'
 
 export type TUserRole = 'admin' | 'viewer'

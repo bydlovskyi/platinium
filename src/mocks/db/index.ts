@@ -13,6 +13,7 @@ export { PERSISTENCE_KEY, PERSISTENCE_VERSION } from './persistence'
 
 export type { IListQuery, IListResult, IOverlapFilter, IRangeFilter } from './query.types'
 
+export { CURRENCIES, EVENT_STATUSES, TICKET_STATUSES } from './types'
 export type {
   ICategory,
   IEntityBase,

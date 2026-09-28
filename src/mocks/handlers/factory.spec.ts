@@ -44,7 +44,6 @@ function setupBookingHandlerUnderTest (): IEntityCollection<IBooking> {
     path: '/bookings',
     collection,
     fields: {
-      searchableFields: ['label'],
       sortableFields: ['start'],
       overlapFilters: [{ startField: 'start', endField: 'end', param: 'start' }]
     }
@@ -65,7 +64,6 @@ function setupHandlerUnderTest (
     path: '/widgets',
     collection,
     fields: {
-      searchableFields: ['name', 'description'],
       sortableFields: ['name', 'price'],
       equalityFilters: [{ field: 'featured', parse: raw => raw === 'true' }],
       rangeFilters: [{ field: 'price' }]
@@ -184,12 +182,30 @@ describe('createEntityHandlers', () => {
       const collection = setupHandlerUnderTest()
 
       const { status, body } = await requestFor('post', '/widgets', {
-        id: 'd', name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false, createdAt: '2024-04-01'
+        name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false
       })
 
+      const created = body as IWidget
+
       expect(status).toBe(201)
-      expect((body as IWidget).id).toBe('d')
-      expect(collection.get('d')).toBeDefined()
+      expect(created).toEqual(expect.objectContaining({ name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false }))
+      expect(collection.get(created.id)).toEqual(created)
+    })
+
+    it('ignores a client-supplied id, createdAt and updatedAt: the server generates its own', async () => {
+      const collection = setupHandlerUnderTest()
+
+      const { body } = await requestFor('post', '/widgets', {
+        id: 'd', name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false, createdAt: '2000-01-01', updatedAt: '2000-01-01'
+      })
+
+      const created = body as IWidget & { updatedAt: string }
+
+      expect(created.id).not.toBe('d')
+      expect(collection.get('d')).toBeUndefined()
+      expect(created.createdAt).not.toBe('2000-01-01')
+      expect(created.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      expect(created.updatedAt).toBe(created.createdAt)
     })
 
     it('returns 400 with a per-field message map when validate() rejects the payload', async () => {
@@ -212,9 +228,10 @@ describe('createEntityHandlers', () => {
 
       setupHandlerUnderTest({ validate })
 
-      const payload = { id: 'd', name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false, createdAt: '2024-04-01' }
+      const payload = { name: 'Dolly', description: 'Anvil dolly', price: 75, featured: false }
 
-      await requestFor('post', '/widgets', payload)
+      // Server-owned fields are stripped before validate() ever sees the payload.
+      await requestFor('post', '/widgets', { ...payload, id: 'd', createdAt: '2024-04-01' })
 
       expect(validate).toHaveBeenCalledWith(payload, { action: 'create' })
     })
@@ -238,14 +255,37 @@ describe('createEntityHandlers', () => {
       expect(read.status).toBe(200)
     })
 
-    it('uses createRecord() to build the inserted record when provided', async () => {
-      const collection = setupHandlerUnderTest({
-        createRecord: input => ({ ...input, id: 'generated-id' } as IWidget)
-      })
+    it('uses createRecord() to build the inserted record when provided, on top of the stamped input', async () => {
+      const createRecord = vi.fn((input: Partial<IWidget>) => ({ ...input, id: 'generated-id' } as IWidget))
+      const collection = setupHandlerUnderTest({ createRecord })
 
-      await requestFor('post', '/widgets', { name: 'Dolly', description: 'x', price: 1, featured: false, createdAt: '2024-04-01' })
+      await requestFor('post', '/widgets', { name: 'Dolly', description: 'x', price: 1, featured: false })
 
       expect(collection.get('generated-id')).toBeDefined()
+      expect(createRecord).toHaveBeenCalledWith(expect.objectContaining({
+        id: expect.any(String),
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      }))
+    })
+  })
+
+  describe('list query parsing', () => {
+    it('falls back to the default page and perPage for non-numeric values, so meta never carries NaN', async () => {
+      setupHandlerUnderTest()
+
+      const { status, body } = await requestFor('get', '/widgets?page=abc&perPage=xyz')
+
+      expect(status).toBe(200)
+      expect((body as { meta: unknown }).meta).toEqual({ page: 1, perPage: 20, total: 3, totalPages: 1 })
+    })
+
+    it('clamps perPage to the contract maximum of 100', async () => {
+      setupHandlerUnderTest()
+
+      const { body } = await requestFor('get', '/widgets?perPage=1000')
+
+      expect((body as { meta: { perPage: number } }).meta.perPage).toBe(100)
     })
   })
 
@@ -278,6 +318,32 @@ describe('createEntityHandlers', () => {
       expect(status).toBe(200)
       expect((body as IWidget).price).toBe(999)
       expect(collection.get('a')?.price).toBe(999)
+    })
+
+    it('ignores a client-supplied id, createdAt and updatedAt, and bumps updatedAt itself', async () => {
+      const collection = setupHandlerUnderTest()
+
+      const { status, body } = await requestFor('patch', '/widgets/a', {
+        id: 'hijacked', createdAt: '2000-01-01', updatedAt: '2000-01-01', price: 5
+      })
+
+      const updated = body as IWidget & { updatedAt: string }
+
+      expect(status).toBe(200)
+      expect(updated.id).toBe('a')
+      expect(updated.createdAt).toBe('2024-01-01')
+      expect(updated.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      expect(collection.get('hijacked')).toBeUndefined()
+    })
+
+    it('hands buildUpdatePatch() the input already stamped with a fresh updatedAt', async () => {
+      const buildUpdatePatch = vi.fn((input: Partial<IWidget>) => input)
+
+      setupHandlerUnderTest({ buildUpdatePatch })
+
+      await requestFor('patch', '/widgets/a', { price: 5 })
+
+      expect(buildUpdatePatch).toHaveBeenCalledWith({ price: 5, updatedAt: expect.any(String) })
     })
 
     it('returns 404 for an unknown id without calling validate()', async () => {

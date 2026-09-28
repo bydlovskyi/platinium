@@ -1,8 +1,10 @@
-import { delay, http, HttpResponse, type HttpHandler } from 'msw'
+import { http, HttpResponse, type HttpHandler } from 'msw'
 
-import { chaos } from '../chaos'
 import { requireAuth } from './auth'
 import { db } from '../db/singleton'
+import { HTTP_STATUS, withChaos } from './shared'
+import { denormaliseTicket } from './tickets'
+import { EVENT_STATUSES, TICKET_STATUSES } from '../db'
 import type { IEvent, ITicket, TCurrency, TEventStatus, TTicketStatus } from '../db'
 
 // Gross inventory value is per currency and must never be summed across currencies.
@@ -16,36 +18,12 @@ const NEARLY_SOLD_OUT_LIMIT = 5
 
 const RUNNING_EVENT_STATUS: TEventStatus = 'published'
 
+// Only an event that can still happen counts as "upcoming".
+const UPCOMING_EVENT_STATUSES: TEventStatus[] = ['draft', 'published']
+
 const CLOSED_TICKET_STATUSES: TTicketStatus[] = ['sold_out', 'archived']
 
-const EVENT_STATUSES: TEventStatus[] = ['draft', 'published', 'cancelled', 'completed']
-const TICKET_STATUSES: TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archived']
-
-const HTTP_STATUS = { ok: 200 } as const
 const ISO_DATE_LENGTH = 'YYYY-MM-DD'.length
-
-function errorBody (code: string, message: string): TErrorResponse {
-  return { code, message }
-}
-
-async function withChaos (path: string, resolve: () => Response | Promise<Response>): Promise<Response> {
-  const latencyMs = chaos.getLatency()
-
-  if (latencyMs > 0) {
-    await delay(latencyMs)
-  }
-
-  const forced = chaos.consumeForcedFailure(path)
-
-  if (forced !== undefined) {
-    return HttpResponse.json(
-      errorBody('CHAOS_FORCED_FAILURE', 'The mock backend was forced to fail this request.'),
-      { status: forced.status }
-    )
-  }
-
-  return resolve()
-}
 
 function allEvents (): IEvent[] {
   return db.events.list({ perPage: Number.MAX_SAFE_INTEGER }).data
@@ -78,20 +56,9 @@ function upcomingEvents (events: IEvent[]): IEvent[] {
   const today = new Date().toISOString().slice(0, ISO_DATE_LENGTH)
 
   return events
-    .filter(event => event.startDate >= today)
-    .sort((left, right) => left.startDate.localeCompare(right.startDate))
+    .filter(event => event.startDate >= today && UPCOMING_EVENT_STATUSES.includes(event.status))
+    .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.id.localeCompare(right.id))
     .slice(0, UPCOMING_EVENTS_LIMIT)
-}
-
-const UNKNOWN_REFERENCE_NAME = 'Unknown'
-
-// The fallback is defensive: writes with unresolvable references are rejected upstream.
-function denormaliseTicket (ticket: ITicket): TTicket {
-  return {
-    ...ticket,
-    eventName: db.events.get(ticket.eventId)?.name ?? UNKNOWN_REFERENCE_NAME,
-    categoryName: db.categories.get(ticket.categoryId)?.name ?? UNKNOWN_REFERENCE_NAME
-  }
 }
 
 function isNearlySoldOut (ticket: ITicket): boolean {

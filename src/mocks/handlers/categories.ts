@@ -2,11 +2,9 @@ import type { HttpHandler } from 'msw'
 
 import { db } from '../db/singleton'
 import { requireWriteAccess } from './auth'
-import { createBulkHandler, createEntityHandlers } from './factory'
-import type { TBulkApplier, IBulkFailureReason, ICodedConflict, IStructuredConflict, IValidateContext } from './factory'
+import { createBulkHandler, createEntityHandlers, notFoundFailure } from './factory'
+import type { TBulkApplier, ICodedConflict, IStructuredConflict, IValidateContext } from './factory'
 import type { ICategory } from '../db'
-
-// `search` matching is governed by `CATEGORY_SEARCHABLE_FIELDS` in db/database.ts, not the `searchableFields` below.
 
 const BLOCKING_ENTITY_TYPE = 'ticket'
 
@@ -55,19 +53,9 @@ function validateCategory (
   return Object.keys(errors).length > 0 ? errors : undefined
 }
 
-function stampTimestamps (input: Partial<ICategory>): ICategory {
-  const now = new Date().toISOString()
-
-  return {
-    ...input,
-    description: input.description ?? '',
-    createdAt: now,
-    updatedAt: now
-  } as ICategory
-}
-
-function bumpUpdatedAt (input: Partial<ICategory>): Partial<ICategory> {
-  return { ...input, updatedAt: new Date().toISOString() }
+// The contract allows `description: null` on the wire, but the stored value is always a string.
+function withStringDescription (input: Partial<ICategory>): Partial<ICategory> {
+  return input.description === null ? { ...input, description: '' } : input
 }
 
 // On update `record` is the merged record and its own id is excluded, so re-casing its own name is allowed.
@@ -102,10 +90,7 @@ function checkCategoryConflict (record: ICategory, action: 'create' | 'update' |
   return checkDuplicateName(record, action) ?? checkDependencyConflict(record, action)
 }
 
-const NOT_FOUND_FAILURE: IBulkFailureReason = {
-  code: 'NOT_FOUND',
-  reason: 'No category exists with this identifier.'
-}
+const NOT_FOUND_FAILURE = notFoundFailure('category')
 
 const deleteOne: TBulkApplier = (id) => {
   const existing = db.categories.get(id)
@@ -136,12 +121,11 @@ const entityHandlers: HttpHandler[] = createEntityHandlers<ICategory>({
   path: '/categories',
   collection: db.categories,
   fields: {
-    searchableFields: ['name', 'description'],
     sortableFields: ['name', 'createdAt']
   },
   validate: validateCategory,
-  createRecord: stampTimestamps,
-  buildUpdatePatch: bumpUpdatedAt,
+  createRecord: input => ({ ...input, description: input.description ?? '' }) as ICategory,
+  buildUpdatePatch: withStringDescription,
   conflictCheck: checkCategoryConflict,
   authorize: requireWriteAccess,
   csv: {

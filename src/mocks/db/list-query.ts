@@ -100,6 +100,10 @@ function sortRecords<T extends IIdentifiable> (records: T[], sort: keyof T | und
   })
 }
 
+function atLeastOne (value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? Math.max(value, 1) : fallback
+}
+
 export function applyListQuery<T extends IIdentifiable> (
   records: T[],
   query: IListQuery<T>,
@@ -127,9 +131,9 @@ export function applyListQuery<T extends IIdentifiable> (
 
   const sorted = sortRecords(filtered, query.sort, query.order ?? 'asc')
 
-  // Clamp rather than throw: `page`/`perPage` <= 0 would corrupt the offset math (negative slice, Infinity totalPages).
-  const page = Math.max(query.page ?? DEFAULT_PAGE, 1)
-  const perPage = Math.max(query.perPage ?? DEFAULT_PER_PAGE, 1)
+  // Clamp rather than throw: `page`/`perPage` <= 0 or NaN would corrupt the offset math (negative slice, NaN meta).
+  const page = atLeastOne(query.page, DEFAULT_PAGE)
+  const perPage = atLeastOne(query.perPage, DEFAULT_PER_PAGE)
   const total = sorted.length
   const totalPages = Math.ceil(total / perPage)
 

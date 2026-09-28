@@ -2,70 +2,102 @@ import type { HttpHandler } from 'msw'
 
 import { db } from '../db/singleton'
 import { requireWriteAccess } from './auth'
-import { createBulkHandler, createEntityHandlers } from './factory'
-import type { TBulkApplier, IBulkFailureReason, IValidateContext } from './factory'
+import { createBulkHandler, createEntityHandlers, notFoundFailure } from './factory'
+import type { TBulkApplier, IValidateContext } from './factory'
+import { EVENT_STATUSES } from '../db'
 import type { IEvent } from '../db'
-
-// `search` matching is governed by `EVENT_SEARCHABLE_FIELDS` in db/database.ts, not the `searchableFields` below.
 
 const BLOCKING_ENTITY_TYPE = 'ticket'
 
-const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/i
+// Uppercase only: the `country` filter is an exact match, so a lowercase stored value would never be found.
+const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/
 
-const VALID_EVENT_STATUSES = ['draft', 'published', 'cancelled', 'completed']
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const ISO_DATE_LENGTH = 'YYYY-MM-DD'.length
 
-function requiredFieldErrors (input: Partial<IEvent>): Record<string, string> {
+// Round-trips through `Date` so an impossible day like `2027-02-30` is rejected, not silently rolled over.
+function isIsoDate (value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE_PATTERN.test(value)) {
+    return false
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, ISO_DATE_LENGTH) === value
+}
+
+function textError (value: unknown, label: string): string | undefined {
+  if (typeof value !== 'string') {
+    return `${label} must be text.`
+  }
+
+  return value.trim() === '' ? `${label} is required.` : undefined
+}
+
+function dateError (value: unknown, label: string): string | undefined {
+  if (value === '') {
+    return `${label} is required.`
+  }
+
+  return isIsoDate(value) ? undefined : `${label} must be a valid date in YYYY-MM-DD format.`
+}
+
+// Each check only runs on a present value; a missing one is a "required" error on create and untouched on update.
+const FIELD_CHECKS: Record<keyof TEventPayload, { required: string; check: (value: unknown) => string | undefined }> = {
+  name: { required: 'Name is required.', check: value => textError(value, 'Name') },
+  country: {
+    required: 'Country is required.',
+    check: (value) => {
+      if (value === '') {
+        return 'Country is required.'
+      }
+
+      return typeof value === 'string' && COUNTRY_CODE_PATTERN.test(value)
+        ? undefined
+        : 'Country must be an uppercase 2-letter ISO 3166-1 alpha-2 code.'
+    }
+  },
+  venue: { required: 'Venue is required.', check: value => textError(value, 'Venue') },
+  startDate: { required: 'Start date is required.', check: value => dateError(value, 'Start date') },
+  endDate: { required: 'End date is required.', check: value => dateError(value, 'End date') },
+  status: {
+    required: 'Status is required.',
+    check: value => (EVENT_STATUSES.includes(value as IEvent['status'])
+      ? undefined
+      : `Status must be one of: ${EVENT_STATUSES.join(', ')}.`)
+  }
+}
+
+function fieldErrors (input: Partial<IEvent>, action: 'create' | 'update'): Record<string, string> {
   const errors: Record<string, string> = {}
 
-  if (input.name === undefined || input.name === '') {
-    errors.name = 'Name is required.'
-  }
+  for (const [field, { required, check }] of Object.entries(FIELD_CHECKS)) {
+    const value = input[field as keyof IEvent]
 
-  if (input.country === undefined || input.country === '') {
-    errors.country = 'Country is required.'
-  }
+    if (value === undefined) {
+      if (action === 'create') {
+        errors[field] = required
+      }
 
-  if (input.venue === undefined || input.venue === '') {
-    errors.venue = 'Venue is required.'
-  }
+      continue
+    }
 
-  if (input.startDate === undefined || input.startDate === '') {
-    errors.startDate = 'Start date is required.'
-  }
+    const error = check(value)
 
-  if (input.endDate === undefined || input.endDate === '') {
-    errors.endDate = 'End date is required.'
-  }
-
-  if (input.status === undefined) {
-    errors.status = 'Status is required.'
+    if (error !== undefined) {
+      errors[field] = error
+    }
   }
 
   return errors
 }
 
-function countryFormatError (input: Partial<IEvent>): Record<string, string> {
-  if (input.country !== undefined && input.country !== '' && !COUNTRY_CODE_PATTERN.test(input.country)) {
-    return { country: 'Country must be a 2-letter ISO 3166-1 alpha-2 code.' }
-  }
-
-  return {}
-}
-
-function statusFormatError (input: Partial<IEvent>): Record<string, string> {
-  if (input.status !== undefined && !VALID_EVENT_STATUSES.includes(input.status)) {
-    return { status: 'Status must be one of: draft, published, cancelled, completed.' }
-  }
-
-  return {}
-}
-
 // Checked against the merged record so a PATCH sending only `endDate` is validated against the stored `startDate`.
 function dateOrderError (input: Partial<IEvent>, existing: IEvent | undefined): Record<string, string> {
-  const effectiveStart = input.startDate === '' ? undefined : input.startDate ?? existing?.startDate
-  const effectiveEnd = input.endDate === '' ? undefined : input.endDate ?? existing?.endDate
+  const effectiveStart = input.startDate ?? existing?.startDate
+  const effectiveEnd = input.endDate ?? existing?.endDate
 
-  if (effectiveStart !== undefined && effectiveEnd !== undefined && effectiveEnd < effectiveStart) {
+  if (isIsoDate(effectiveStart) && isIsoDate(effectiveEnd) && effectiveEnd < effectiveStart) {
     return { endDate: 'End date must not precede start date.' }
   }
 
@@ -74,27 +106,11 @@ function dateOrderError (input: Partial<IEvent>, existing: IEvent | undefined): 
 
 function validateEvent (input: Partial<IEvent>, context: IValidateContext<IEvent>): Record<string, string> | undefined {
   const errors: Record<string, string> = {
-    ...(context.action === 'create' ? requiredFieldErrors(input) : {}),
-    ...countryFormatError(input),
-    ...statusFormatError(input),
+    ...fieldErrors(input, context.action),
     ...dateOrderError(input, context.existing)
   }
 
   return Object.keys(errors).length > 0 ? errors : undefined
-}
-
-function stampTimestamps (input: Partial<IEvent>): IEvent {
-  const now = new Date().toISOString()
-
-  return {
-    ...input,
-    createdAt: now,
-    updatedAt: now
-  } as IEvent
-}
-
-function bumpUpdatedAt (input: Partial<IEvent>): Partial<IEvent> {
-  return { ...input, updatedAt: new Date().toISOString() }
 }
 
 function checkEventConflict (record: IEvent, action: 'create' | 'update' | 'delete'): { message: string; entity: string; count: number } | undefined {
@@ -112,10 +128,7 @@ function checkEventConflict (record: IEvent, action: 'create' | 'update' | 'dele
 // Events have no `archived` status; `completed` is the closest terminal state.
 const EVENT_ARCHIVE_STATUS: IEvent['status'] = 'completed'
 
-const NOT_FOUND_FAILURE: IBulkFailureReason = {
-  code: 'NOT_FOUND',
-  reason: 'No event exists with this identifier.'
-}
+const NOT_FOUND_FAILURE = notFoundFailure('event')
 
 const deleteOne: TBulkApplier = (id) => {
   const existing = db.events.get(id)
@@ -145,7 +158,6 @@ const entityHandlers: HttpHandler[] = createEntityHandlers<IEvent>({
   path: '/events',
   collection: db.events,
   fields: {
-    searchableFields: ['name', 'venue'],
     sortableFields: ['name', 'startDate', 'endDate', 'status', 'createdAt'],
     equalityFilters: [
       { field: 'status' },
@@ -156,8 +168,6 @@ const entityHandlers: HttpHandler[] = createEntityHandlers<IEvent>({
     ]
   },
   validate: validateEvent,
-  createRecord: stampTimestamps,
-  buildUpdatePatch: bumpUpdatedAt,
   conflictCheck: checkEventConflict,
   authorize: requireWriteAccess,
   csv: {

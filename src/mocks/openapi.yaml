@@ -39,8 +39,8 @@ paths:
       summary: Authenticate with email and password
       description: >
         Validates the given credentials against the mock backend's seeded
-        administrator account and, on success, issues an opaque bearer token
-        together with the authenticated user record.
+        accounts (one administrator, one viewer) and, on success, issues an
+        opaque bearer token together with the authenticated user record.
       tags:
         - Auth
       requestBody:
@@ -218,6 +218,8 @@ paths:
                 $ref: '#/components/schemas/Event'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -252,6 +254,8 @@ paths:
                 $ref: '#/components/schemas/BulkResult'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -307,6 +311,8 @@ paths:
                 $ref: '#/components/schemas/Event'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -332,6 +338,8 @@ paths:
       responses:
         '204':
           description: The event was deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -404,6 +412,8 @@ paths:
                 $ref: '#/components/schemas/Category'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
@@ -444,6 +454,8 @@ paths:
                 $ref: '#/components/schemas/BulkResult'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -503,6 +515,8 @@ paths:
                 $ref: '#/components/schemas/Category'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -534,6 +548,8 @@ paths:
       responses:
         '204':
           description: The category was deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -644,6 +660,8 @@ paths:
                 $ref: '#/components/schemas/Ticket'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -677,6 +695,8 @@ paths:
                 $ref: '#/components/schemas/BulkResult'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -735,6 +755,8 @@ paths:
                 $ref: '#/components/schemas/Ticket'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -761,6 +783,8 @@ paths:
       responses:
         '204':
           description: The ticket was deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -1262,27 +1286,35 @@ components:
       additionalProperties: false
 
     DependencyConflict:
+      type: object
       description: >
-        The shared error envelope, extended with the blocking dependent
-        entity's type and count, so a `409` on delete carries enough
-        information for an administrator to act on it instead of a bare
-        refusal. Introduced by the Events contract (PRD-004) and reused by
-        the Categories contract (PRD-005).
-      allOf:
-        - $ref: '#/components/schemas/ErrorResponse'
-        - type: object
-          properties:
-            entity:
-              type: string
-              description: The type of the blocking dependent entity, e.g. `ticket`.
-            count:
-              type: integer
-              minimum: 1
-              description: The number of dependent records blocking the operation.
-          required:
-            - entity
-            - count
-          additionalProperties: false
+        The shared error envelope's `code` and `message`, extended with the
+        blocking dependent entity's type and count, so a `409` on delete
+        carries enough information for an administrator to act on it instead
+        of a bare refusal. Declared standalone rather than via `allOf` because
+        `ErrorResponse` is closed (`additionalProperties: false`), which would
+        make the composition unsatisfiable. Introduced by the Events contract
+        (PRD-004) and reused by the Categories contract (PRD-005).
+      properties:
+        code:
+          type: string
+          description: Always `CONFLICT` for a referential-integrity violation.
+        message:
+          type: string
+          description: Human-readable summary of the failure.
+        entity:
+          type: string
+          description: The type of the blocking dependent entity, e.g. `ticket`.
+        count:
+          type: integer
+          minimum: 1
+          description: The number of dependent records blocking the operation.
+      required:
+        - code
+        - message
+        - entity
+        - count
+      additionalProperties: false
 
     CurrencyTotal:
       type: object
@@ -1536,7 +1568,9 @@ components:
       name: perPage
       in: query
       required: false
-      description: Number of items per page.
+      description: >
+        Number of items per page. A value above the maximum is clamped to it;
+        a non-integer value falls back to the default.
       schema:
         type: integer
         minimum: 1

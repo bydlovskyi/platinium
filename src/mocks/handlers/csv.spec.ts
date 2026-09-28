@@ -30,7 +30,7 @@ describe('csv serialisation', () => {
       expect(escapeCsvField(42)).toBe('42')
     })
 
-    it.each(['=', '+', '-', '@'])(
+    it.each(['=', '+', '-', '@', '\t', '\r'])(
       'neutralises a spreadsheet-formula injection starting with %s by prefixing an apostrophe',
       (trigger) => {
         expect(escapeCsvField(`${trigger}cmd|'/c calc'!A1`)).toContain(`'${trigger}cmd`)

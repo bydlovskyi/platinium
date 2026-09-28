@@ -52,6 +52,10 @@ export function createCollection<T extends IIdentifiable> (options: ICollectionO
     },
 
     insert: (record) => {
+      if (records.some(existing => existing.id === record.id)) {
+        throw new Error(`A record with id "${record.id}" already exists.`)
+      }
+
       const stored = { ...record }
 
       records = [...records, stored]

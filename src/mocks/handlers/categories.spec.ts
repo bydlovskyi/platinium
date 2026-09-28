@@ -9,13 +9,15 @@ async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
   data?: unknown,
-  options: { token?: string } = {}
+  options: { token?: string | null } = {}
 ): Promise<{ status: number; body: unknown }> {
+  // Writes need a session now, so the seeded admin token is the default; `null` sends no header at all.
+  const token = options.token === undefined ? adminToken : options.token
   const response = await axios.request({
     method,
     url: path,
     data,
-    headers: options.token === undefined ? {} : { Authorization: `Bearer ${options.token}` },
+    headers: token === null ? {} : { Authorization: `Bearer ${token}` },
     validateStatus: () => true
   })
 
@@ -37,6 +39,8 @@ async function loginAsAdmin (): Promise<string> {
   return loginAs('admin@platinium.test', 'admin123')
 }
 
+let adminToken: string
+
 async function loginAsViewer (): Promise<string> {
   return loginAs('viewer@platinium.test', 'viewer123')
 }
@@ -55,7 +59,10 @@ function validCategoryPayload (overrides: Partial<ICategory> = {}): Partial<ICat
 }
 
 describe('categories handlers', () => {
-  beforeEach(() => resetDatabase())
+  beforeEach(async () => {
+    resetDatabase()
+    adminToken = await loginAsAdmin()
+  })
 
   describe('GET /categories', () => {
     it('returns the shared envelope: a data array plus pagination meta', async () => {
@@ -622,11 +629,49 @@ describe('categories handlers', () => {
       expect(deleted.status).toBe(204)
     })
 
-    it('leaves the tokenless case unchanged: a write with no Authorization header still proceeds (requireWriteAccess only rejects a resolved viewer)', async () => {
-      const { status, body } = await requestFor('post', '/categories', validCategoryPayload({ name: 'Tokenless Write Still Works' }))
+    it('rejects a write with no Authorization header with 401', async () => {
+      const before = db.categories.list({}).meta.total
+
+      const { status, body } = await requestFor('post', '/categories', validCategoryPayload(), { token: null })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+      expect(db.categories.list({}).meta.total).toBe(before)
+    })
+
+    it('rejects a write with a garbage token with 401', async () => {
+      const { status, body } = await requestFor('post', '/categories', validCategoryPayload(), { token: 'not-a-real-token' })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+    })
+  })
+
+  describe('description normalisation', () => {
+    it('stores description as an empty string, not null, when created with null', async () => {
+      const { status, body } = await requestFor('post', '/categories', { name: 'Null Description', description: null })
 
       expect(status).toBe(201)
-      expect((body as ICategory).name).toBe('Tokenless Write Still Works')
+      expect((body as ICategory).description).toBe('')
+      expect(db.categories.get((body as ICategory).id)?.description).toBe('')
+    })
+
+    it('stores description as an empty string, not null, when patched to null', async () => {
+      const created = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
+
+      const { status, body } = await requestFor('patch', `/categories/${created.id}`, { description: null })
+
+      expect(status).toBe(200)
+      expect((body as ICategory).description).toBe('')
+      expect(db.categories.get(created.id)?.description).toBe('')
+    })
+
+    it('leaves description untouched when a patch omits it', async () => {
+      const created = (await requestFor('post', '/categories', validCategoryPayload())).body as ICategory
+
+      const { body } = await requestFor('patch', `/categories/${created.id}`, { name: 'Renamed Only' })
+
+      expect((body as ICategory).description).toBe(created.description)
     })
   })
 })

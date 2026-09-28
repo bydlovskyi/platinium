@@ -16,7 +16,7 @@ export const handlers: HttpHandler[] = [
   ...ticketHandlers
 ]
 
-export { createBulkHandler, createEntityHandlers } from './factory'
+export { createBulkHandler, createEntityHandlers, notFoundFailure } from './factory'
 export type {
   TBulkApplier,
   IBulkFailureReason,

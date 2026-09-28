@@ -1,7 +1,7 @@
-import { delay, http, HttpResponse, type HttpHandler } from 'msw'
+import { http, HttpResponse, type HttpHandler } from 'msw'
 
-import { chaos } from '../chaos'
 import { csvContentDisposition, serialiseCsv, type ICsvColumn } from './csv'
+import { errorBody, HTTP_STATUS, readJsonBody, withChaos } from './shared'
 import type { IEntityCollection, IIdentifiable, IListQuery, IOverlapFilter, IRangeFilter, TSortOrder } from '../db'
 
 interface IEqualityFilterField<T> {
@@ -23,8 +23,8 @@ interface IOverlapFilterField<T> {
   param: string
 }
 
+/** Search fields are declared on the collection (db/database.ts), not here. */
 export interface IEntityFieldDeclaration<T> {
-  searchableFields?: (keyof T)[]
   sortableFields?: (keyof T)[]
   equalityFilters?: IEqualityFilterField<T>[]
   rangeFilters?: IRangeFilterField<T>[]
@@ -61,7 +61,9 @@ export interface IEntityHandlerOptions<T extends IIdentifiable> {
   fields?: IEntityFieldDeclaration<T>
   /** `context.existing` (update only) lets cross-field checks run against the merged record. */
   validate?: (input: Partial<T>, context: IValidateContext<T>) => Record<string, string> | undefined
+  /** Receives the input already stamped with a generated `id`, `createdAt` and `updatedAt`. */
   createRecord?: (input: Partial<T>) => T
+  /** Receives the input already stamped with a fresh `updatedAt`. */
   buildUpdatePatch?: (input: Partial<T>) => Partial<T>
   conflictCheck?: TConflictCheck<T>
   /** Viewers must get 403 here, not just in the UI. Read handlers are never guarded. */
@@ -87,8 +89,8 @@ export interface IBulkHandlerOptions {
   authorize?: (request: Request) => Response | undefined
 }
 
-function errorBody (code: string, message: string, errors?: Record<string, string>): TErrorResponse {
-  return errors === undefined ? { code, message } : { code, message, errors }
+export function notFoundFailure (entityLabel: string): IBulkFailureReason {
+  return { code: 'NOT_FOUND', reason: `No ${entityLabel} exists with this identifier.` }
 }
 
 function isStructuredConflict (conflict: ICodedConflict | IStructuredConflict): conflict is IStructuredConflict {
@@ -105,34 +107,11 @@ function conflictBody (conflict: string | ICodedConflict | IStructuredConflict):
     : errorBody(conflict.code, conflict.message)
 }
 
-const HTTP_STATUS = {
-  ok: 200,
-  created: 201,
-  noContent: 204,
-  badRequest: 400,
-  notFound: 404,
-  conflict: 409
-} as const
-
 const NOT_FOUND_MESSAGE = 'No resource exists with the given identifier.'
-const CHAOS_FAILURE_MESSAGE = 'The mock backend was forced to fail this request.'
 const VALIDATION_MESSAGE = 'The request failed validation.'
 
-async function withChaos (path: string, resolve: () => Response | Promise<Response>): Promise<Response> {
-  const latencyMs = chaos.getLatency()
-
-  if (latencyMs > 0) {
-    await delay(latencyMs)
-  }
-
-  const forced = chaos.consumeForcedFailure(path)
-
-  if (forced !== undefined) {
-    return HttpResponse.json(errorBody('CHAOS_FORCED_FAILURE', CHAOS_FAILURE_MESSAGE), { status: forced.status })
-  }
-
-  return resolve()
-}
+// Mirrors `perPage` `maximum` in openapi.yaml; internal callers may still ask a collection for every record.
+const MAX_PER_PAGE = 100
 
 function parseEquals<T> (url: URL, declarations: IEqualityFilterField<T>[]): Partial<Record<keyof T, unknown>> {
   const equals: Partial<Record<keyof T, unknown>> = {}
@@ -186,6 +165,13 @@ function parseOverlap<T> (url: URL, declarations: IOverlapFilterField<T>[]): IOv
   return undefined
 }
 
+// A non-integer value is dropped so the query engine falls back to its default instead of carrying NaN into meta.
+function parseInteger (raw: string | null): number | undefined {
+  const value = raw === null ? Number.NaN : Number(raw)
+
+  return Number.isInteger(value) ? value : undefined
+}
+
 function parseListQuery<T extends IIdentifiable> (url: URL, fields: IEntityFieldDeclaration<T>): IListQuery<T> {
   const query: IListQuery<T> = {}
 
@@ -207,16 +193,16 @@ function parseListQuery<T extends IIdentifiable> (url: URL, fields: IEntityField
     query.order = order satisfies TSortOrder
   }
 
-  const page = url.searchParams.get('page')
+  const page = parseInteger(url.searchParams.get('page'))
 
-  if (page !== null) {
-    query.page = Number(page)
+  if (page !== undefined) {
+    query.page = page
   }
 
-  const perPage = url.searchParams.get('perPage')
+  const perPage = parseInteger(url.searchParams.get('perPage'))
 
-  if (perPage !== null) {
-    query.perPage = Number(perPage)
+  if (perPage !== undefined) {
+    query.perPage = Math.min(perPage, MAX_PER_PAGE)
   }
 
   const equals = parseEquals(url, fields.equalityFilters ?? [])
@@ -240,16 +226,6 @@ function parseListQuery<T extends IIdentifiable> (url: URL, fields: IEntityField
   return query
 }
 
-async function readJsonBody (request: Request): Promise<Partial<Record<string, unknown>>> {
-  try {
-    const body: unknown = await request.json()
-
-    return typeof body === 'object' && body !== null ? body as Partial<Record<string, unknown>> : {}
-  } catch {
-    return {}
-  }
-}
-
 // `crypto.randomUUID` isn't available in every runtime, so fall back to a UUID-shaped counter.
 let generatedIdCounter = 0
 
@@ -263,12 +239,11 @@ function generateId (): string {
   return `00000000-0000-4000-8000-${String(generatedIdCounter).padStart(12, '0')}`
 }
 
-// Without an id the record would be unreachable through the item routes.
-function withGeneratedId<T extends IIdentifiable> (record: T): T {
-  // Network payloads can lack `id` at runtime whatever the type says.
-  const id = record.id as string | undefined
+// The server owns identity and timestamps, so whatever a client sends for them is dropped before validation.
+async function readWritablePayload<T> (request: Request): Promise<Partial<T>> {
+  const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...writable } = await readJsonBody(request)
 
-  return id === undefined || id === '' ? { ...record, id: generateId() } : record
+  return writable as Partial<T>
 }
 
 export function createEntityHandlers<T extends IIdentifiable> (options: IEntityHandlerOptions<T>): HttpHandler[] {
@@ -316,7 +291,7 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       return denied
     }
 
-    const input = await readJsonBody(request) as Partial<T>
+    const input = await readWritablePayload<T>(request)
     const validationErrors = validate?.(input, { action: 'create' })
 
     if (validationErrors !== undefined && Object.keys(validationErrors).length > 0) {
@@ -332,8 +307,9 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
     }
 
-    const record = createRecord ? createRecord(input) : (input as T)
-    const inserted = collection.insert(withGeneratedId(record))
+    const now = new Date().toISOString()
+    const stamped: T = { ...input as T, id: generateId(), createdAt: now, updatedAt: now }
+    const inserted = collection.insert(createRecord ? createRecord(stamped) : stamped)
 
     return HttpResponse.json(inserted, { status: HTTP_STATUS.created })
   }))
@@ -358,7 +334,7 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       return existing
     }
 
-    const input = await readJsonBody(request) as Partial<T>
+    const input = await readWritablePayload<T>(request)
     const validationErrors = validate?.(input, { action: 'update', existing })
 
     if (validationErrors !== undefined && Object.keys(validationErrors).length > 0) {
@@ -375,8 +351,8 @@ export function createEntityHandlers<T extends IIdentifiable> (options: IEntityH
       return HttpResponse.json(conflictBody(conflict), { status: HTTP_STATUS.conflict })
     }
 
-    const patch = buildUpdatePatch ? buildUpdatePatch(input) : input
-    const updated = collection.update(id, patch)
+    const stamped = { ...input, updatedAt: new Date().toISOString() }
+    const updated = collection.update(id, buildUpdatePatch ? buildUpdatePatch(stamped) : stamped)
 
     return updated === undefined
       ? HttpResponse.json(errorBody('NOT_FOUND', NOT_FOUND_MESSAGE), { status: HTTP_STATUS.notFound })
@@ -420,7 +396,7 @@ const BULK_TOO_MANY_IDS_MESSAGE =
   `A bulk request may target at most ${BULK_MAX_IDS} identifiers per call.`
 
 type TBulkParseResult =
-  | { ok: true; request: TBulkRequest } |
+  | { ok: true; ids: string[]; apply: TBulkApplier } |
   { ok: false; message: string }
 
 function parseBulkRequest (
@@ -430,9 +406,9 @@ function parseBulkRequest (
   const { ids, operation } = body
 
   const idsValid = Array.isArray(ids) && ids.length > 0 && ids.every(id => typeof id === 'string')
-  const operationValid = typeof operation === 'string' && appliers[operation as TBulkOperation] !== undefined
+  const apply = typeof operation === 'string' ? appliers[operation as TBulkOperation] : undefined
 
-  if (!idsValid || !operationValid) {
+  if (!idsValid || apply === undefined) {
     return { ok: false, message: BULK_VALIDATION_MESSAGE }
   }
 
@@ -440,7 +416,7 @@ function parseBulkRequest (
     return { ok: false, message: BULK_TOO_MANY_IDS_MESSAGE }
   }
 
-  return { ok: true, request: { ids, operation: operation as TBulkOperation } }
+  return { ok: true, ids: ids, apply }
 }
 
 // Partial success returns 200 with both arrays; a dependency conflict is a per-id failure, never a top-level 409.
@@ -464,20 +440,11 @@ export function createBulkHandler (options: IBulkHandlerOptions): HttpHandler {
       )
     }
 
-    const apply = appliers[parsed.request.operation]
-
-    if (apply === undefined) {
-      return HttpResponse.json(
-        errorBody('VALIDATION_ERROR', BULK_VALIDATION_MESSAGE),
-        { status: HTTP_STATUS.badRequest }
-      )
-    }
-
     const succeeded: string[] = []
     const failed: TBulkFailure[] = []
 
-    for (const id of parsed.request.ids) {
-      const failure = apply(id)
+    for (const id of parsed.ids) {
+      const failure = parsed.apply(id)
 
       if (failure === undefined) {
         succeeded.push(id)

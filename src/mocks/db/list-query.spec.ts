@@ -222,6 +222,28 @@ describe('applyListQuery', () => {
       expect(Number.isFinite(result.meta.totalPages)).toBe(true)
     })
 
+    it('falls back to the default page and perPage when given NaN, so meta never carries NaN', () => {
+      const result = applyListQuery(
+        widgets,
+        { page: Number.NaN, perPage: Number.NaN },
+        { searchableFields: SEARCHABLE_FIELDS }
+      )
+
+      expect(result.data.map(w => w.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+      expect(result.meta).toEqual({ page: 1, perPage: 20, total: 5, totalPages: 1 })
+    })
+
+    it('still serves every record when an internal caller asks for Number.MAX_SAFE_INTEGER per page', () => {
+      const result = applyListQuery(
+        widgets,
+        { perPage: Number.MAX_SAFE_INTEGER },
+        { searchableFields: SEARCHABLE_FIELDS }
+      )
+
+      expect(result.data).toHaveLength(5)
+      expect(result.meta).toEqual({ page: 1, perPage: Number.MAX_SAFE_INTEGER, total: 5, totalPages: 1 })
+    })
+
     it('clamps a negative perPage to 1 instead of producing a negative totalPages', () => {
       const result = applyListQuery(widgets, { page: 1, perPage: -5 }, { searchableFields: SEARCHABLE_FIELDS })
 

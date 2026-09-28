@@ -9,13 +9,15 @@ async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
   data?: unknown,
-  options: { token?: string } = {}
+  options: { token?: string | null } = {}
 ): Promise<{ status: number; body: unknown }> {
+  // Writes need a session now, so the seeded admin token is the default; `null` sends no header at all.
+  const token = options.token === undefined ? adminToken : options.token
   const response = await axios.request({
     method,
     url: path,
     data,
-    headers: options.token === undefined ? {} : { Authorization: `Bearer ${options.token}` },
+    headers: token === null ? {} : { Authorization: `Bearer ${token}` },
     validateStatus: () => true
   })
 
@@ -36,6 +38,8 @@ async function loginAs (email: string, password: string): Promise<string> {
 async function loginAsAdmin (): Promise<string> {
   return loginAs('admin@platinium.test', 'admin123')
 }
+
+let adminToken: string
 
 async function loginAsViewer (): Promise<string> {
   return loginAs('viewer@platinium.test', 'viewer123')
@@ -59,7 +63,10 @@ function validEventPayload (overrides: Partial<IEvent> = {}): Partial<IEvent> {
 }
 
 describe('events handlers', () => {
-  beforeEach(() => resetDatabase())
+  beforeEach(async () => {
+    resetDatabase()
+    adminToken = await loginAsAdmin()
+  })
 
   describe('GET /events', () => {
     it('returns the shared envelope: a data array plus pagination meta', async () => {
@@ -637,11 +644,117 @@ describe('events handlers', () => {
       expect(deleted.status).toBe(204)
     })
 
-    it('leaves the tokenless case unchanged: a write with no Authorization header still proceeds (requireWriteAccess only rejects a resolved viewer)', async () => {
-      const { status, body } = await requestFor('post', '/events', validEventPayload({ name: 'Tokenless Write Still Works Event' }))
+    it('rejects a write with no Authorization header with 401', async () => {
+      const before = db.events.list({}).meta.total
+
+      const { status, body } = await requestFor('post', '/events', validEventPayload(), { token: null })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+      expect(db.events.list({}).meta.total).toBe(before)
+    })
+
+    it('rejects a write with a garbage token with 401', async () => {
+      const { status, body } = await requestFor('post', '/events', validEventPayload(), { token: 'not-a-real-token' })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+    })
+
+    it('rejects a write with a revoked token with 401', async () => {
+      await requestFor('post', '/auth/logout')
+
+      const { status } = await requestFor('post', '/events', validEventPayload())
+
+      expect(status).toBe(401)
+    })
+  })
+
+  describe('server-owned fields', () => {
+    it('ignores a client-supplied id, createdAt and updatedAt on create', async () => {
+      const { status, body } = await requestFor('post', '/events', {
+        ...validEventPayload(),
+        id: 'client-chosen-id',
+        createdAt: '2000-01-01T00:00:00.000Z',
+        updatedAt: '2000-01-01T00:00:00.000Z'
+      })
+
+      const created = body as IEvent
 
       expect(status).toBe(201)
-      expect((body as IEvent).name).toBe('Tokenless Write Still Works Event')
+      expect(created.id).not.toBe('client-chosen-id')
+      expect(created.createdAt).not.toBe('2000-01-01T00:00:00.000Z')
+      expect(created.updatedAt).toBe(created.createdAt)
+      expect(db.events.get('client-chosen-id')).toBeUndefined()
+    })
+
+    it('ignores a client-supplied id, createdAt and updatedAt on update, but bumps updatedAt', async () => {
+      const created = (await requestFor('post', '/events', validEventPayload())).body as IEvent
+
+      const { status, body } = await requestFor('patch', `/events/${created.id}`, {
+        id: 'client-chosen-id',
+        createdAt: '2000-01-01T00:00:00.000Z',
+        updatedAt: '2000-01-01T00:00:00.000Z',
+        venue: 'Moved Venue'
+      })
+
+      const updated = body as IEvent
+
+      expect(status).toBe(200)
+      expect(updated.id).toBe(created.id)
+      expect(updated.createdAt).toBe(created.createdAt)
+      expect(updated.updatedAt).not.toBe('2000-01-01T00:00:00.000Z')
+      expect(updated.updatedAt >= created.updatedAt).toBe(true)
+      expect(updated.venue).toBe('Moved Venue')
+    })
+  })
+
+  describe('PATCH /events/{id} field validation parity', () => {
+    async function patchCreated (
+      patch: Record<string, unknown>
+    ): Promise<{ status: number; errors: Record<string, string> | undefined; created: IEvent }> {
+      const created = (await requestFor('post', '/events', validEventPayload())).body as IEvent
+      const { status, body } = await requestFor('patch', `/events/${created.id}`, patch)
+
+      return { status, errors: (body as TErrorResponse).errors, created }
+    }
+
+    it.each([
+      ['name', ''],
+      ['name', '   '],
+      ['name', 42],
+      ['venue', ''],
+      ['venue', 42],
+      ['country', ''],
+      ['country', 'usa'],
+      ['country', 'us'],
+      ['startDate', ''],
+      ['startDate', '2027/05/01'],
+      ['startDate', '2027-02-30'],
+      ['endDate', ''],
+      ['endDate', 'not-a-date'],
+      ['status', ''],
+      ['status', 'anything']
+    ])('returns 400 with a %s field error when %s is patched to %j', async (field, value) => {
+      const { status, errors, created } = await patchCreated({ [field]: value })
+
+      expect(status).toBe(400)
+      expect(errors).toEqual({ [field]: expect.any(String) })
+      expect(db.events.get(created.id)).toEqual(created)
+    })
+
+    it('rejects a lowercase country code on create so the exact-match country filter can never miss it', async () => {
+      const { status, body } = await requestFor('post', '/events', validEventPayload({ country: 'us' }))
+
+      expect(status).toBe(400)
+      expect((body as TErrorResponse).errors).toEqual({ country: expect.any(String) })
+    })
+
+    it('rejects an impossible calendar date on create', async () => {
+      const { status, body } = await requestFor('post', '/events', validEventPayload({ startDate: '2027-02-30', endDate: '2027-03-01' }))
+
+      expect(status).toBe(400)
+      expect((body as TErrorResponse).errors).toEqual({ startDate: expect.any(String) })
     })
   })
 })

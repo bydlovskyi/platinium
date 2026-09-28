@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Authenticate with email and password
-         * @description Validates the given credentials against the mock backend's seeded administrator account and, on success, issues an opaque bearer token together with the authenticated user record.
+         * @description Validates the given credentials against the mock backend's seeded accounts (one administrator, one viewer) and, on success, issues an opaque bearer token together with the authenticated user record.
          */
         post: operations["postAuthLogin"];
         delete?: never;
@@ -559,8 +559,12 @@ export interface components {
             /** @description Pagination metadata for the returned page. */
             meta: components["schemas"]["PaginationMeta"];
         };
-        /** @description The shared error envelope, extended with the blocking dependent entity's type and count, so a `409` on delete carries enough information for an administrator to act on it instead of a bare refusal. Introduced by the Events contract (PRD-004) and reused by the Categories contract (PRD-005). */
-        DependencyConflict: components["schemas"]["ErrorResponse"] & {
+        /** @description The shared error envelope's `code` and `message`, extended with the blocking dependent entity's type and count, so a `409` on delete carries enough information for an administrator to act on it instead of a bare refusal. Declared standalone rather than via `allOf` because `ErrorResponse` is closed (`additionalProperties: false`), which would make the composition unsatisfiable. Introduced by the Events contract (PRD-004) and reused by the Categories contract (PRD-005). */
+        DependencyConflict: {
+            /** @description Always `CONFLICT` for a referential-integrity violation. */
+            code: string;
+            /** @description Human-readable summary of the failure. */
+            message: string;
             /** @description The type of the blocking dependent entity, e.g. `ticket`. */
             entity: string;
             /** @description The number of dependent records blocking the operation. */
@@ -708,7 +712,7 @@ export interface components {
         order: components["schemas"]["SortOrder"];
         /** @description 1-indexed page number. */
         page: number;
-        /** @description Number of items per page. */
+        /** @description Number of items per page. A value above the maximum is clamped to it; a non-integer value falls back to the default. */
         perPage: number;
         /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
         format: components["schemas"]["ListFormat"];
@@ -838,7 +842,7 @@ export interface operations {
                 order?: components["parameters"]["order"];
                 /** @description 1-indexed page number. */
                 page?: components["parameters"]["page"];
-                /** @description Number of items per page. */
+                /** @description Number of items per page. A value above the maximum is clamped to it; a non-integer value falls back to the default. */
                 perPage?: components["parameters"]["perPage"];
                 /** @description Filters to events with this exact lifecycle status. */
                 status?: components["schemas"]["EventStatus"];
@@ -893,6 +897,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -919,6 +924,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -963,6 +969,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The event cannot be deleted because another entity (e.g. a ticket) still references it. */
@@ -1001,6 +1008,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -1016,7 +1024,7 @@ export interface operations {
                 order?: components["parameters"]["order"];
                 /** @description 1-indexed page number. */
                 page?: components["parameters"]["page"];
-                /** @description Number of items per page. */
+                /** @description Number of items per page. A value above the maximum is clamped to it; a non-integer value falls back to the default. */
                 perPage?: components["parameters"]["perPage"];
                 /** @description Response format. Omit (or `json`) for the paginated JSON list envelope. `csv` returns the FULL filtered and sorted result — every matching record, not just the current page — as `text/csv` with a `Content-Disposition` filename, so an export reflects exactly the query the list is showing (PRD-007). `page`/`perPage` are ignored for `csv`. */
                 format?: components["parameters"]["format"];
@@ -1063,6 +1071,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description A category with this name already exists. */
             409: {
@@ -1098,6 +1107,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -1142,6 +1152,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The category cannot be deleted because one or more tickets still reference it. */
@@ -1180,6 +1191,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Another category already has this name. */
@@ -1204,7 +1216,7 @@ export interface operations {
                 order?: components["parameters"]["order"];
                 /** @description 1-indexed page number. */
                 page?: components["parameters"]["page"];
-                /** @description Number of items per page. */
+                /** @description Number of items per page. A value above the maximum is clamped to it; a non-integer value falls back to the default. */
                 perPage?: components["parameters"]["perPage"];
                 /** @description Filters to tickets belonging to this exact event id. */
                 eventId?: string;
@@ -1263,6 +1275,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -1289,6 +1302,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -1333,6 +1347,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -1362,6 +1377,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

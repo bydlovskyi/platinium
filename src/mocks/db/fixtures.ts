@@ -1,5 +1,6 @@
 import { createSeededId, createSeededRandom, type TSeededRandom } from './random'
-import type { ICategory, IEvent, ITicket, IUser, TCurrency, TEventStatus, TTicketStatus } from './types'
+import { CURRENCIES, EVENT_STATUSES, TICKET_STATUSES } from './types'
+import type { ICategory, IEvent, ITicket, IUser } from './types'
 
 const SEED = 1337
 
@@ -9,10 +10,6 @@ const TICKET_COUNT = 400
 const FIXED_NOW_ISO = '2026-01-01T00:00:00.000Z'
 
 const COUNTRIES = ['US', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'PT', 'IE', 'PL', 'SE', 'CA'] as const
-
-const EVENT_STATUSES: TEventStatus[] = ['draft', 'published', 'cancelled', 'completed']
-const TICKET_STATUSES: TTicketStatus[] = ['draft', 'on_sale', 'sold_out', 'archived']
-const CURRENCIES: TCurrency[] = ['USD', 'EUR', 'GBP']
 
 const EVENT_NAME_PREFIXES = [
   'Summer', 'Winter', 'Spring', 'Autumn', 'Grand', 'Annual', 'International', 'Regional', 'Downtown', 'Riverside'

@@ -9,13 +9,15 @@ async function requestFor (
   method: 'get' | 'post' | 'patch' | 'delete',
   path: string,
   data?: unknown,
-  options: { token?: string } = {}
+  options: { token?: string | null } = {}
 ): Promise<{ status: number; body: unknown }> {
+  // Writes need a session now, so the seeded admin token is the default; `null` sends no header at all.
+  const token = options.token === undefined ? adminToken : options.token
   const response = await axios.request({
     method,
     url: path,
     data,
-    headers: options.token === undefined ? {} : { Authorization: `Bearer ${options.token}` },
+    headers: token === null ? {} : { Authorization: `Bearer ${token}` },
     validateStatus: () => true
   })
 
@@ -36,6 +38,8 @@ async function loginAs (email: string, password: string): Promise<string> {
 async function loginAsAdmin (): Promise<string> {
   return loginAs('admin@platinium.test', 'admin123')
 }
+
+let adminToken: string
 
 async function loginAsViewer (): Promise<string> {
   return loginAs('viewer@platinium.test', 'viewer123')
@@ -82,7 +86,10 @@ function validTicketPayload (overrides: Partial<ITicket> = {}): Partial<ITicket>
 }
 
 describe('tickets handlers', () => {
-  beforeEach(() => resetDatabase())
+  beforeEach(async () => {
+    resetDatabase()
+    adminToken = await loginAsAdmin()
+  })
 
   describe('GET /tickets', () => {
     it('returns the shared envelope: a data array plus pagination meta', async () => {
@@ -113,48 +120,52 @@ describe('tickets handlers', () => {
     })
 
     describe('sorting', () => {
+      // The seed has 400 tickets and `perPage` is capped at the contract maximum, so compare against the first page.
+      const PAGE_LIMIT = 100
+
+      async function sortedPages<V> (
+        field: keyof ITicket,
+        select: (ticket: ITicket) => V,
+        compare: (a: V, b: V) => number
+      ): Promise<{ ascending: V[]; descending: V[]; expectedAscending: V[]; expectedDescending: V[] }> {
+        const ascending = await requestFor('get', `/tickets?sort=${field}&order=asc&perPage=${PAGE_LIMIT}`)
+        const descending = await requestFor('get', `/tickets?sort=${field}&order=desc&perPage=${PAGE_LIMIT}`)
+        const all = db.tickets.list({ perPage: Number.MAX_SAFE_INTEGER }).data.map(select).sort(compare)
+
+        return {
+          ascending: (ascending.body as IListResponse).data.map(select),
+          descending: (descending.body as IListResponse).data.map(select),
+          expectedAscending: all.slice(0, PAGE_LIMIT),
+          expectedDescending: [...all].reverse().slice(0, PAGE_LIMIT)
+        }
+      }
+
       it('sorts by name asc/desc', async () => {
-        const ascending = await requestFor('get', '/tickets?sort=name&order=asc&perPage=1000')
-        const descending = await requestFor('get', '/tickets?sort=name&order=desc&perPage=1000')
+        const pages = await sortedPages('name', t => t.name, (a, b) => a.localeCompare(b))
 
-        const ascendingNames = (ascending.body as IListResponse).data.map(t => t.name)
-        const descendingNames = (descending.body as IListResponse).data.map(t => t.name)
-
-        expect(ascendingNames).toEqual([...ascendingNames].sort((a, b) => a.localeCompare(b)))
-        expect(descendingNames).toEqual([...ascendingNames].reverse())
+        expect(pages.ascending).toEqual(pages.expectedAscending)
+        expect(pages.descending).toEqual(pages.expectedDescending)
       })
 
       it('sorts by price asc/desc', async () => {
-        const ascending = await requestFor('get', '/tickets?sort=price&order=asc&perPage=1000')
-        const descending = await requestFor('get', '/tickets?sort=price&order=desc&perPage=1000')
+        const pages = await sortedPages('price', t => t.price, (a, b) => a - b)
 
-        const ascendingPrices = (ascending.body as IListResponse).data.map(t => t.price)
-        const descendingPrices = (descending.body as IListResponse).data.map(t => t.price)
-
-        expect(ascendingPrices).toEqual([...ascendingPrices].sort((a, b) => a - b))
-        expect(descendingPrices).toEqual([...ascendingPrices].reverse())
+        expect(pages.ascending).toEqual(pages.expectedAscending)
+        expect(pages.descending).toEqual(pages.expectedDescending)
       })
 
       it('sorts by quantity asc/desc', async () => {
-        const ascending = await requestFor('get', '/tickets?sort=quantity&order=asc&perPage=1000')
-        const descending = await requestFor('get', '/tickets?sort=quantity&order=desc&perPage=1000')
+        const pages = await sortedPages('quantity', t => t.quantity, (a, b) => a - b)
 
-        const ascendingQuantities = (ascending.body as IListResponse).data.map(t => t.quantity)
-        const descendingQuantities = (descending.body as IListResponse).data.map(t => t.quantity)
-
-        expect(ascendingQuantities).toEqual([...ascendingQuantities].sort((a, b) => a - b))
-        expect(descendingQuantities).toEqual([...ascendingQuantities].reverse())
+        expect(pages.ascending).toEqual(pages.expectedAscending)
+        expect(pages.descending).toEqual(pages.expectedDescending)
       })
 
       it('sorts by status asc/desc', async () => {
-        const ascending = await requestFor('get', '/tickets?sort=status&order=asc&perPage=1000')
-        const descending = await requestFor('get', '/tickets?sort=status&order=desc&perPage=1000')
+        const pages = await sortedPages('status', t => t.status, (a, b) => a.localeCompare(b))
 
-        const ascendingStatuses = (ascending.body as IListResponse).data.map(t => t.status)
-        const descendingStatuses = (descending.body as IListResponse).data.map(t => t.status)
-
-        expect(ascendingStatuses).toEqual([...ascendingStatuses].sort((a, b) => a.localeCompare(b)))
-        expect(descendingStatuses).toEqual([...ascendingStatuses].reverse())
+        expect(pages.ascending).toEqual(pages.expectedAscending)
+        expect(pages.descending).toEqual(pages.expectedDescending)
       })
 
       it('sorts by createdAt asc/desc', async () => {
@@ -166,14 +177,11 @@ describe('tickets handlers', () => {
 
         db.tickets.update(newer.id, { createdAt: '2031-01-01T00:00:00.000Z' })
 
-        const ascending = await requestFor('get', '/tickets?sort=createdAt&order=asc&perPage=1000')
-        const descending = await requestFor('get', '/tickets?sort=createdAt&order=desc&perPage=1000')
+        const ascending = await requestFor('get', '/tickets?sort=createdAt&order=asc')
+        const descending = await requestFor('get', '/tickets?sort=createdAt&order=desc')
 
-        const ascendingIds = (ascending.body as IListResponse).data.map(t => t.id)
-        const descendingIds = (descending.body as IListResponse).data.map(t => t.id)
-
-        expect(ascendingIds.indexOf(older.id)).toBeLessThan(ascendingIds.indexOf(newer.id))
-        expect(descendingIds.indexOf(newer.id)).toBeLessThan(descendingIds.indexOf(older.id))
+        expect((ascending.body as IListResponse).data[0]?.id).toBe(older.id)
+        expect((descending.body as IListResponse).data[0]?.id).toBe(newer.id)
       })
     })
 
@@ -232,13 +240,16 @@ describe('tickets handlers', () => {
       })
 
       it('currency filter narrows to an exact match', async () => {
-        const created = (await requestFor('post', '/tickets', validTicketPayload({ currency: 'GBP' }))).body as TTicketWithNames
+        const created = (await requestFor('post', '/tickets', validTicketPayload({ currency: 'GBP', name: 'Currency Probe' }))).body as TTicketWithNames
 
-        const { body } = await requestFor('get', '/tickets?currency=GBP&perPage=1000')
+        const { body } = await requestFor('get', '/tickets?currency=GBP&search=Currency%20Probe')
         const listBody = body as IListResponse
 
-        expect(listBody.data.map(t => t.id)).toContain(created.id)
-        expect(listBody.data.every(t => t.currency === 'GBP')).toBe(true)
+        expect(listBody.data.map(t => t.id)).toEqual([created.id])
+
+        const unfiltered = await requestFor('get', '/tickets?currency=GBP&perPage=100')
+
+        expect((unfiltered.body as IListResponse).data.every(t => t.currency === 'GBP')).toBe(true)
       })
     })
 
@@ -735,11 +746,52 @@ describe('tickets handlers', () => {
       expect(deleted.status).toBe(204)
     })
 
-    it('leaves the tokenless case unchanged: a write with no Authorization header still proceeds (requireWriteAccess only rejects a resolved viewer)', async () => {
-      const { status, body } = await requestFor('post', '/tickets', validTicketPayload({ name: 'Tokenless Write Still Works Ticket' }))
+    it('rejects a write with no Authorization header with 401', async () => {
+      const before = db.tickets.list({}).meta.total
 
-      expect(status).toBe(201)
-      expect((body as TTicketWithNames).name).toBe('Tokenless Write Still Works Ticket')
+      const { status, body } = await requestFor('post', '/tickets', validTicketPayload(), { token: null })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+      expect(db.tickets.list({}).meta.total).toBe(before)
+    })
+
+    it('rejects a write with a garbage token with 401', async () => {
+      const { status, body } = await requestFor('post', '/tickets', validTicketPayload(), { token: 'not-a-real-token' })
+
+      expect(status).toBe(401)
+      expect(body).toEqual({ code: 'UNAUTHORIZED', message: expect.any(String) })
+    })
+  })
+
+  describe('PATCH /tickets/{id} field validation parity', () => {
+    it.each([
+      ['name', ''],
+      ['name', '   '],
+      ['name', 42],
+      ['price', 'free'],
+      ['quantity', 'many'],
+      ['currency', ''],
+      ['currency', 7],
+      ['status', ''],
+      ['eventId', 42],
+      ['categoryId', 42]
+    ])('returns 400 with a %s field error when %s is patched to %j, leaving the stored record untouched', async (field, value) => {
+      const created = (await requestFor('post', '/tickets', validTicketPayload())).body as TTicketWithNames
+      const before = db.tickets.get(created.id)
+
+      const { status, body } = await requestFor('patch', `/tickets/${created.id}`, { [field]: value })
+
+      expect(status).toBe(400)
+      expect((body as TErrorResponse).errors).toEqual({ [field]: expect.any(String) })
+      expect(db.tickets.get(created.id)).toEqual(before)
+    })
+
+    it('returns 400 with a name field error when name is created as whitespace only', async () => {
+      const { status, body } = await requestFor('post', '/tickets', validTicketPayload({ name: '   ' }))
+
+      expect(status).toBe(400)
+      expect((body as TErrorResponse).errors).toEqual({ name: expect.any(String) })
     })
   })
 })

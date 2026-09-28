@@ -44,6 +44,14 @@ describe('createCollection', () => {
     expect(collection.list({}).meta.total).toBe(3)
   })
 
+  it('throws on inserting a duplicate id and leaves the existing record untouched', () => {
+    const collection = createCollection<IWidget>({ initialRecords: seedWidgets(), searchableFields: ['name'] })
+
+    expect(() => collection.insert({ id: 'a', name: 'Impostor', price: 1 })).toThrow(/already exists/)
+    expect(collection.get('a')).toEqual({ id: 'a', name: 'Anvil', price: 300 })
+    expect(collection.list({}).meta.total).toBe(2)
+  })
+
   it('updates an existing record by id, merging the given fields', () => {
     const collection = createCollection<IWidget>({ initialRecords: seedWidgets(), searchableFields: ['name'] })
 
