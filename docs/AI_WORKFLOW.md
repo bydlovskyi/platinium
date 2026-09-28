@@ -11,10 +11,10 @@ how that was caught.
 | | |
 |---|---|
 | Tool | Claude Code: interactive sessions on my machine, and a headless loop in Docker |
-| Period | 22–27 September 2026 |
+| Period | 22–28 September 2026 |
 | Specifications | 10 PRDs → 41 vertical-slice issues ([#1–#51](https://github.com/bydlovskyi/platinum/issues)) |
 | Pull requests | 38, one per slice, stacked; every merge done by me |
-| Commits | 124 (83 excluding merges) |
+| Commits | 140 (99 excluding merges) |
 | Tests | 917 across 78 Vitest files plus a 5-test Playwright smoke suite, all passing |
 
 ## The trail
@@ -220,8 +220,8 @@ The history has two kinds of commits, and you can tell them apart:
   agent authorship. I kept that rule without questioning it, and I should not have.
   This document is the attribution: **all 52 +0000 commits, and the pull requests opened
   from the loop, were written by the agent.** I reviewed and merged each one.
-- **Commits from my machine**, timestamped **+0300**: 31 commits from interactive sessions.
-  These cover scaffolding, specs, fixes and cleanup. 20 of them carry a
+- **Commits from my machine**, timestamped **+0300**: 47 commits from interactive sessions.
+  These cover scaffolding, specs, fixes, cleanup and the review pass. 36 of them carry a
   `Co-Authored-By: Claude` line. The rest are mine.
 
 ## What I did not delegate
